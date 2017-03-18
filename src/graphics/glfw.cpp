@@ -60,6 +60,10 @@ void GLFWBackend::set_swap_interval(int i) {
     glfwSwapInterval(this->m_swap_interval = i);
 }
 
+void GLFWBackend::set_window_title(const char *t) {
+    glfwSetWindowTitle(this->w, t);
+}
+
 void GLFWBackend::poll_events(void) const { glfwPollEvents(); }
 bool GLFWBackend::render(void) { glfwSwapBuffers(this->w); return true; }
 

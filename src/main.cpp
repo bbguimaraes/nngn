@@ -9,6 +9,7 @@
  */
 #include "graphics/graphics.h"
 #include "os/platform.h"
+#include "timing/fps.h"
 #include "timing/timing.h"
 #include "utils/log.h"
 
@@ -17,6 +18,7 @@ namespace {
 struct NNGN {
     nngn::Timing timing = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
+    nngn::FPS fps = {};
     bool init(int argc, const char *const *argv);
     int loop(void);
 } *p_nngn;
@@ -30,7 +32,10 @@ bool NNGN::init(int argc, const char *const *argv) {
     if(!this->graphics)
         this->graphics = nngn::graphics_create_backend
             <nngn::Graphics::Backend::PSEUDOGRAPH>();
-    return this->graphics->init();
+    if(!this->graphics->init())
+        return false;
+    this->fps.init(nngn::Timing::clock::now());
+    return true;
 }
 
 int NNGN::loop(void) {
@@ -40,6 +45,8 @@ int NNGN::loop(void) {
     this->graphics->poll_events();
     if(!this->graphics->render())
         return 1;
+    this->fps.frame(nngn::Timing::clock::now());
+    this->graphics->set_window_title(this->fps.to_string().c_str());
     return -1;
 }
 
