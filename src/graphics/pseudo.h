@@ -10,6 +10,7 @@ struct Pseudograph : Graphics {
     bool window_closed() const override { return false; }
     int swap_interval() const override { return 1; }
     void set_swap_interval(int) override {}
+    void set_window_title(const char*) override {}
     void resize(int, int) override {}
     void poll_events() const override {}
     bool render() override;

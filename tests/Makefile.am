@@ -5,4 +5,5 @@ CLEANFILES += \
 	%reldir%/*.moc.cpp \
 	%reldir%/*/*.moc.cpp
 
+include %reldir%/timing/Makefile.am
 include %reldir%/utils/Makefile.am

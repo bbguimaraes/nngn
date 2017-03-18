@@ -19,6 +19,7 @@ public:
     bool window_closed() const final;
     int swap_interval() const final { return this->m_swap_interval; }
     void set_swap_interval(int i) final;
+    void set_window_title(const char *t) final;
     void resize(int, int) final {}
     void poll_events() const final;
     bool render() final;
