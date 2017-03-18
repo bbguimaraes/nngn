@@ -56,6 +56,8 @@ bool GLFWBackend::window_closed() const
     { return glfwWindowShouldClose(this->w); }
 void GLFWBackend::set_swap_interval(int i)
     { glfwSwapInterval(this->m_swap_interval = i); }
+void GLFWBackend::set_window_title(const char *t)
+    { glfwSetWindowTitle(this->w, t); }
 void GLFWBackend::poll_events() const { glfwPollEvents(); }
 bool GLFWBackend::render() { glfwSwapBuffers(this->w); return true; }
 

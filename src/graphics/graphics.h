@@ -36,6 +36,7 @@ struct Graphics {
     virtual bool window_closed() const = 0;
     virtual int swap_interval() const = 0;
     virtual void set_swap_interval(int i) = 0;
+    virtual void set_window_title(const char *t) = 0;
     virtual void resize(int w, int h) = 0;
     // Rendering
     virtual void poll_events() const = 0;
