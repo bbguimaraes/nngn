@@ -44,6 +44,8 @@ AS_IF([test "$ENABLE_TESTS" != no],
 
 # Checks for library functions.
 AC_CHECK_FUNCS([signal])
+AC_CHECK_FUNCS([socket],
+    AC_DEFINE([NNGN_PLATFORM_HAS_SOCKETS], [1], [Define if you have sockets]))
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

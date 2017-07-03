@@ -9,16 +9,25 @@
  */
 #include "graphics/graphics.h"
 #include "os/platform.h"
+#include "os/socket.h"
 #include "timing/fps.h"
 #include "timing/timing.h"
+#include "utils/flags.h"
 #include "utils/log.h"
 
 namespace {
 
+using namespace std::string_view_literals;
+
 struct NNGN {
+    enum Flag : uint8_t {
+        EXIT = 1u << 0u,
+    };
+    nngn::Flags<Flag> flags = {};
     nngn::Timing timing = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
     nngn::FPS fps = {};
+    nngn::Socket socket = {};
     bool init(int argc, const char *const *argv);
     int loop(void);
 } *p_nngn;
@@ -26,6 +35,8 @@ struct NNGN {
 bool NNGN::init(int argc, const char *const *argv) {
     NNGN_LOG_CONTEXT_CF(NNGN);
     if(!nngn::Platform::init(argc, argv))
+        return false;
+    if(!this->socket.init("sock"))
         return false;
     this->graphics = nngn::graphics_create_backend
         <nngn::Graphics::Backend::GLFW_BACKEND>();
@@ -39,11 +50,15 @@ bool NNGN::init(int argc, const char *const *argv) {
 }
 
 int NNGN::loop(void) {
-    if(this->graphics->window_closed())
+    if(this->flags.is_set(Flag::EXIT) || this->graphics->window_closed())
         return 0;
     this->timing.update();
     this->graphics->poll_events();
-    if(!this->graphics->render())
+    bool ok = true;
+    ok = ok && this->socket.process([&f = this->flags](auto s)
+        { if(s == "exit\n\0"sv) f.set(Flag::EXIT); });
+    ok = ok && this->graphics->render();
+    if(!ok)
         return 1;
     this->fps.frame(nngn::Timing::clock::now());
     this->graphics->set_window_title(this->fps.to_string().c_str());
