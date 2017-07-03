@@ -9,6 +9,7 @@
 
 #ifdef __EMSCRIPTEN__
     #define NNGN_PLATFORM_EMSCRIPTEN
+    #undef NNGN_PLATFORM_HAS_SOCKETS
 #endif
 
 namespace nngn {
@@ -23,6 +24,11 @@ struct Platform {
     static constexpr bool emscripten = true;
 #else
     static constexpr bool emscripten = false;
+#endif
+#ifdef NNGN_PLATFORM_HAS_SOCKETS
+    static constexpr bool has_sockets = true;
+#else
+    static constexpr bool has_sockets = false;
 #endif
 #ifdef SIGPIPE
     static constexpr int sig_pipe = SIGPIPE;
