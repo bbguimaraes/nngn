@@ -145,6 +145,15 @@ local function test_input_space()
     common.assert_eq(nngn.textbox:text(), "")
 end
 
+local function test_input_g()
+    nngn.grid:set_enabled(false)
+    local key = string.byte("G")
+    nngn.input:key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(nngn.grid:enabled())
+    nngn.input:key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(not nngn.grid:enabled())
+end
+
 local opengl = nngn:set_graphics(
     Graphics.OPENGL_ES_BACKEND,
     Graphics.opengl_params{maj = 3, min = 1, hidden = true})
@@ -165,4 +174,5 @@ test_input_p()
 test_input_p_tab()
 test_input_v()
 test_input_space()
+test_input_g()
 nngn:exit()

@@ -15,6 +15,7 @@
 #include "os/platform.h"
 #include "os/socket.h"
 #include "render/animation.h"
+#include "render/grid.h"
 #include "render/render.h"
 #include "timing/fps.h"
 #include "timing/profile.h"
@@ -46,6 +47,7 @@ struct NNGN {
     LuaState lua = {};
     Input input = {};
     nngn::Fonts fonts = {};
+    nngn::Grid grid = {};
     nngn::Textbox textbox = {};
     nngn::Camera camera = {};
     nngn::Renderers renderers = {};
@@ -78,7 +80,8 @@ bool NNGN::init(int argc, const char *const *argv) {
     this->input.mouse.init(this->lua.L);
     if(!this->fonts.init())
         return false;
-    this->renderers.init(&this->textures, &this->fonts, &this->textbox);
+    this->renderers.init(
+        &this->textures, &this->fonts, &this->textbox, &this->grid);
     this->animations.init(&this->math);
     this->textbox.init(&this->fonts);
     if(!(argc < 2
@@ -114,7 +117,8 @@ bool NNGN::set_graphics(
     g->set_mouse_move_callback(
         &this->input.mouse, [](void *p, nngn::dvec2 pos)
             { static_cast<nngn::MouseInput*>(p)->move_callback(pos); });
-    bool ret = this->renderers.set_graphics(g.get());
+    const bool ret = this->grid.set_graphics(g.get())
+        && this->renderers.set_graphics(g.get());
     this->fonts.graphics = g.get();
     this->textures.set_graphics(g.get());
     g->set_size_callback(
@@ -181,6 +185,7 @@ NNGN_LUA_PROXY(NNGN,
     "mouse_input", sol::property(
         [](const NNGN &nngn) { return &nngn.input.mouse; }),
     "fonts", sol::readonly(&NNGN::fonts),
+    "grid", sol::readonly(&NNGN::grid),
     "textbox", sol::readonly(&NNGN::textbox),
     "camera", sol::readonly(&NNGN::camera),
     "renderers", sol::readonly(&NNGN::renderers),
