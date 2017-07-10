@@ -17,6 +17,7 @@ namespace nngn {
 
 struct Graphics;
 class Fonts;
+class Grid;
 class Textures;
 class Textbox;
 
@@ -39,7 +40,8 @@ public:
     };
     // Initialization
     /** Partially initializes this system.  \see set_graphics */
-    void init(Textures *t, const Fonts *f, const Textbox *tb);
+    void init(
+        Textures *t, const Fonts *f, const Textbox *tb, const Grid *g);
     // Configuration
     auto debug(void) const { return *this->m_debug; }
     bool perspective(void) const;
@@ -103,6 +105,7 @@ private:
     Graphics *graphics = nullptr;
     const Fonts *fonts = nullptr;
     const Textbox *textbox = nullptr;
+    const Grid *grid = nullptr;
     std::vector<SpriteRenderer> sprites = {};
     std::vector<SpriteRenderer> screen_sprites = {};
     std::vector<CubeRenderer> cubes = {};

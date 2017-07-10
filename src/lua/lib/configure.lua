@@ -128,6 +128,13 @@ local FS = {
     },
     render = {
         bool("perspective", false, "nngn:renderers():set_perspective(%1)"),
+        bool("grid", false, "nngn:grid():set_enabled(%1)"),
+        int(
+            "grid spacing", 1, 1024, 32,
+            "nngn:grid():set_dimensions(%1, nngn:grid():size())"),
+        int(
+            "grid size", 1, 1024, 64,
+            "nngn:grid():set_dimensions(nngn:grid():spacing(), %1)"),
         bool("textbox monospaced", false, "nngn:textbox():set_monospaced(%1)"),
         int("textbox speed", 0, 600, 16, "nngn:textbox():set_speed(%1)"),
     },

@@ -47,6 +47,9 @@ register({
             nngn:renderers():debug(), Renderers.DEBUG_ALL + 1,
             mods & Input.MOD_SHIFT == 0))
     end},
+    {"G", Input.SEL_PRESS | Input.SEL_CTRL, function()
+        nngn:grid():set_enabled(not nngn:grid():enabled())
+    end},
     {"I", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
         local m = 1
         if mods & Input.MOD_SHIFT ~= 0 then

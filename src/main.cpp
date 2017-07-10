@@ -40,6 +40,7 @@
 #include "os/platform.h"
 #include "os/socket.h"
 #include "render/animation.h"
+#include "render/grid.h"
 #include "render/render.h"
 #include "timing/fps.h"
 #include "timing/profile.h"
@@ -61,6 +62,7 @@ NNGN_LUA_DECLARE_USER_TYPE(nngn::Socket, "Socket")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::lua::state, "state")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Input, "Input")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Fonts, "Fonts")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Grid, "Grid")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Textbox, "Textbox")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Camera, "Camera")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::MouseInput, "MouseInput")
@@ -92,6 +94,7 @@ struct NNGN {
     nngn::lua::alloc_info lua_alloc = {};
     Input input = {};
     nngn::Fonts fonts = {};
+    nngn::Grid grid = {};
     nngn::Textbox textbox = {};
     nngn::Camera camera = {};
     nngn::Renderers renderers = {};
@@ -138,7 +141,8 @@ bool NNGN::init(int argc, const char *const *argv) {
     this->input.mouse.init(this->lua);
     if(!this->fonts.init())
         return false;
-    this->renderers.init(&this->textures, &this->fonts, &this->textbox);
+    this->renderers.init(
+        &this->textures, &this->fonts, &this->textbox, &this->grid);
     this->animations.init(&this->math);
     this->textbox.init(&this->fonts);
     if(!(argc < 2
@@ -176,7 +180,8 @@ bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
         &this->input.mouse, [](void *p, nngn::dvec2 pos) {
             static_cast<nngn::MouseInput*>(p)->move_callback(pos);
         });
-    const bool ret = this->renderers.set_graphics(g.get());
+    const bool ret = this->grid.set_graphics(g.get())
+        && this->renderers.set_graphics(g.get());
     this->fonts.graphics = g.get();
     this->textures.set_graphics(g.get());
     g->set_size_callback(
@@ -242,6 +247,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["input"] = [](NNGN &nngn) { return &nngn.input.input; };
     t["mouse_input"] = [](NNGN &nngn) { return &nngn.input.mouse; };
     t["fonts"] = accessor<&NNGN::fonts>;
+    t["grid"] = accessor<&NNGN::grid>;
     t["textbox"] = accessor<&NNGN::textbox>;
     t["camera"] = accessor<&NNGN::camera>;
     t["renderers"] = accessor<&NNGN::renderers>;

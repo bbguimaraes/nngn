@@ -517,6 +517,8 @@ bool OpenGLBackend::render() {
             else
                 CHECK_RESULT(glDisable, GL_CULL_FACE);
             const auto type = pipeline.conf.type;
+            const GLenum mode = (pipeline.conf.flags & PFlag::LINE)
+                ? GL_LINES : GL_TRIANGLES;
             const auto &prog = this->programs[static_cast<std::size_t>(type)];
             CHECK_RESULT(glUseProgram, prog.id());
             for(auto &[vbo_idx, ebo_idx, vao] : x.buffers) {
@@ -540,7 +542,7 @@ bool OpenGLBackend::render() {
                     cur_tex = next_tex;
                 }
                 CHECK_RESULT(glDrawElements,
-                    GL_TRIANGLES,
+                    mode,
                     static_cast<GLsizei>(
                         ebo.size / static_cast<GLsizeiptr>(sizeof(u32))),
                     GL_UNSIGNED_INT, nullptr);
