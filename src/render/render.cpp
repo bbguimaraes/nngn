@@ -14,6 +14,7 @@
 #include "utils/ranges.h"
 
 #include "gen.h"
+#include "grid.h"
 #include "render.h"
 
 using namespace nngn::literals;
@@ -81,10 +82,13 @@ bool update_with_state(
 
 namespace nngn {
 
-void Renderers::init(Textures *t, const Fonts *f, const Textbox *tb) {
+void Renderers::init(
+    Textures *t, const Fonts *f, const Textbox *tb, const Grid *g
+) {
     this->textures = t;
     this->fonts = f;
     this->textbox = tb;
+    this->grid = g;
 }
 
 std::size_t Renderers::n() const {
@@ -161,7 +165,7 @@ bool Renderers::set_graphics(Graphics *g) {
     this->graphics = g;
     u32
         triangle_pipeline = {}, sprite_pipeline = {}, voxel_pipeline = {},
-        box_pipeline = {}, font_pipeline = {},
+        box_pipeline = {}, font_pipeline = {}, line_pipeline = {},
         triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
@@ -187,6 +191,11 @@ bool Renderers::set_graphics(Graphics *g) {
         && (font_pipeline = g->create_pipeline({
             .name = "font_pipeline",
             .type = Pipeline::Type::FONT,
+        }))
+        && (line_pipeline = g->create_pipeline({
+            .name = "line_pipeline",
+            .type = Pipeline::Type::TRIANGLE,
+            .flags = Pipeline::Flag::LINE,
         }))
         && (triangle_vbo = g->create_buffer({
             .name = "triangle_vbo",
@@ -313,6 +322,11 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->cube_debug_vbo, this->cube_debug_ebo},
                     {this->voxel_debug_vbo, this->voxel_debug_ebo},
                     {this->selection_vbo, this->selection_ebo},
+                }),
+            }, {
+                .pipeline = line_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->grid->vbo(), this->grid->ebo()},
                 }),
             }}),
             .hud = std::to_array<Stage>({{

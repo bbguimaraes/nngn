@@ -7,6 +7,7 @@ dofile "src/lua/input.lua"
 camera.reset()
 player.set("src/lson/crono.lua")
 font.load()
+nngn.grid:set_dimensions(32.0, 64)
 entities = {
     entity.load(nil, "src/lson/old_man.lua", {pos = {-32, 0}}),
     entity.load(nil, nil, {

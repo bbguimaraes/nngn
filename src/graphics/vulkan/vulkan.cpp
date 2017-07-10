@@ -1005,6 +1005,10 @@ bool VulkanBackend::update_render_list() {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
     };
+    constexpr VkPipelineInputAssemblyStateCreateInfo line_asm = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+        .topology = VK_PRIMITIVE_TOPOLOGY_LINE_LIST,
+    };
     constexpr VkViewport viewport = {.minDepth = 0, .maxDepth = 1};
     constexpr VkRect2D scissor = {};
     const VkPipelineViewportStateCreateInfo viewport_info = {
@@ -1050,7 +1054,6 @@ bool VulkanBackend::update_render_list() {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .pStages = shader_stages.data(),
         .pVertexInputState = &vertex_vinput,
-        .pInputAssemblyState = &triangle_asm,
         .pViewportState = &viewport_info,
         .pMultisampleState = &ms_info,
         .pColorBlendState = &color_blending_info,
@@ -1068,6 +1071,8 @@ bool VulkanBackend::update_render_list() {
             continue;
         const auto &conf = this->pipeline_conf[i];
         const auto [vert, frag] = this->shaders.idx(conf.type);
+        info.pInputAssemblyState = conf.flags & PFlag::LINE
+            ? &line_asm : &triangle_asm;
         info.stageCount = 1 + !!frag;
         info.pRasterizationState = conf.flags & PFlag::CULL_BACK_FACES
             ? &rast_back_cull : &rast_no_cull;

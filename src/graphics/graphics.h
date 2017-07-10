@@ -166,6 +166,7 @@ struct Graphics {
         enum Flag : u8 {
             DEPTH_TEST = 1u << 0,
             CULL_BACK_FACES = 1u << 1,
+            LINE = 1u << 2,
         };
         enum class Type : u8 {
             TRIANGLE, SPRITE, VOXEL, FONT, MAX,
