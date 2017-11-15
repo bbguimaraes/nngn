@@ -16,7 +16,12 @@ local ANIMATION <const> = {
     WRIGHT = 1 * FACE.N + FACE.RIGHT,
     WDOWN  = 1 * FACE.N + FACE.DOWN,
     WUP    = 1 * FACE.N + FACE.UP,
-    N      = 2 * FACE.N,
+    RUN    = 2 * FACE.N,
+    RLEFT  = 2 * FACE.N + FACE.LEFT,
+    RRIGHT = 2 * FACE.N + FACE.RIGHT,
+    RDOWN  = 2 * FACE.N + FACE.DOWN,
+    RUP    = 2 * FACE.N + FACE.UP,
+    N      = 3 * FACE.N,
 }
 
 local MAX_VEL = camera.MAX_VEL
@@ -84,6 +89,7 @@ local function stop(p)
     end
     local e <const> = p.entity
     e:set_vel(0, 0, 0)
+    p.running = false
     local a <const> = e:animation()
     if a then
         local sprite = a:sprite()
@@ -130,7 +136,7 @@ local function set_anim_track(e, t)
     end
 end
 
-local function move(_, _, _, keys)
+local function move(key, press, _, keys)
     local p = list[cur]
     if not p then
         return
@@ -145,10 +151,18 @@ local function move(_, _, _, keys)
         v = 0
         face = p.face % FACE.N
         anim = face
+        p.running = false
     elseif l == 1 then
         v = MAX_VEL
         face = face_for_dir(table.unpack(dir))
-        anim = face + ANIMATION.WALK
+        if press and utils.check_double_tap(nngn.timing:now_ms(), key) then
+            p.running = true
+        end
+        if p.running then
+            anim = face + ANIMATION.RUN
+        else
+            anim = face + ANIMATION.WALK
+        end
     else
         v = MAX_VEL / math.sqrt(2)
     end
@@ -159,6 +173,9 @@ local function move(_, _, _, keys)
     local e <const> = p.entity
     if anim then
         set_anim_track(e, anim)
+    end
+    if p.running then
+        v = v * 3
     end
     e:set_vel(dir[1] * v, dir[2] * v, 0)
 end
