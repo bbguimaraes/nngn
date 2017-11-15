@@ -38,6 +38,7 @@ end
 local function stop(p)
     local e = p:entity()
     e:set_vel(0, 0, 0)
+    p:set_running(false)
     local a = e:animation()
     if a then
         local sprite = a:sprite()
@@ -78,7 +79,7 @@ local function set_anim_track(e, t)
     end
 end
 
-local function move(_, _, _, keys)
+local function move(key, press, _, keys)
     local p = nngn.players:cur()
     if not p then return end
     keys = keys or nngn.input:get_keys{
@@ -86,21 +87,29 @@ local function move(_, _, _, keys)
         string.byte("S"), string.byte("W")}
     local dir = {keys[2] - keys[1], keys[4] - keys[3]}
     local l = math.abs(dir[1]) + math.abs(dir[2])
+    local running = p:running()
     local v, face, anim
     if l == 0 then
         v = 0
         face = p:face() % Player.N_FACES
         anim = face
+        p:set_running(false)
     elseif l == 1 then
         v = MAX_VEL
         face = face_for_dir(table.unpack(dir))
-        anim = face + Player.WALK
+        if press and utils.check_double_tap(nngn.timing:now_ms(), key) then
+            running = true
+            p:set_running(true)
+        end
+        if running then anim = face + Player.RUN
+        else anim = face + Player.WALK end
     else
         v = MAX_VEL / math.sqrt(2)
     end
     if face then p:set_face(face) on_face_change(p, face) end
     local e = p:entity()
     if anim then set_anim_track(e, anim) end
+    if running then v = v * 3 end
     e:set_vel(dir[1] * v, dir[2] * v, 0)
 end
 

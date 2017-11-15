@@ -11,10 +11,12 @@ struct Player {
     enum Animation : uint8_t {
         FACE,
         WALK = N_FACES, WLEFT = WALK, WRIGHT, WDOWN, WUP,
+        RUN, RLEFT = RUN, RRIGHT, RDOWN, RUP,
         N_ANIMATIONS,
     };
     Entity *e;
     Face face = FDOWN;
+    bool running = false;
     explicit constexpr Player(Entity *p_e) noexcept : e(p_e) {}
     std::tuple<float, float> face_vec(float s) const;
 };

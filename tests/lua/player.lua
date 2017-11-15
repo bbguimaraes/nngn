@@ -4,6 +4,7 @@ local common = require "tests/lua/common"
 local entity = require "nngn.lib.entity"
 local nngn_math = require "nngn.lib.math"
 local player = require "nngn.lib.player"
+local utils = require "nngn.lib.utils"
 
 local function test_load()
     player.set("src/lson/crono.lua")
@@ -46,6 +47,9 @@ local function test_stop()
     a:set_track(Player.WUP)
     player.stop(p)
     common.assert_eq(a:cur_track(), Player.FUP)
+    p:set_running(true)
+    player.stop(p)
+    assert(not p:running())
     player.remove(p)
 end
 
@@ -158,6 +162,21 @@ local function test_move_diag()
     player.remove(p)
 end
 
+local function test_move_running()
+    utils.reset_double_tap()
+    local key = string.byte("A")
+    local e = entity.load(nil, "src/lson/crono.lua")
+    local a = e:animation():sprite()
+    local p = nngn.players:add(e)
+    p:set_running(true)
+    player.move(key, true, nil, {1, 0, 0, 0})
+    player.move(key, true, nil, {1, 0, 0, 0})
+    common.assert_eq(a:cur_track(), Player.RLEFT)
+    player.move(key, false, nil, {0, 0, 0, 0})
+    assert(not p:running())
+    player.remove(p)
+end
+
 nngn:set_graphics(Graphics.PSEUDOGRAPH)
 nngn.entities:set_max(2)
 nngn.graphics:resize_textures(2)
@@ -170,4 +189,5 @@ test_remove()
 test_stop()
 test_move()
 test_move_diag()
+test_move_running()
 nngn:exit()
