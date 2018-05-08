@@ -2,6 +2,7 @@
 #define NNGN_TEXTBOX_H
 
 #include <chrono>
+#include <limits>
 
 #include "math/vec2.h"
 #include "utils/def.h"
@@ -21,6 +22,13 @@ public:
         SCREEN_UPDATED = 1u << 1,
         MONOSPACED = 1u << 2,
     };
+    struct Command {
+        enum : unsigned char {
+            MIN = static_cast<unsigned char>(
+                std::numeric_limits<signed char>::min()),
+            TEXT_WHITE = MIN, TEXT_RED, TEXT_GREEN, TEXT_BLUE, MAX,
+        };
+    };
     static constexpr auto DEFAULT_SPEED = std::chrono::milliseconds(50);
     Text str = {}, title = {};
     std::chrono::microseconds timer = {};
@@ -29,6 +37,8 @@ public:
     vec2 str_bl = {0, 0}, str_tr = {0, 0};
     static bool is_character(unsigned char c);
     static bool is_character(char c);
+    static bool is_command(unsigned char c);
+    static bool is_command(char c);
     void init(const Fonts *f) { this->fonts = f; }
     bool empty(void) const;
     std::size_t text_length(void) const;
@@ -51,11 +61,19 @@ private:
 };
 
 inline bool Textbox::is_character(unsigned char c) {
-    return c != '\n';
+    return c < Command::MIN && c != '\n';
 }
 
 inline bool Textbox::is_character(char c) {
     return Textbox::is_character(static_cast<unsigned char>(c));
+}
+
+inline bool Textbox::is_command(unsigned char c) {
+    return Command::MIN <= c && c < Command::MAX;
+}
+
+inline bool Textbox::is_command(char c) {
+    return Textbox::is_command(static_cast<unsigned char>(c));
 }
 
 inline bool Textbox::empty(void) const {

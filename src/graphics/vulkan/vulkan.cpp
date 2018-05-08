@@ -834,6 +834,12 @@ bool VulkanBackend::init_device(std::size_t i) {
             "src/glsl/vk/voxel.frag.spv"sv,
             nngn::GLSL_VK_SPRITE_VERT,
             nngn::GLSL_VK_VOXEL_FRAG)
+        && this->shaders.init(
+            this->instance, PipelineConfiguration::Type::FONT,
+            "src/glsl/vk/font.vert.spv"sv,
+            "src/glsl/vk/font.frag.spv"sv,
+            nngn::GLSL_VK_FONT_VERT,
+            nngn::GLSL_VK_FONT_FRAG)
         && this->create_render_pass(surface_format.format);
     if(!ok)
         return false;
@@ -1062,9 +1068,7 @@ bool VulkanBackend::update_render_list() {
         if(pipeline)
             continue;
         const auto &conf = this->pipeline_conf[i];
-        const auto [vert, frag] = this->shaders.idx(
-            conf.type == PipelineConfiguration::Type::FONT
-                ? PipelineConfiguration::Type::SPRITE : conf.type);
+        const auto [vert, frag] = this->shaders.idx(conf.type);
         info.stageCount = 1 + !!frag;
         info.pRasterizationState = conf.flags & PFlag::CULL_BACK_FACES
             ? &rast_back_cull : &rast_no_cull;

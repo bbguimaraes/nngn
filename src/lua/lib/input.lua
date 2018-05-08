@@ -104,7 +104,11 @@ register({
         end
     end},
     {"T", Input.SEL_PRESS, function()
-        textbox.update("test", "test")
+        textbox.set("test",
+            Textbox.TEXT_RED_STR .. "t"
+            .. Textbox.TEXT_GREEN_STR .. "e"
+            .. Textbox.TEXT_BLUE_STR .. "s"
+            .. Textbox.TEXT_WHITE_STR .. "t")
     end},
     {Input.KEY_TAB, Input.SEL_PRESS, function(_, _, mods)
         if mods & Input.MOD_SHIFT == 0 then

@@ -1,6 +1,8 @@
 SHADERS = $(SHADERS_GL) $(SHADERS_VK)
 
 SHADERS_SRC = \
+	%reldir%/font.frag \
+	%reldir%/font.vert \
 	%reldir%/sprite.frag \
 	%reldir%/sprite.vert \
 	%reldir%/triangle.frag \
@@ -8,6 +10,8 @@ SHADERS_SRC = \
 	%reldir%/voxel.frag
 
 SHADERS_GL = \
+	%reldir%/gl/font.frag \
+	%reldir%/gl/font.vert \
 	%reldir%/gl/sprite.frag \
 	%reldir%/gl/sprite.vert \
 	%reldir%/gl/triangle.frag \
@@ -15,6 +19,8 @@ SHADERS_GL = \
 	%reldir%/gl/voxel.frag
 
 SHADERS_VK = \
+	%reldir%/vk/font.frag.spv \
+	%reldir%/vk/font.vert.spv \
 	%reldir%/vk/sprite.frag.spv \
 	%reldir%/vk/sprite.vert.spv \
 	%reldir%/vk/triangle.frag.spv \
@@ -25,6 +31,10 @@ COMPILE_GL = cpp -P -MD -MP -MF $@.d -MT $@ -o $@
 PRE_COMPILE_VK = cpp -P -MD -MP -MF $@.d -MT $@ -DVULKAN -o $(@:.spv=)
 COMPILE_VK = @GLSLANG@ -V $(@:.spv=) -o $@
 
+%reldir%/gl/font.frag: %reldir%/font.frag
+	$(COMPILE_GL) $(srcdir)/%reldir%/font.frag
+%reldir%/gl/font.vert: %reldir%/font.vert
+	$(COMPILE_GL) $(srcdir)/%reldir%/font.vert
 %reldir%/gl/sprite.frag: %reldir%/sprite.frag
 	$(COMPILE_GL) $(srcdir)/%reldir%/sprite.frag
 %reldir%/gl/sprite.vert: %reldir%/sprite.vert
@@ -36,6 +46,10 @@ COMPILE_VK = @GLSLANG@ -V $(@:.spv=) -o $@
 %reldir%/gl/voxel.frag: %reldir%/voxel.frag
 	$(COMPILE_GL) $(srcdir)/%reldir%/voxel.frag
 
+%reldir%/vk/font.frag.spv: %reldir%/font.frag
+	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/font.frag; $(COMPILE_VK)
+%reldir%/vk/font.vert.spv: %reldir%/font.vert
+	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/font.vert; $(COMPILE_VK)
 %reldir%/vk/sprite.frag.spv: %reldir%/sprite.frag
 	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/sprite.frag; $(COMPILE_VK)
 %reldir%/vk/sprite.vert.spv: %reldir%/sprite.vert

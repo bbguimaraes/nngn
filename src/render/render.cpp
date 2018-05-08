@@ -17,7 +17,7 @@
 #include "render.h"
 
 using namespace nngn::literals;
-using nngn::u32, nngn::u64;
+using nngn::u8, nngn::u32, nngn::u64;
 
 namespace {
 
@@ -516,17 +516,19 @@ bool Renderers::update_renderers(
             };
             constexpr auto vsize = 4 * sizeof(Vertex);
             constexpr auto esize = 6 * sizeof(u32);
+            u64 n_visible = 0;
             return write_to_buffer<gen, Vertex>(
                     this->graphics, vbo,
                     std::exchange(*voff, *voff + vsize * txt.cur),
                     txt.cur, vsize,
                     rptr(std::tuple{
                         std::ref(f), std::ref(txt), mono, pos.x, &pos,
-                        rptr(u64{}),
+                        rptr(Gen::text_color(UINT32_MAX)),
+                        rptr(u64{}), &n_visible,
                     }))
                 && write_to_buffer<update_quad_indices_base<6>, u32>(
                     this->graphics, ebo,
-                    std::exchange(*eoff, *eoff + esize * txt.cur),
+                    std::exchange(*eoff, *eoff + esize * n_visible),
                     txt.cur, esize,
                     rptr(std::tuple{std::exchange(*ei, *ei + txt.cur)}));
         };

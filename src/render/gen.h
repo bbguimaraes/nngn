@@ -25,6 +25,9 @@ struct Gen {
     static void cube_vertices(
         Vertex **p, vec3 pos, vec3 size,
         u32 tex, const std::array<vec4, 6> &uv);
+    // Utilities
+    static float text_color(u8 r, u8 g, u8 b);
+    static float text_color(u32 c);
     // Renderers
     static void sprite_ortho(Vertex **p, SpriteRenderer *x);
     static void sprite_persp(Vertex **p, SpriteRenderer *x);
@@ -39,7 +42,7 @@ struct Gen {
     static void text(
         Vertex **p, u64 n,
         const Font &font, const Text &txt, bool mono, float left,
-        vec2 *pos_p, u64 *i_p);
+        vec2 *pos_p, float *color_p, u64 *i_p, u64 *n_visible_p);
     static void textbox(Vertex **p, const Textbox &x);
 };
 
@@ -159,6 +162,19 @@ inline void Gen::cube_vertices(
     *((*p)++) = { tr               , {uv_.zw(), ftex}};
 }
 
+inline float Gen::text_color(u8 r, u8 g, u8 b) {
+    return Gen::text_color((static_cast<u32>(r) << 16)
+        | (static_cast<u32>(g) << 8)
+        | static_cast<u32>(b));
+}
+
+inline float Gen::text_color(u32 c) {
+    float ret = {};
+    static_assert(sizeof(ret) == sizeof(c));
+    std::memcpy(&ret, &c, sizeof(ret));
+    return ret;
+}
+
 inline void Gen::sprite_ortho(Vertex **p, SpriteRenderer *x) {
     x->flags.clear(Renderer::Flag::UPDATED);
     const auto pos = x->pos.xy();
@@ -235,15 +251,22 @@ inline void Gen::voxel_debug(Vertex **p, VoxelRenderer *x) {
 inline void Gen::text(
     Vertex **p, u64 n,
     const Font &font, const Text &txt, bool mono, float left,
-    vec2 *pos_p, u64 *i_p
+    vec2 *pos_p, float *color_p, u64 *i_p, u64 *n_visible_p
 ) {
     auto pos = *pos_p;
+    auto color = *color_p;
     auto i = static_cast<std::size_t>(*i_p);
+    auto n_visible = *n_visible_p;
     const auto font_size = static_cast<float>(font.size);
     while(n--) {
+        using C = Textbox::Command;
         const auto c = static_cast<unsigned char>(txt.str[i++]);
         switch(c) {
         case '\n': pos = {left, pos.y - font_size - txt.spacing}; continue;
+        case C::TEXT_WHITE: color = Gen::text_color(255, 255, 255); continue;
+        case C::TEXT_RED: color = Gen::text_color(255, 32, 32); continue;
+        case C::TEXT_GREEN: color = Gen::text_color(32, 255, 32); continue;
+        case C::TEXT_BLUE: color = Gen::text_color(32, 32, 255); continue;
         }
         const auto fc = font.chars[static_cast<std::size_t>(c)];
         const auto size = static_cast<vec2>(fc.size);
@@ -251,12 +274,15 @@ inline void Gen::text(
             + vec2(font_size / 2, txt.size.y - font_size / 2)
             + static_cast<vec2>(fc.bearing);
         Gen::quad_vertices(
-            p, cpos, cpos + size, 0, static_cast<u32>(c),
+            p, cpos, cpos + size, color, static_cast<u32>(c),
             {0, size.y / font_size}, {size.x / font_size, 0});
         pos.x += mono ? font_size : fc.advance;
+        ++n_visible;
     }
     *pos_p = pos;
+    *color_p = color;
     *i_p = static_cast<u64>(i);
+    *n_visible_p = n_visible;
 }
 
 inline void Gen::textbox(Vertex **p, const Textbox &x) {
