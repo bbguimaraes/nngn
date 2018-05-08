@@ -1,6 +1,8 @@
 SHADERS = $(SHADERS_GL) $(SHADERS_VK)
 
 SHADERS_GL = \
+	%reldir%/gl/font.frag \
+	%reldir%/gl/font.vert \
 	%reldir%/gl/sprite.frag \
 	%reldir%/gl/sprite.vert \
 	%reldir%/gl/voxel.frag \
@@ -8,6 +10,8 @@ SHADERS_GL = \
 	%reldir%/gl/triangle.vert
 
 SHADERS_VK = \
+	%reldir%/vk/font.frag.spv \
+	%reldir%/vk/font.vert.spv \
 	%reldir%/vk/sprite.frag.spv \
 	%reldir%/vk/sprite.vert.spv \
 	%reldir%/vk/voxel.frag.spv \

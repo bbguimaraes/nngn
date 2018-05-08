@@ -19,6 +19,11 @@ public:
         UPDATED = 1u << 0,
         SCREEN_UPDATED = 1u << 1,
     };
+    struct Command {
+        enum : unsigned char {
+            MIN = 0b10000000, TEXT_WHITE, TEXT_RED, TEXT_GREEN, TEXT_BLUE, MAX,
+        };
+    };
     static constexpr auto DEFAULT_SPEED = std::chrono::milliseconds(50);
     Flags<Flag> flags = {};
     Text str = {}, title = {};
@@ -28,6 +33,8 @@ public:
     vec2 str_bl = {0, 0}, str_tr = {0, 0};
     static bool is_character(unsigned char c);
     static bool is_character(char c);
+    static bool is_command(unsigned char c);
+    static bool is_command(char c);
     void init(const Fonts *f) { this->fonts = f; }
     bool empty() const;
     std::size_t text_length() const;
@@ -45,9 +52,13 @@ private:
 };
 
 inline bool Textbox::is_character(unsigned char c)
-    { return c != '\n'; }
+    { return c < Command::MIN && c != '\n'; }
 inline bool Textbox::is_character(char c)
     { return Textbox::is_character(static_cast<unsigned char>(c)); }
+inline bool Textbox::is_command(unsigned char c)
+    { return Command::MIN <= c && c < Command::MAX; }
+inline bool Textbox::is_command(char c)
+    { return Textbox::is_command(static_cast<unsigned char>(c)); }
 inline bool Textbox::empty() const
     { return this->str.str.empty() && this->title.str.empty(); }
 inline bool Textbox::updated() const

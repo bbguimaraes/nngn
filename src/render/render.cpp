@@ -16,7 +16,7 @@
 
 #include "render.h"
 
-using nngn::u32, nngn::u64;
+using nngn::u8, nngn::u32, nngn::u64;
 
 namespace {
 
@@ -142,19 +142,44 @@ void update_voxel_dbg(nngn::Vertex **p, nngn::VoxelRenderer *x) {
     nngn::Renderers::gen_cube_verts(p, x->pos, nngn::vec3{x->size}, {1, 1, 1});
 }
 
+constexpr u32 text_color(u8 r, u8 g, u8 b) {
+    return (static_cast<u32>(r) << 16)
+        | (static_cast<u32>(g) << 8)
+        | static_cast<u32>(b);
+}
+
+float text_color(u32 c) {
+    float ret = {};
+    static_assert(sizeof(ret) == sizeof(c));
+    std::memcpy(&ret, &c, sizeof(ret));
+    return ret;
+}
+
 using UpdateTextData = std::tuple<
-    const nngn::Font&, const nngn::Text&, float, nngn::vec2*, u64*>;
+    const nngn::Font&, const nngn::Text&, float,
+    nngn::vec2*, float*, u64*, u64*>;
 
 void update_text(const UpdateTextData *data, nngn::Vertex *p, u64, u64 n) {
-    auto &[font, txt, left, pos_p, i_p] = *data;
+    using Command = nngn::Textbox::Command;
+    constexpr auto
+        RED = text_color(255, 32, 32),
+        GREEN = text_color(32, 255, 32),
+        BLUE = text_color(32, 32, 255);
+    auto &[font, txt, left, pos_p, color_p, i_p, n_visible_p] = *data;
     auto pos = *pos_p;
+    auto color = *color_p;
     auto i = *i_p;
+    auto n_visible = *n_visible_p;
     const auto font_size = static_cast<float>(font.size);
     while(n--) {
         const auto c = static_cast<unsigned char>(
             txt.str[static_cast<std::size_t>(i++)]);
         switch(c) {
         case '\n': pos = {left, pos.y - font_size - txt.spacing}; continue;
+        case Command::TEXT_WHITE: color = text_color(UINT32_MAX); continue;
+        case Command::TEXT_RED: color = text_color(RED); continue;
+        case Command::TEXT_GREEN: color = text_color(GREEN); continue;
+        case Command::TEXT_BLUE: color = text_color(BLUE); continue;
         }
         const auto fc = font.chars[static_cast<std::size_t>(c)];
         const auto size = static_cast<nngn::vec2>(fc.size);
@@ -162,12 +187,15 @@ void update_text(const UpdateTextData *data, nngn::Vertex *p, u64, u64 n) {
             + nngn::vec2(font_size / 2, txt.size.y - font_size / 2)
             + static_cast<nngn::vec2>(fc.bearing);
         nngn::Renderers::gen_quad_verts(
-            &p, cpos, cpos + size, 0, static_cast<u32>(c),
+            &p, cpos, cpos + size, color, static_cast<u32>(c),
             {0, size.y / font_size}, {size.x / font_size, 0});
         pos.x += fc.advance;
+        ++n_visible;
     }
     *pos_p = pos;
+    *color_p = color;
     *i_p = i;
+    *n_visible_p = n_visible;
 }
 
 void update_textbox(void *data, void *vp, u64, u64) {
@@ -259,7 +287,7 @@ bool Renderers::set_graphics(Graphics *g) {
     this->graphics = g;
     u32
         triangle_pipeline = {}, sprite_pipeline = {}, voxel_pipeline = {},
-        box_pipeline = {},
+        box_pipeline = {}, font_pipeline = {},
         triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
@@ -281,6 +309,10 @@ bool Renderers::set_graphics(Graphics *g) {
         && (box_pipeline = g->create_pipeline({
             .name = "box_pipeline",
             .type = Pipeline::Type::TRIANGLE,
+        }))
+        && (font_pipeline = g->create_pipeline({
+            .name = "font_pipeline",
+            .type = Pipeline::Type::FONT,
         }))
         && (triangle_vbo = g->create_buffer({
             .name = "triangle_vbo",
@@ -404,7 +436,7 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->textbox_vbo, this->textbox_ebo},
                 }),
             }, {
-                .pipeline = sprite_pipeline,
+                .pipeline = font_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->text_vbo, this->text_ebo},
                 }),
@@ -547,17 +579,21 @@ bool Renderers::update() {
             constexpr auto vsize = 4 * sizeof(Vertex);
             constexpr auto esize = 6 * sizeof(u32);
             const auto vbytes = vsize * txt.cur;
-            const auto ebytes = esize * txt.cur;
             const auto vo = std::exchange(*voff, *voff + vbytes);
+            u64 n_visible = 0;
+            const bool ok = write_to_buffer<::update_text, Vertex>(
+                this->graphics, vbo, vo, txt.cur, vsize,
+                rptr(UpdateTextData{
+                    std::ref(f), std::ref(txt), pos.x, &pos,
+                    rptr(text_color(UINT32_MAX)), rptr(u64{}), &n_visible}));
+            if(!ok)
+                return false;
+            const auto ebytes = esize * n_visible;
             const auto eo = std::exchange(*eoff, *eoff + ebytes);
             const auto cur_ei = std::exchange(*ei, *ei + txt.cur);
-            return write_to_buffer<::update_text, Vertex>(
-                    this->graphics, vbo, vo, txt.cur, vsize,
-                    rptr(UpdateTextData{
-                        std::ref(f), std::ref(txt), pos.x, &pos, rptr(u64{})}))
-                && write_to_buffer<update_indices_with_base<6>, u32>(
-                    this->graphics, ebo, eo, txt.cur, esize,
-                    rptr(std::tuple{cur_ei}));
+            return write_to_buffer<update_indices_with_base<6>, u32>(
+                this->graphics, ebo, eo, txt.cur, esize,
+                rptr(std::tuple{cur_ei}));
         };
         const auto &t = *this->textbox;
         const auto &f = this->fonts->fonts()[n_fonts - 1];
