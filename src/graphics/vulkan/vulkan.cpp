@@ -835,6 +835,12 @@ bool VulkanBackend::init_device(std::size_t i) {
             "src/glsl/vk/voxel.frag.spv"sv,
             nngn::GLSL_VK_SPRITE_VERT,
             nngn::GLSL_VK_VOXEL_FRAG)
+        && this->shaders.init(
+            this->instance, PipelineConfiguration::Type::FONT,
+            "src/glsl/vk/font.vert.spv"sv,
+            "src/glsl/vk/font.frag.spv"sv,
+            nngn::GLSL_VK_FONT_VERT,
+            nngn::GLSL_VK_FONT_FRAG)
         && this->create_render_pass(surface_format.format);
     if(!ok)
         return false;

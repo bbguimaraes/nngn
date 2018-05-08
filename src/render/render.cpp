@@ -17,7 +17,7 @@
 #include "render.h"
 
 using namespace nngn::literals;
-using nngn::u32, nngn::u64;
+using nngn::u8, nngn::u32, nngn::u64;
 
 namespace {
 
@@ -160,7 +160,7 @@ bool Renderers::set_graphics(Graphics *g) {
     this->graphics = g;
     u32
         triangle_pipeline = {}, sprite_pipeline = {}, voxel_pipeline = {},
-        box_pipeline = {},
+        box_pipeline = {}, font_pipeline = {},
         triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
@@ -182,6 +182,10 @@ bool Renderers::set_graphics(Graphics *g) {
         && (box_pipeline = g->create_pipeline({
             .name = "box_pipeline",
             .type = Pipeline::Type::TRIANGLE,
+        }))
+        && (font_pipeline = g->create_pipeline({
+            .name = "font_pipeline",
+            .type = Pipeline::Type::FONT,
         }))
         && (triangle_vbo = g->create_buffer({
             .name = "triangle_vbo",
@@ -305,7 +309,7 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->textbox_vbo, this->textbox_ebo},
                 }),
             }, {
-                .pipeline = sprite_pipeline,
+                .pipeline = font_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->text_vbo, this->text_ebo},
                 }),
@@ -445,17 +449,19 @@ bool Renderers::update_renderers(
             };
             constexpr auto vsize = 4 * sizeof(Vertex);
             constexpr auto esize = 6 * sizeof(u32);
+            u64 n_visible = 0;
             return write_to_buffer<gen, Vertex>(
                     this->graphics, vbo,
                     std::exchange(*voff, *voff + vsize * txt.cur),
                     txt.cur, vsize,
                     rptr(std::tuple{
                         std::ref(f), std::ref(txt), mono, pos.x, &pos,
-                        rptr(u64{}),
+                        rptr(Gen::text_color(UINT32_MAX)),
+                        rptr(u64{}), &n_visible,
                     }))
                 && write_to_buffer<update_quad_indices_base<6>, u32>(
                     this->graphics, ebo,
-                    std::exchange(*eoff, *eoff + esize * txt.cur),
+                    std::exchange(*eoff, *eoff + esize * n_visible),
                     txt.cur, esize,
                     rptr(std::tuple{std::exchange(*ei, *ei + txt.cur)}));
         };

@@ -168,7 +168,7 @@ struct Graphics {
             CULL_BACK_FACES = 1u << 1,
         };
         enum class Type : u8 {
-            TRIANGLE, SPRITE, VOXEL, MAX,
+            TRIANGLE, SPRITE, VOXEL, FONT, MAX,
         };
         const char *name = {};
         Type type = {};
