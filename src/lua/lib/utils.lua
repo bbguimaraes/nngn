@@ -82,6 +82,14 @@ local function shift(i, n, inc, base)
     return i
 end
 
+local function find(t, x)
+    for i, y in ipairs(t) do
+        if x == y then
+            return i
+        end
+    end
+end
+
 local DOUBLE_TAP = {}
 local DOUBLE_TAP_INTERVAL = 200
 
@@ -112,6 +120,7 @@ return {
     fmt_time = fmt_time,
     fmt_size = fmt_size,
     shift = shift,
+    find = find,
     get_double_tap_interval = get_double_tap_interval,
     set_double_tap_interval = set_double_tap_interval,
     check_double_tap = check_double_tap,
