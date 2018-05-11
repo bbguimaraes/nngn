@@ -2,6 +2,7 @@ dofile "src/lua/path.lua"
 local camera = require "nngn.lib.camera"
 local common = require "tests/lua/common"
 local input = require "nngn.lib.input"
+local player = require "nngn.lib.player"
 local utils = require "nngn.lib.utils"
 
 local function test_get_keys()
@@ -61,15 +62,47 @@ local function test_input_p()
     common.assert_eq(group(), deref(input.input))
 end
 
+local function test_input_p_tab()
+    local key_p = string.byte("P")
+    nngn:input():key_callback(key_p, Input.KEY_PRESS, Input.MOD_CTRL)
+    common.assert_eq(player.n(), 1)
+    nngn:input():key_callback(key_p, Input.KEY_PRESS, Input.MOD_CTRL)
+    common.assert_eq(player.n(), 2)
+    nngn:input():key_callback(key_p, Input.KEY_PRESS, Input.MOD_CTRL)
+    common.assert_eq(player.n(), 3)
+    common.assert_eq(player.idx(), 0)
+    nngn:input():key_callback(Input.KEY_TAB, Input.KEY_PRESS, 0)
+    common.assert_eq(player.idx(), 1)
+    nngn:input():key_callback(Input.KEY_TAB, Input.KEY_PRESS, 0)
+    common.assert_eq(player.idx(), 2)
+    nngn:input():key_callback(Input.KEY_TAB, Input.KEY_PRESS, 0)
+    common.assert_eq(player.idx(), 0)
+    nngn:input():key_callback(
+        key_p, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT)
+    common.assert_eq(player.n(), 2)
+    common.assert_eq(player.idx(), 0)
+    nngn:input():key_callback(
+        key_p, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT)
+    nngn:input():key_callback(
+        key_p, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT)
+    common.assert_eq(player.n(), 0)
+end
+
 local opengl = nngn:set_graphics(
     Graphics.OPENGL_ES_BACKEND,
     Graphics.opengl_params{maj = 3, min = 1, hidden = true})
 if not opengl then nngn:set_graphics(Graphics.PSEUDOGRAPH) end
 input.install()
+nngn:entities():set_max(3)
+nngn:graphics():resize_textures(2)
+nngn:textures():set_max(2)
+nngn:renderers():set_max_sprites(3)
+player.set("src/lson/crono.lua")
 common.setup_hook(1)
 test_get_keys()
 if opengl then test_input_i() end
 test_input_b()
 test_input_c()
 test_input_p()
+test_input_p_tab()
 nngn:exit()

@@ -77,10 +77,22 @@ local function test_double_tap()
     utils.set_double_tap_interval(interval)
 end
 
+local function test_find()
+    local t <const> = {0, 1, 3, 4, 5}
+    common.assert_eq(utils.find(t, 6), nil)
+    common.assert_eq(utils.find(t, 0), 1)
+    common.assert_eq(utils.find(t, 1), 2)
+    common.assert_eq(utils.find(t, 2), nil)
+    common.assert_eq(utils.find(t, 3), 3)
+    common.assert_eq(utils.find(t, 4), 4)
+    common.assert_eq(utils.find(t, 5), 5)
+end
+
 return {
     test_pprint,
     test_fmt_time,
     test_fmt_size,
     test_shift,
     test_double_tap,
+    test_find,
 }

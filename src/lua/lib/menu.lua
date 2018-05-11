@@ -1,10 +1,12 @@
 local entity <const> = require "nngn.lib.entity"
 local utils <const> = require "nngn.lib.utils"
 
-local MENU <const> = {
-    idx = 1,
-    actions = {true},
-}
+local function new_player()
+    return {
+        idx = 1,
+        actions = {function() end},
+    }
+end
 
 local function displayed(m) return m.entities ~= nil end
 
@@ -63,8 +65,8 @@ local function rotate_menu(m, mods)
     end
 end
 
-local function menu(mods)
-    local m <const> = MENU
+local function menu(p, mods)
+    local m <const> = p.data.menu
     if displayed(m) then
         rotate_menu(m, mods)
     else
@@ -72,16 +74,9 @@ local function menu(mods)
     end
 end
 
-local function action()
-    local m <const> = MENU
-    if displayed(m) then
-        hide_menu(m)
-    end
-end
-
 return {
+    new_player = new_player,
     menu = menu,
-    action = action,
     displayed = displayed,
     show = show_menu,
     hide = hide_menu,
