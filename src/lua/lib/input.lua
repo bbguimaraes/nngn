@@ -1,5 +1,6 @@
 local camera = require "nngn.lib.camera"
 local nngn_math = require "nngn.lib.math"
+local player = require "nngn.lib.player"
 local utils = require "nngn.lib.utils"
 
 local input = BindingGroup.new()
@@ -54,7 +55,22 @@ register({
         nngn.camera:set_perspective(p)
         nngn.renderers:set_perspective(p)
     end},
-    {"P", Input.SEL_PRESS, pause},
+    {"P", Input.SEL_PRESS, function(_, _, mods)
+        if mods & Input.MOD_CTRL == 0 then
+            pause()
+        elseif mods & Input.MOD_SHIFT == 0 then
+            local e = nngn.entities:add()
+            player.load(e)
+            nngn.players:add(e)
+        else
+            local p = nngn.players:cur()
+            if p then player.remove(p) end
+        end
+    end},
+    {Input.KEY_TAB, Input.SEL_PRESS, function(_, _, mods)
+        if mods & Input.MOD_SHIFT == 0 then player.next(1)
+        else player.next(-1) end
+    end},
     {Input.KEY_LEFT, 0, camera.move},
     {Input.KEY_RIGHT, 0, camera.move},
     {Input.KEY_DOWN, 0, camera.move},

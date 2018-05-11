@@ -9,6 +9,7 @@ dist_check_DATA += \
 	%reldir%/entity.lua \
 	%reldir%/input.lua \
 	%reldir%/math.lua \
+	%reldir%/player.lua \
 	%reldir%/run.sh \
 	%reldir%/unit.lua \
 	%reldir%/utils.lua

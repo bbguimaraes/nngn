@@ -1,14 +1,17 @@
 noinst_HEADERS += \
 	%reldir%/debug.h \
 	%reldir%/entity.h \
-	%reldir%/luastate.h
+	%reldir%/luastate.h \
+	%reldir%/player.h
 
 nngn_SOURCES += \
 	%reldir%/entity.cpp \
 	%reldir%/lua_entity.cpp \
 	%reldir%/lua_luastate.cpp \
+	%reldir%/lua_player.cpp \
 	%reldir%/luastate.cpp \
-	%reldir%/main.cpp
+	%reldir%/main.cpp \
+	%reldir%/player.cpp
 
 EXTRA_DIST += \
 	%reldir%/glsl \

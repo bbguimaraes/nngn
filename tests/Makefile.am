@@ -1,12 +1,14 @@
 if ENABLE_TESTS
 check_PROGRAMS += \
 	%reldir%/entity \
+	%reldir%/player \
 	%reldir%/luastate
 endif
 
 check_HEADERS += \
 	%reldir%/entity_test.h \
 	%reldir%/luastate_test.h \
+	%reldir%/player_test.h \
 	%reldir%/registry.h \
 	%reldir%/tests.h
 
@@ -27,6 +29,14 @@ check_HEADERS += \
 	src/utils/log.cpp \
 	%reldir%/luastate_test.cpp \
 	%reldir%/luastate_test.moc.cpp
+
+%canon_reldir%_player_CPPFLAGS = $(check_CPPFLAGS)
+%canon_reldir%_player_CXXFLAGS = $(check_CXXFLAGS)
+%canon_reldir%_player_LDADD = $(check_LDADD)
+%canon_reldir%_player_SOURCES = \
+	src/player.cpp \
+	%reldir%/player_test.cpp \
+	%reldir%/player_test.moc.cpp
 
 CLEANFILES += \
 	%reldir%/*.moc.cpp \

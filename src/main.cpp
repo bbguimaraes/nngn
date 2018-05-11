@@ -2,6 +2,7 @@
 
 #include "entity.h"
 #include "luastate.h"
+#include "player.h"
 
 #include "graphics/graphics.h"
 #include "graphics/texture.h"
@@ -44,6 +45,7 @@ struct NNGN {
     nngn::Camera camera = {};
     nngn::Renderers renderers = {};
     Entities entities = {};
+    Players players = {};
     nngn::Textures textures = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(
@@ -160,6 +162,7 @@ NNGN_LUA_PROXY(NNGN,
     "camera", sol::readonly(&NNGN::camera),
     "renderers", sol::readonly(&NNGN::renderers),
     "entities", sol::readonly(&NNGN::entities),
+    "players", sol::readonly(&NNGN::players),
     "textures", sol::readonly(&NNGN::textures),
     "set_graphics", &NNGN::set_graphics,
     "remove_entity", &NNGN::remove_entity,
