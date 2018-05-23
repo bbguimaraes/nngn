@@ -29,6 +29,7 @@ local function load(e, f, extra)
         if e:animation() then nngn:animations():remove(e:animation()) end
         e:set_animation(nngn:animations():load(t.anim))
     end
+    if t.parent then e:set_parent(t.parent) end
     return e
 end
 

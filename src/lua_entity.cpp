@@ -131,6 +131,7 @@ void register_entity(nngn::lua::table_view t) {
     t["renderer"] = [](const Entity &e) { return e.renderer; };
     t["collider"] = [](const Entity &e) { return e.collider; };
     t["animation"] = [](const Entity &e) { return e.anim; };
+    t["parent"] = nngn::lua::value_accessor<&Entity::parent>;
     t["set_pos"] = set_pos;
     t["set_vel"] = set_vel;
     t["set_acc"] = set_acc;
@@ -139,6 +140,7 @@ void register_entity(nngn::lua::table_view t) {
     t["set_collider"] = &Entity::set_collider;
     t["set_animation"] = &Entity::set_animation;
     t["set_camera"] = &Entity::set_camera;
+    t["set_parent"] = &Entity::set_parent;
 }
 
 void register_entities(nngn::lua::table_view t) {

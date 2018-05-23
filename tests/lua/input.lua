@@ -190,6 +190,17 @@ local function test_input_o()
     assert(nngn:colliders():resolve())
 end
 
+local function test_menu_fairy()
+    local p = player.add()
+    assert(not p.data.fairy)
+    local key = string.byte("F")
+    nngn:input():key_callback(key, Input.KEY_PRESS, 0)
+    assert(p.data.fairy)
+    nngn:input():key_callback(key, Input.KEY_PRESS, 0)
+    assert(not p.data.fairy)
+    player.remove(p)
+end
+
 local opengl = nngn:set_graphics(
     Graphics.OPENGL_ES_BACKEND,
     Graphics.opengl_params{maj = 3, min = 1, hidden = true})
@@ -219,4 +230,5 @@ test_input_v()
 test_input_space()
 test_input_g()
 test_input_o()
+test_menu_fairy()
 nngn:exit()

@@ -47,6 +47,10 @@ void copy(std::span<char, 32> v, nngn::Hash *h, std::string_view s) {
 }
 
 void set_pos(Entity *e, vec3 oldp, vec3 p) {
+    if(const auto *const parent = e->parent) {
+        const auto pp = parent->p;
+        oldp += pp, p += pp;
+    }
     if(e->renderer)
         e->renderer->set_pos(p);
     if(e->camera)
@@ -92,6 +96,11 @@ void Entity::set_animation(nngn::Animation *p_a) {
 void Entity::set_camera(nngn::Camera *c) {
     if((this->camera = c))
         c->set_pos({this->p.xy(), c->p.z});
+}
+
+void Entity::set_parent(Entity *e) {
+    this->parent = e;
+    this->set_pos(this->p);
 }
 
 void Entities::set_max(std::size_t n) {
@@ -153,6 +162,13 @@ void Entities::update(const nngn::Timing &t) {
         if(x.v != vec3{})
             x.set_pos(x.p + x.v * dt);
     }
+}
+
+void Entities::update_children() {
+    NNGN_PROFILE_CONTEXT(parents);
+    for(auto &x : this->v)
+        if(x.parent && x.parent->pos_updated())
+            set_pos(&x, x.p, x.p);
 }
 
 void Entities::clear_flags() {

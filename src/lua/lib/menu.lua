@@ -2,9 +2,12 @@ local entity <const> = require "nngn.lib.entity"
 local utils <const> = require "nngn.lib.utils"
 
 local function new_player()
+    local player <const> = require "nngn.lib.player"
     return {
         idx = 1,
-        actions = {function() end},
+        actions = {
+            function(p, press) if press then player.fairy(p) end end,
+        },
     }
 end
 
@@ -25,6 +28,8 @@ local function show_menu(m)
     local n <const> = #m.actions
     local entities <const> = {}
     local actions <const> = {}
+    local fairy <const> = dofile("src/lson/zelda/fairy2.lua").renderer
+    fairy.size = {64, 64}
     local box <const> = {
         renderer = {
             type = Renderer.SCREEN_SPRITE,
@@ -32,12 +37,16 @@ local function show_menu(m)
             scale = {512//8, 512//8}, coords = {18, 0, 21, 3},
         },
     }
-    for i, t in ipairs{true} do
+    for i, t in ipairs{
+        fairy,
+    } do
         local pos <const> = {menu_pos(n, idx, i)}
+        t.type = Renderer.SCREEN_SPRITE
         box.pos = pos
         table.insert(entities, entity.load(nil, nil, box))
         table.insert(actions, entity.load(nil, nil, {
             pos = pos,
+            renderer = t,
         }))
     end
     m.entities = entities

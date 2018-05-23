@@ -33,6 +33,7 @@ struct Entity {
     nngn::Collider *collider = nullptr;
     nngn::Animation *anim = nullptr;
     nngn::Camera *camera = nullptr;
+    Entity *parent = nullptr;
     bool alive() const { return this->flags.is_set(Flag::ALIVE); }
     bool pos_updated() const { return this->flags.is_set(Flag::POS_UPDATED); }
     void set_pos(nngn::vec3 p);
@@ -41,6 +42,7 @@ struct Entity {
     void set_collider(nngn::Collider *p);
     void set_animation(nngn::Animation *p);
     void set_camera(nngn::Camera *p);
+    void set_parent(Entity *e);
 };
 
 class Entities {
@@ -65,6 +67,7 @@ public:
     void set_name(Entity *e, std::string_view s);
     void set_tag(Entity *e, std::string_view s);
     void update(const nngn::Timing &t);
+    void update_children();
     void clear_flags();
 };
 
