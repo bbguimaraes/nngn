@@ -75,6 +75,7 @@ register({
         c:set_perspective(p)
         nngn.renderers:set_perspective(p)
     end},
+    {"H", Input.SEL_PRESS, function() player.fairy() end},
     {"O", Input.SEL_PRESS | Input.SEL_CTRL, function()
         nngn.colliders:set_resolve(not nngn.colliders:resolve())
     end},

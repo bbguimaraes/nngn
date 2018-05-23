@@ -37,6 +37,23 @@ local function get_entity(p)
     end
 end
 
+local function data(p, f)
+    if not p then p = nngn.players:cur() end
+    if not p then return end
+    local d = DATA[deref(p)]
+    if not d then d = {} DATA[deref(p)] = d end
+    if not f then return d end
+    if type(f) ~= "table" then f = {f} end
+    for _, x in ipairs(f) do
+        local t = d[x]
+        if not t then t = {} d[x] = t end
+        d = t
+    end
+    return d
+end
+
+local function set_data(p, t) DATA[deref(p)] = t end
+
 local function load(e, inc)
     if not presets then
         error("no player presets loaded")
@@ -62,6 +79,7 @@ local function add(e)
     local ret <const> = {
         entity = e,
         face = FACE.DOWN,
+        data = {},
     }
     table.insert(list, ret)
     if #list == 1 then
@@ -76,6 +94,8 @@ local function remove(p)
     if not p then
         return
     end
+    local d <const> = p.data
+    if d.fairy then nngn:remove_entity(d.fairy) end
     local e <const> = p.entity
     table.remove(list, utils.find(list, p))
     if e == camera.following() then
@@ -185,6 +205,30 @@ local function move(key, press, _, keys)
     e:set_vel(dir[1] * v, dir[2] * v, 0)
 end
 
+local function fairy(p, show)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local d <const> = p.data
+    if d.fairy then
+        if show ~= nil and show then
+            return
+        end
+        nngn:remove_entity(d.fairy)
+        d.fairy = nil
+    else
+        if show ~= nil and not show then
+            return
+        end
+        local t = dofile("src/lson/fairy2.lua")
+        t.pos = {-8, 16, 0}
+        t.renderer.z_off = -40
+        t.parent = p.entity
+        d.fairy = entity.load(nil, nil, t)
+    end
+end
+
 return {
     FACE = FACE,
     ANIMATION = ANIMATION,
@@ -201,4 +245,5 @@ return {
     stop = stop,
     next = next,
     move = move,
+    fairy = fairy,
 }
