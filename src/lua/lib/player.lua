@@ -5,8 +5,26 @@ local utils = require "nngn.lib.utils"
 local MAX_VEL = camera.MAX_VEL
 local PLAYERS = {}
 local LAST_LOADED = 0
+local DATA = {}
 
 local function set(t) PLAYERS = t end
+
+local function data(p, f)
+    if not p then p = nngn.players:cur() end
+    if not p then return end
+    local d = DATA[deref(p)]
+    if not d then d = {} DATA[deref(p)] = d end
+    if not f then return d end
+    if type(f) ~= "table" then f = {f} end
+    for _, x in ipairs(f) do
+        local t = d[x]
+        if not t then t = {} d[x] = t end
+        d = t
+    end
+    return d
+end
+
+local function set_data(p, t) DATA[deref(p)] = t end
 
 local function load(e, inc)
     if #PLAYERS == 0 then error("no player loaded") end
@@ -30,6 +48,11 @@ local function add()
 end
 
 local function remove(p)
+    local d = data(p)
+    if d then
+        if d.fairy then nngn:remove_entity(d.fairy) end
+        set_data(p, nil)
+    end
     local e <const> = p:entity()
     nngn.players:remove(p)
     if e == camera.following() then
@@ -119,13 +142,33 @@ local function move(key, press, _, keys)
     e:set_vel(dir[1] * v, dir[2] * v, 0)
 end
 
+local function fairy(p, show)
+    p = p or nngn.players:cur()
+    if not p then return end
+    local d = data(p)
+    if d.fairy then
+        if show ~= nil and show then return end
+        nngn:remove_entity(d.fairy)
+        d.fairy = nil
+    else
+        if show ~= nil and not show then return end
+        local t = dofile("src/lson/fairy2.lua")
+        t.pos = {-8, 16, 0}
+        t.renderer.z_off = -40
+        t.parent = p:entity()
+        d.fairy = entity.load(nil, nil, t)
+    end
+end
+
 return {
     MAX_VEL = MAX_VEL,
     set = set,
+    data = data,
     load = load,
     add = add,
     remove = remove,
     stop = stop,
     next = next,
     move = move,
+    fairy = fairy,
 }

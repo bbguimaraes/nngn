@@ -31,6 +31,8 @@ local function test_load()
     assert(e:animation() ~= nil)
     entity.load(e, nil, {collider = {type = Collider.AABB}})
     assert(e:collider() ~= nil)
+    entity.load(e, nil, {parent = e})
+    common.assert_eq(deref(e:parent()), deref(e))
     nngn:remove_entity(e)
 end
 

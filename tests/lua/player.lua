@@ -6,6 +6,19 @@ local nngn_math = require "nngn.lib.math"
 local player = require "nngn.lib.player"
 local utils = require "nngn.lib.utils"
 
+local function test_data()
+    local p = nngn.players:add(nngn.entities:add())
+    local d = player.data(p)
+    common.assert_eq(d, {}, common.deep_cmp)
+    local dd = player.data(p, "d")
+    common.assert_eq(dd, {}, common.deep_cmp)
+    common.assert_eq(d, {d = d}, common.deep_cmp)
+    player.remove(p)
+    local p = nngn.players:add(nngn.entities:add())
+    common.assert_eq(player.data(p), {}, common.deep_cmp)
+    player.remove(p)
+end
+
 local function test_load()
     player.set{
         "src/lson/crono.lua", "src/lson/link.lua", "src/lson/link_sh.lua"}
@@ -192,6 +205,25 @@ local function test_move_running()
     player.remove(p)
 end
 
+local function test_fairy()
+    local p = nngn.players:add(nngn.entities:add())
+    player.fairy(p, false)
+    assert(not player.data(p).fairy)
+    player.fairy(p)
+    local f = player.data(p).fairy
+    assert(f)
+    common.assert_eq(deref(f:parent()), deref(p:entity()))
+    common.assert_eq(nngn.entities:name(f), "fairy2")
+    common.assert_eq({f:pos()}, {-8, 16, 0}, common.deep_cmp)
+    player.fairy(p, true)
+    assert(player.data(p).fairy)
+    player.fairy(p)
+    assert(not player.data(p).fairy)
+    player.fairy(p)
+    player.remove(p)
+    common.assert_eq(nngn.entities:n(), 0)
+end
+
 nngn:set_graphics(Graphics.PSEUDOGRAPH)
 nngn.entities:set_max(2)
 nngn.graphics:resize_textures(3)
@@ -200,10 +232,12 @@ nngn.renderers:set_max_sprites(1)
 nngn.animations:set_max(1)
 nngn.colliders:set_max_colliders(1)
 common.setup_hook(1)
+test_data()
 test_load()
 test_remove()
 test_stop()
 test_move()
 test_move_diag()
 test_move_running()
+test_fairy()
 nngn:exit()

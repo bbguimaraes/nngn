@@ -67,6 +67,7 @@ NNGN_LUA_PROXY(Entity,
     "renderer", [](const Entity &e) { return e.renderer; },
     "collider", [](const Entity &e) { return e.collider; },
     "animation", [](const Entity &e) { return e.anim; },
+    "parent", [](const Entity &e) { return e.parent; },
     "set_pos", [](Entity &e, float v0, float v1, float v2)
         { e.set_pos({v0, v1, v2}); },
     "set_vel", [](Entity &e, float v0, float v1, float v2)
@@ -77,7 +78,8 @@ NNGN_LUA_PROXY(Entity,
     "set_renderer", &Entity::set_renderer,
     "set_collider", &Entity::set_collider,
     "set_animation", &Entity::set_animation,
-    "set_camera", &Entity::set_camera)
+    "set_camera", &Entity::set_camera,
+    "set_parent", &Entity::set_parent)
 NNGN_LUA_PROXY(Entities,
     sol::no_constructor,
     "max", &Entities::max,
