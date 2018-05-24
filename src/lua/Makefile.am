@@ -3,11 +3,13 @@ LUA_FILES += \
 	%reldir%/configure.lua \
 	%reldir%/debug.lua \
 	%reldir%/init.lua \
+	%reldir%/input.lua \
 	%reldir%/inspect.lua \
 	%reldir%/lib/all.lua \
 	%reldir%/lib/configure.lua \
 	%reldir%/lib/debug.lua \
 	%reldir%/lib/graphics.lua \
+	%reldir%/lib/input.lua \
 	%reldir%/lib/inspect.lua \
 	%reldir%/lib/math.lua \
 	%reldir%/lib/plot.lua \
@@ -16,6 +18,7 @@ LUA_FILES += \
 	%reldir%/lib/timeline.lua \
 	%reldir%/lib/tools.lua \
 	%reldir%/lib/utils.lua \
+	%reldir%/main.lua \
 	%reldir%/path.lua \
 	%reldir%/plot.lua \
 	%reldir%/profile.lua \

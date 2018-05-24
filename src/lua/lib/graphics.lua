@@ -1,3 +1,5 @@
+local input = require "nngn.lib.input"
+
 local BACK_ENDS <const> = {
     glfw = {Graphics.GLFW_BACKEND},
     pseudograph = {Graphics.PSEUDOGRAPH},

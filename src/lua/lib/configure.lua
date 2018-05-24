@@ -26,6 +26,11 @@ end
 
 local FS = {
     graphics = {
+        bool(
+            "cursor", true,
+            "nngn:graphics():set_cursor_mode("
+                .. "%1 and Graphics.CURSOR_MODE_NORMAL"
+                .. " or Graphics.CURSOR_MODE_HIDDEN)"),
         int(
             "swap_interval", 0, 32, 1,
             "nngn:graphics():set_swap_interval(%1)"),
