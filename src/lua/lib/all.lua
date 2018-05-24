@@ -1,3 +1,4 @@
+input = require "nngn.lib.input"
 inspect = require "nngn.inspect"
 math = require "nngn.lib.math"
 plot = require "nngn.plot"

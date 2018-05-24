@@ -3,6 +3,8 @@
 #include "luastate.h"
 
 #include "graphics/graphics.h"
+#include "input/input.h"
+#include "input/mouse.h"
 #include "math/math.h"
 #include "os/platform.h"
 #include "os/socket.h"
@@ -19,6 +21,13 @@ struct NNGN {
     enum Flag : uint8_t {
         EXIT = 1u << 0, ERROR = 1u << 1,
     };
+    struct Input {
+        nngn::Input input;
+        nngn::MouseInput mouse;
+        struct {
+            nngn::Input::Source *graphics = {};
+        } sources;
+    };
     nngn::Flags<Flag> flags = {};
     nngn::Math math = {};
     nngn::Timing timing = {};
@@ -27,6 +36,7 @@ struct NNGN {
     nngn::FPS fps = {};
     nngn::Socket socket = {};
     LuaState lua = {};
+    Input input = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(
         nngn::Graphics::Backend b, std::optional<const void*> params);
@@ -47,6 +57,8 @@ bool NNGN::init(int argc, const char *const *argv) {
     sol["nngn"] = this;
     sol["deref"] = [](void *p) { return *static_cast<uintptr_t*>(p); };
     this->schedule.init(&this->timing);
+    this->input.input.init(this->lua.L);
+    this->input.mouse.init(this->lua.L);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::all_of(
@@ -65,6 +77,21 @@ bool NNGN::set_graphics(
         b, params ? static_cast<const uintptr_t*>(*params) + 1 : nullptr);
     if(!g || !g->init())
         return false;
+    {
+        auto &i = this->input;
+        auto src = nngn::input_graphics_source(g.get());
+        if(auto *p = std::exchange(i.sources.graphics, src.get()))
+            i.input.remove_source(p);
+        i.input.add_source(std::move(src));
+    }
+    g->set_mouse_button_callback(
+        &this->input.mouse, [](void *p, int button, int action, int mods) {
+            static_cast<nngn::MouseInput*>(p)
+                ->button_callback(button, action, mods);
+    });
+    g->set_mouse_move_callback(
+        &this->input.mouse, [](void *p, nngn::dvec2 pos)
+            { static_cast<nngn::MouseInput*>(p)->move_callback(pos); });
     this->graphics = std::move(g);
     return true;
 }
@@ -75,8 +102,8 @@ int NNGN::loop() {
     if(this->flags.is_set(Flag::EXIT) || this->graphics->window_closed())
         return 0;
     this->timing.update();
-    this->graphics->poll_events();
     bool ok = true;
+    ok = ok && this->input.input.update();
     ok = ok && this->schedule.update();
     ok = ok && this->socket.process(
         [&l = this->lua](auto s) { l.dostring(s); });
@@ -98,6 +125,9 @@ NNGN_LUA_PROXY(NNGN,
     "fps", sol::readonly(&NNGN::fps),
     "socket", sol::readonly(&NNGN::socket),
     "lua", sol::readonly(&NNGN::lua),
+    "input", sol::property([](const NNGN &nngn) { return &nngn.input.input; }),
+    "mouse_input", sol::property(
+        [](const NNGN &nngn) { return &nngn.input.mouse; }),
     "set_graphics", &NNGN::set_graphics,
     "exit", &NNGN::exit,
     "die", &NNGN::die)

@@ -20,6 +20,7 @@ CLEANFILES += \
 	%reldir%/*.moc.cpp \
 	%reldir%/*/*.moc.cpp
 
+include %reldir%/input/Makefile.am
 include %reldir%/lua/Makefile.am
 include %reldir%/math/Makefile.am
 include %reldir%/timing/Makefile.am

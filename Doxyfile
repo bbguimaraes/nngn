@@ -15,3 +15,6 @@ HAVE_DOT               = YES
 INTERACTIVE_SVG        = YES
 JAVADOC_AUTOBRIEF      = YES
 RECURSIVE              = YES
+
+PREDEFINED = \
+    HAVE_TERMIOS_H
