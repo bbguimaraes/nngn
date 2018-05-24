@@ -9,6 +9,7 @@
 
 #ifdef __EMSCRIPTEN__
     #define NNGN_PLATFORM_EMSCRIPTEN
+    #undef HAVE_TERMIOS_H
     #undef NNGN_PLATFORM_HAS_SOCKETS
 #endif
 

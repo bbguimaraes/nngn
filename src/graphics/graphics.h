@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "math/vec2.h"
 #include "utils/def.h"
 #include "utils/utils.h"
 
@@ -25,9 +26,13 @@ struct GLFWwindow;
 namespace nngn {
 
 struct Graphics {
+    using key_callback_f = void (*)(void*, int, int, int, int);
+    using mouse_button_callback_f = void (*)(void*, int, int, int);
+    using mouse_move_callback_f = void (*)(void*, dvec2);
     enum class Backend : u8 {
         PSEUDOGRAPH, GLFW_BACKEND,
     };
+    enum class CursorMode { NORMAL, HIDDEN, DISABLED };
     static std::unique_ptr<Graphics> create(Backend b, const void *params);
     NNGN_VIRTUAL(Graphics)
     // Initialization
@@ -37,6 +42,12 @@ struct Graphics {
     virtual int swap_interval() const = 0;
     virtual void set_swap_interval(int i) = 0;
     virtual void set_window_title(const char *t) = 0;
+    virtual void set_cursor_mode(CursorMode m) = 0;
+    virtual void set_key_callback(void *data, key_callback_f f) = 0;
+    virtual void set_mouse_button_callback(
+        void *data, mouse_button_callback_f f) = 0;
+    virtual void set_mouse_move_callback(
+        void *data, mouse_move_callback_f f) = 0;
     virtual void resize(int w, int h) = 0;
     // Rendering
     virtual void poll_events() const = 0;

@@ -1,3 +1,5 @@
+local input = require "nngn.lib.input"
+
 local function default_backends()
     return {{Graphics.GLFW_BACKEND}, {Graphics.PSEUDOGRAPH}}
 end

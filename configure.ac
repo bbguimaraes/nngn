@@ -65,6 +65,9 @@ AS_IF([test "$ENABLE_TOOLS" != no],
         [QT_DEPS], [Qt5Charts Qt5Core Qt5Network Qt5Widgets],
         [QT_DEPS_CFLAGS=$(echo "$QT_DEPS_CFLAGS" | sed s/-I/-isystem/g)])])
 
+# Checks for header files.
+AC_CHECK_HEADERS([termios.h])
+
 # Checks for library functions.
 AC_CHECK_FUNCS([setenv signal])
 AC_CHECK_FUNCS([socket],
