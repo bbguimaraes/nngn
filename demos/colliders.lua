@@ -17,7 +17,8 @@ nngn:renderers():set_debug(Renderers.DEBUG_BB | Renderers.DEBUG_CIRCLE)
 
 local C <const> = Collider
 local colliders <const> = {
-    {type = C.AABB, C.SOLID, bb = 8},
+    {type = C.AABB, flags = C.SOLID, bb = 8},
+    {type = C.BB, flags = C.SOLID, bb = 8, rot = nngn:math():rand()},
 }
 local n <const> = #colliders
 local math <const> = nngn:math()

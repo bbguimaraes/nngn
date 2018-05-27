@@ -10,7 +10,9 @@ namespace {
 
 void register_collider(nngn::lua::table_view t) {
     t["SIZEOF_AABB"] = nngn::narrow<lua_Integer>(sizeof(nngn::AABBCollider));
+    t["SIZEOF_BB"] = nngn::narrow<lua_Integer>(sizeof(nngn::BBCollider));
     t["AABB"] = Collider::Type::AABB;
+    t["BB"] = Collider::Type::BB;
     t["TRIGGER"] = Collider::Flag::TRIGGER;
     t["SOLID"] = Collider::Flag::SOLID;
     t["flags"] = [](const Collider &c) { return *c.flags; };

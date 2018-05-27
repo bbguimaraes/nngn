@@ -189,7 +189,11 @@ bool Renderers::set_max_colliders(std::size_t n) {
     return this->graphics->set_buffer_capacity(this->aabb_vbo, vsize)
         && this->graphics->set_buffer_capacity(this->aabb_ebo, esize)
         && this->graphics->set_buffer_capacity(this->aabb_circle_vbo, vsize)
-        && this->graphics->set_buffer_capacity(this->aabb_circle_ebo, esize);
+        && this->graphics->set_buffer_capacity(this->aabb_circle_ebo, esize)
+        && this->graphics->set_buffer_capacity(this->bb_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->bb_ebo, esize)
+        && this->graphics->set_buffer_capacity(this->bb_circle_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->bb_circle_ebo, esize);
 }
 
 void Renderers::set_debug(Debug d) {
@@ -383,6 +387,22 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "aabb_circle_ebo",
             .type = index,
         }))
+        && (this->bb_vbo = g->create_buffer({
+            .name = "bb_vbo",
+            .type = vertex,
+        }))
+        && (this->bb_ebo = g->create_buffer({
+            .name = "bb_ebo",
+            .type = index,
+        }))
+        && (this->bb_circle_vbo = g->create_buffer({
+            .name = "bb_circle_vbo",
+            .type = vertex,
+        }))
+        && (this->bb_circle_ebo = g->create_buffer({
+            .name = "bb_circle_ebo",
+            .type = index,
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -419,6 +439,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .pipeline = circle_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->aabb_circle_vbo, this->aabb_circle_ebo},
+                    {this->bb_circle_vbo, this->bb_circle_ebo},
                 }),
             }, {
                 .pipeline = box_pipeline,
@@ -428,6 +449,7 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->voxel_debug_vbo, this->voxel_debug_ebo},
                     {this->selection_vbo, this->selection_ebo},
                     {this->aabb_vbo, this->aabb_ebo},
+                    {this->bb_vbo, this->bb_ebo},
                 }),
             }, {
                 .pipeline = line_pipeline,
@@ -760,6 +782,31 @@ bool Renderers::update_debug(
         return update_span<gen, update_quad_indices<6>>(
             this->graphics, s, vbo, ebo, 4, 6);
     };
+    const auto update_bbs = [this] {
+        NNGN_LOG_CONTEXT("bb");
+        const auto vbo = this->bb_vbo;
+        const auto ebo = this->bb_ebo;
+        const std::span s = this->colliders->bb();
+        if(!this->m_debug.is_set(Debug::DEBUG_BB) || s.empty())
+            return this->graphics->set_buffer_size(ebo, 0);
+        constexpr auto gen = [](auto *p, const auto *x) {
+            Gen::bb(p, *x, x->flags.is_set(Collider::Flag::COLLIDING)
+                ? vec3{0, 1, 0} : vec3{1, 0, 0});
+        };
+        return update_span<gen, update_quad_indices<6>>(
+            this->graphics, s, vbo, ebo, 4, 6);
+    };
+    const auto update_bb_circles = [this] {
+        NNGN_LOG_CONTEXT("bb circle");
+        const auto vbo = this->bb_circle_vbo;
+        const auto ebo = this->bb_circle_ebo;
+        const std::span s = this->colliders->bb();
+        if(!this->m_debug.is_set(Debug::DEBUG_CIRCLE) || s.empty())
+            return this->graphics->set_buffer_size(ebo, 0);
+        constexpr auto gen = [](auto *p, auto *x) { Gen::aabb_circle(p, *x); };
+        return update_span<gen, update_quad_indices<6>>(
+            this->graphics, s, vbo, ebo, 4, 6);
+    };
     const auto update = [
         this,
         enabled = this->m_debug.is_set(Debug::DEBUG_RENDERERS),
@@ -774,7 +821,8 @@ bool Renderers::update_debug(
             this->screen_sprite_debug_ebo)
         && update(cubes_updated, update_cube_debug, this->cube_debug_ebo)
         && update(voxels_updated, update_voxel_debug, this->voxel_debug_ebo)
-        && update_aabbs() && update_aabb_circles();
+        && update_aabbs() && update_aabb_circles()
+        && update_bbs() && update_bb_circles();
 }
 
 }

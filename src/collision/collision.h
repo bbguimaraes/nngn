@@ -31,10 +31,14 @@ struct Collision {
 struct CollisionStats : StatsBase<CollisionStats, 4> {
     std::array<uint64_t, 4>
         counters,
-        aabb_copy, aabb_exec_barrier, aabb_exec;
+        aabb_copy, aabb_exec_barrier, aabb_exec,
+        bb_copy, bb_exec_barrier, bb_exec,
+        aabb_bb_exec_barrier, aabb_bb_exec;
     static constexpr std::array names = {
         "counters",
-        "aabb_copy", "aabb_exec_barrier", "aabb_exec"};
+        "aabb_copy", "aabb_exec_barrier", "aabb_exec",
+        "bb_copy", "bb_exec_barrier", "bb_exec",
+        "aabb_bb_exec_barrier", "aabb_bb_exec"};
     const uint64_t *to_u64(void) const { return this->counters.data(); }
     uint64_t *to_u64(void) { return this->counters.data(); }
 };
@@ -43,6 +47,7 @@ struct Colliders {
     struct Backend {
         struct Input {
             std::vector<AABBCollider> aabb = {};
+            std::vector<BBCollider> bb = {};
         };
         struct Output {
             CollisionStats stats = {};
@@ -73,6 +78,7 @@ public:
     Colliders(void);
     ~Colliders(void);
     auto &aabb(void) const { return this->input.aabb; }
+    auto &bb(void) const { return this->input.bb; }
     std::size_t max_colliders(void) const { return this->m_max_colliders; }
     std::size_t max_collisions(void) const;
     auto &collisions(void) const { return this->output.collisions; }
@@ -85,6 +91,7 @@ public:
     bool set_max_collisions(std::size_t n);
     bool set_backend(std::unique_ptr<Backend> p);
     AABBCollider *add(const AABBCollider &c);
+    BBCollider *add(const BBCollider &c);
     Collider *load(nngn::lua::table_view t);
     void remove(Collider *p);
     void clear(void);

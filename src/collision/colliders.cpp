@@ -70,4 +70,17 @@ void AABBCollider::load(nngn::lua::table_view t) {
     }
 }
 
+void BBCollider::update(std::span<BBCollider> s) {
+    for(auto &x : s)
+        update_bb(&x);
+}
+
+void BBCollider::load(nngn::lua::table_view t) {
+    AABBCollider::load(t);
+    if(const auto r = t["rot"].get<std::optional<float>>()) {
+        this->cos = std::cos(*r);
+        this->sin = std::sin(*r);
+    }
+}
+
 }

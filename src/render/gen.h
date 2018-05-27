@@ -48,6 +48,7 @@ struct Gen {
     static void selection(Vertex **p, const SpriteRenderer &x);
     static void aabb(Vertex **p, const AABBCollider &x, vec3 color);
     static void aabb_circle(Vertex **p, const AABBCollider &x);
+    static void bb(Vertex **p, const BBCollider &x, vec3 color);
 private:
     static constexpr std::array<vec2, 2>
         CIRCLE_UV_32 = {{{ 32/512.0f, 1}, { 64/512.0f, 1 -  32/512.0f}}},
@@ -315,6 +316,30 @@ inline void Gen::aabb_circle(Vertex **p, const AABBCollider &x) {
     Gen::quad_vertices(
         p, x.center - x.radius, x.center + x.radius, 0, 1,
         uv[0], uv[1]);
+}
+
+inline void Gen::bb(Vertex **pp, const BBCollider &x, vec3 color) {
+    std::array<vec2, 4> rot = {{
+        {x.bl.x, x.bl.y},
+        {x.tr.x, x.bl.y},
+        {x.bl.x, x.tr.y},
+        {x.tr.x, x.tr.y},
+    }};
+    const auto pos = x.bl + (x.tr - x.bl) / 2.0f;
+    for(auto &r : rot) {
+        r -= pos;
+        r = {
+            r.x * x.cos - r.y * x.sin,
+            r.x * x.sin + r.y * x.cos,
+        };
+        r += pos;
+    }
+    auto *p = *pp;
+    *p++ = {{rot[0], 0}, color};
+    *p++ = {{rot[1], 0}, color};
+    *p++ = {{rot[2], 0}, color};
+    *p++ = {{rot[3], 0}, color};
+    *pp = p;
 }
 
 }
