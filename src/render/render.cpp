@@ -259,6 +259,36 @@ void update_aabb_circles(
         p, x->center - x->radius, x->center + x->radius, 0, 1, uv[0], uv[1]);
 }
 
+using UpdateBBData = std::tuple<
+    const nngn::BBCollider*,
+    const std::unordered_set<const nngn::Collider*>&>;
+
+void update_bbs(const UpdateBBData *data, nngn::Vertex *p, u64 i, u64 n) {
+    auto &[bbs, lookup] = *data;
+    for(; n--; ++i) {
+        const auto &x = bbs[i];
+        const auto color = lookup.find(&x) != cend(lookup)
+            ? nngn::vec3(0, 1, 0) : nngn::vec3(1, 0, 0);
+        std::array<nngn::vec2, 4> rot = {{
+            {x.bl.x, x.bl.y},
+            {x.tr.x, x.bl.y},
+            {x.bl.x, x.tr.y},
+            {x.tr.x, x.tr.y}}};
+        const auto pos = x.bl + (x.tr - x.bl) / 2.0f;
+        for(auto &r : rot) {
+            r -= pos;
+            r = {
+                r.x * x.cos - r.y * x.sin,
+                r.x * x.sin + r.y * x.cos};
+            r += pos;
+        }
+        *p++ = {{rot[0], 0}, color};
+        *p++ = {{rot[1], 0}, color};
+        *p++ = {{rot[2], 0}, color};
+        *p++ = {{rot[3], 0}, color};
+    }
+}
+
 }
 
 namespace nngn {
@@ -325,7 +355,11 @@ bool Renderers::set_max_colliders(std::size_t n) {
     return this->graphics->set_buffer_capacity(this->aabb_vbo, vsize)
         && this->graphics->set_buffer_capacity(this->aabb_ebo, esize)
         && this->graphics->set_buffer_capacity(this->aabb_circle_vbo, vsize)
-        && this->graphics->set_buffer_capacity(this->aabb_circle_ebo, esize);
+        && this->graphics->set_buffer_capacity(this->aabb_circle_ebo, esize)
+        && this->graphics->set_buffer_capacity(this->bb_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->bb_ebo, esize)
+        && this->graphics->set_buffer_capacity(this->bb_circle_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->bb_circle_ebo, esize);
 }
 
 void Renderers::set_debug(std::underlying_type_t<Debug> d) {
@@ -497,6 +531,22 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "aabb_circle_ebo",
             .type = index,
         }))
+        && (this->bb_vbo = g->create_buffer({
+            .name = "bb_vbo",
+            .type = vertex,
+        }))
+        && (this->bb_ebo = g->create_buffer({
+            .name = "bb_ebo",
+            .type = index,
+        }))
+        && (this->bb_circle_vbo = g->create_buffer({
+            .name = "bb_circle_vbo",
+            .type = vertex,
+        }))
+        && (this->bb_circle_ebo = g->create_buffer({
+            .name = "bb_circle_ebo",
+            .type = index,
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -533,6 +583,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .pipeline = circle_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->aabb_circle_vbo, this->aabb_circle_ebo},
+                    {this->bb_circle_vbo, this->bb_circle_ebo},
                 }),
             }, {
                 .pipeline = box_pipeline,
@@ -542,6 +593,7 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->voxel_debug_vbo, this->voxel_debug_ebo},
                     {this->selection_vbo, this->selection_ebo},
                     {this->aabb_vbo, this->aabb_ebo},
+                    {this->bb_vbo, this->bb_ebo},
                 }),
             }, {
                 .pipeline = line_pipeline,
@@ -813,6 +865,44 @@ bool Renderers::update() {
         return update_span<::update_aabb_circles, update_indices<6>>(
             this->graphics, v, vbo, ebo, 4, 6);
     };
+    const auto update_bbs = [this] {
+        NNGN_LOG_CONTEXT("bb");
+        const auto vbo = this->bb_vbo;
+        const auto ebo = this->bb_ebo;
+        if(!this->m_debug.is_set(Debug::BB)) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        const auto &v = this->colliders->bb();
+        if(v.empty()) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        const auto &collisions = this->colliders->collisions();
+        std::unordered_set<const Collider*> lookup;
+        for(auto x : collisions) {
+            lookup.insert(x.entity0->collider);
+            lookup.insert(x.entity1->collider);
+        }
+        const auto n = v.size();
+        return update_with_state<::update_bbs, update_indices<6>>(
+            this->graphics, vbo, ebo, 0, 0,
+            n, 4 * sizeof(Vertex), n, 6 * sizeof(std::uint32_t),
+            rptr(UpdateBBData{v.data(), std::move(lookup)}));
+    };
+    const auto update_bb_circles = [this] {
+        NNGN_LOG_CONTEXT("bb circle");
+        const auto vbo = this->bb_circle_vbo;
+        const auto ebo = this->bb_circle_ebo;
+        const auto v = std::span{
+            const_cast<std::vector<BBCollider>&>(this->colliders->bb())};
+        if(!this->m_debug.is_set(Debug::CIRCLE) || v.empty()) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        return update_span<::update_aabb_circles, update_indices<6>>(
+            this->graphics, v, vbo, ebo, 4, 6);
+    };
     const auto updated = [&flags = this->flags](auto f, const auto &v) {
         return flags.is_set(f)
             ? (flags.clear(f), true)
@@ -843,7 +933,8 @@ bool Renderers::update() {
         }
     }
     return update_text() && update_textbox() && update_selections()
-        && update_aabbs() && update_aabb_circles();
+        && update_aabbs() && update_aabb_circles()
+        && update_bbs() && update_bb_circles();
 }
 
 }

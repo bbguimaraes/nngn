@@ -19,6 +19,7 @@ bool Colliders::set_max_colliders(size_t n) {
     this->m_flags.set(Flag::MAX_COLLIDERS_UPDATED);
     this->m_max_colliders = n;
     set_capacity(&this->input.aabb, n);
+    set_capacity(&this->input.bb, n);
     return !this->backend || this->backend->set_max_colliders(n);
 }
 
@@ -45,10 +46,13 @@ void Colliders::remove(Collider *p) {
     };
     if(is_in(this->input.aabb))
         remove(&this->input.aabb);
+    if(is_in(this->input.bb))
+        remove(&this->input.bb);
 }
 
 void Colliders::clear() {
     this->input.aabb.clear();
+    this->input.bb.clear();
 }
 
 bool Colliders::check_collisions(const Timing &t) {
@@ -57,6 +61,7 @@ bool Colliders::check_collisions(const Timing &t) {
     if(!this->m_flags.is_set(Flag::CHECK) || !this->backend)
         return true;
     AABBCollider::update(this->input.aabb.size(), this->input.aabb.data());
+    BBCollider::update(this->input.bb.size(), this->input.bb.data());
     this->output.collisions.clear();
     constexpr auto f =
         Flag::MAX_COLLIDERS_UPDATED | Flag::MAX_COLLISIONS_UPDATED;
@@ -123,12 +128,15 @@ static typename T::pointer add(T *v, typename T::const_reference c) {
 
 AABBCollider *Colliders::add(const AABBCollider &c)
     { NNGN_LOG_CONTEXT("aabb"); return nngn::add(&this->input.aabb, c); }
+BBCollider *Colliders::add(const BBCollider &c)
+    { NNGN_LOG_CONTEXT("bb"); return nngn::add(&this->input.bb, c); }
 
 Collider *Colliders::load(const sol::stack_table &t) {
     NNGN_LOG_CONTEXT_CF(Colliders);
     const auto load = [this, &t](auto c) { c.load(t); return this->add(c); };
     switch(const Collider::Type type = t["type"]) {
     case Collider::Type::AABB: return load(AABBCollider());
+    case Collider::Type::BB: return load(BBCollider());
     case Collider::Type::NONE:
     case Collider::Type::N_TYPES:
     default:

@@ -41,3 +41,35 @@ void CollisionBench::aabb_sparse_benchmark() {
     QBENCHMARK { QVERIFY(c.check_collisions(nngn::Timing{})); }
     QVERIFY(c.collisions().size() < max);
 }
+
+void CollisionBench::bb_benchmark() {
+    constexpr size_t max = 256 * N;
+    auto c = this->make_colliders();
+    c.set_max_colliders(N);
+    c.set_max_collisions(max);
+    for(size_t i = 0; i < N; ++i) {
+        const auto pos = this->rnd().xy();
+        c.add(nngn::BBCollider(
+            pos + bl, pos + ::tr,
+            this->rot_dist(this->mt),
+            this->rot_dist(this->mt)));
+    }
+    QBENCHMARK { QVERIFY(c.check_collisions(nngn::Timing{})); }
+    QVERIFY(c.collisions().size() < max);
+}
+
+void CollisionBench::bb_sparse_benchmark() {
+    constexpr size_t max = 16;
+    auto c = this->make_colliders();
+    c.set_max_colliders(N);
+    c.set_max_collisions(max);
+    for(size_t i = 0; i < N; ++i) {
+        const auto pos = this->rnd_sparse().xy();
+        c.add(nngn::BBCollider(
+            pos + bl, pos + ::tr,
+            this->rot_dist(this->mt),
+            this->rot_dist(this->mt)));
+    }
+    QBENCHMARK { QVERIFY(c.check_collisions(nngn::Timing{})); }
+    QVERIFY(c.collisions().size() < max);
+}

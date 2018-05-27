@@ -57,7 +57,9 @@ class Renderers {
         textbox_vbo = {}, textbox_ebo = {},
         selection_vbo = {}, selection_ebo = {},
         aabb_vbo = {}, aabb_ebo = {},
-        aabb_circle_vbo = {}, aabb_circle_ebo = {};
+        aabb_circle_vbo = {}, aabb_circle_ebo = {},
+        bb_vbo = {}, bb_ebo = {},
+        bb_circle_vbo = {}, bb_circle_ebo = {};
 public:
     enum Debug : u8 {
         RECT = 1u << 0, CIRCLE = 1u << 1, BB = 1u << 2, N_DEBUG = 3,
