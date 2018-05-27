@@ -61,4 +61,18 @@ void AABBCollider::load(const nngn::lua::table &t) {
     }
 }
 
+void BBCollider::update(size_t n, BBCollider *v) {
+    for(auto *e = v + n; v != e;)
+        update_bb(v++);
+}
+
+void BBCollider::load(const nngn::lua::table &t) {
+    AABBCollider::load(t);
+    if(const auto o = t.get<std::optional<float>>("rot")) {
+        const auto r = *o;
+        this->cos = std::cos(r);
+        this->sin = std::sin(r);
+    }
+}
+
 }

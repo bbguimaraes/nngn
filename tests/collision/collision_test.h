@@ -10,6 +10,8 @@ class CollisionTest : public QObject {
 private slots:
     void aabb_collision_data();
     void aabb_collision();
+    void bb_collision_data();
+    void bb_collision();
 protected:
     nngn::Colliders colliders = {};
 };

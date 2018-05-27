@@ -12,7 +12,7 @@ namespace nngn {
 
 struct Collider {
     enum Type : uint8_t {
-        NONE, AABB, N_TYPES,
+        NONE, AABB, BB, N_TYPES,
     };
     enum Flag : uint8_t { TRIGGER = 0b1, SOLID = 0b10 };
     Entity *entity = nullptr;
@@ -32,6 +32,15 @@ struct AABBCollider : Collider {
     AABBCollider() = default;
     AABBCollider(vec2 p_bl, vec2 p_tr);
     static void update(size_t n, AABBCollider *v);
+    void load(const nngn::lua::table &t);
+};
+
+struct BBCollider : AABBCollider {
+    float cos = {}, sin = {};
+    BBCollider() = default;
+    BBCollider(vec2 p_bl, vec2 p_tr, float p_cos, float p_sin) :
+        AABBCollider(p_bl, p_tr), cos(p_cos), sin(p_sin) {}
+    static void update(size_t n, BBCollider *v);
     void load(const nngn::lua::table &t);
 };
 

@@ -31,3 +31,6 @@ print("colliders:")
 print(fmt(
     "- aabb", Collider.SIZEOF_AABB,
     nngn.colliders:n_aabbs(), max_colliders))
+print(fmt(
+    "- bb", Collider.SIZEOF_BB,
+    nngn.colliders:n_bbs(), max_colliders))

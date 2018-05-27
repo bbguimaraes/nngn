@@ -120,7 +120,9 @@ private:
         textbox_vbo = {}, textbox_ebo = {},
         selection_vbo = {}, selection_ebo = {},
         aabb_vbo = {}, aabb_ebo = {},
-        aabb_circle_vbo = {}, aabb_circle_ebo = {};
+        aabb_circle_vbo = {}, aabb_circle_ebo = {},
+        bb_vbo = {}, bb_ebo = {},
+        bb_circle_vbo = {}, bb_circle_ebo = {};
 };
 
 inline bool Renderers::perspective(void) const {
