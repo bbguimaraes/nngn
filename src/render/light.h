@@ -1,6 +1,7 @@
 #ifndef NNGN_LIGHT_H
 #define NNGN_LIGHT_H
 
+#include <chrono>
 #include <vector>
 
 #include "const.h"
@@ -11,6 +12,7 @@
 #include "utils/flags.h"
 
 #include "animation.h"
+#include "sun.h"
 
 struct lua_State;
 struct Entity;
@@ -50,29 +52,38 @@ public:
 private:
     enum Flag : uint8_t {
         ENABLED = 1u << 0,
-        UPDATED = 1u << 1,
-        VIEW_UPDATED = 1u << 2,
+        UPDATE_SUN = 1u << 1,
+        UPDATED = 1u << 2,
+        VIEW_UPDATED = 1u << 3,
     };
     Math *math = nullptr;
-    Flags<Flag> flags = {Flag::ENABLED | Flag::UPDATED};
+    Flags<Flag> flags = {Flag::ENABLED | Flag::UPDATE_SUN | Flag::UPDATED};
     vec3 view_pos = {};
     vec4 m_ambient_light = vec4(1);
     LightAnimation m_ambient_anim = {};
     size_t n_dir = 0, n_point = 0;
     std::array<Light, MAX_LIGHTS> m_dir_lights = {}, m_point_lights = {};
+    Light *m_sun_light = nullptr;
     LightsUBO m_ubo = {};
+    Sun m_sun = {};
 public:
     void init(Math *m) { this->math = m; }
     bool enabled() const { return this->flags.is_set(Flag::ENABLED); }
+    bool update_sun(void) const { return this->flags.is_set(Flag::UPDATE_SUN); }
     const vec4 &ambient_light() const { return this->m_ambient_light; }
     std::span<const Light> dir_lights() const;
     std::span<Light> dir_lights();
     std::span<const Light> point_lights() const;
     std::span<Light> point_lights();
+    Light *sun_light() { return this->m_sun_light; }
+    const Light *sun_light() const { return this->m_sun_light; }
     const LightsUBO &ubo() const { return this->m_ubo; }
+    Sun *sun() { return &this->m_sun; }
     void set_enabled(bool b);
+    void set_update_sun(bool b);
     void set_ambient_light(const vec4 &v);
     void set_ambient_anim(LightAnimation a);
+    void set_sun_light(Light *l) { this->m_sun_light = l; }
     Light *add_light(Light::Type t);
     void remove_light(Light *l);
     bool update(const Timing &t);

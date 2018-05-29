@@ -237,6 +237,16 @@ local function test_input_n()
     cmp{1, 1, 1, 1}
 end
 
+local function test_input_n_alt()
+    local key = string.byte("N")
+    nngn.input:key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_ALT)
+    assert(nngn.lighting:sun_light())
+    nngn.input:key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_ALT)
+    assert(not nngn.lighting:sun_light())
+end
+
 local opengl = nngn:set_graphics(
     Graphics.OPENGL_ES_BACKEND,
     Graphics.opengl_params{maj = 3, min = 1, hidden = true})
@@ -265,4 +275,5 @@ test_input_h()
 test_input_l()
 test_input_f()
 test_input_n()
+test_input_n_alt()
 nngn:exit()

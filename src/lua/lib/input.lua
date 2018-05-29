@@ -1,4 +1,5 @@
 local camera = require "nngn.lib.camera"
+local light = require "nngn.lib.light"
 local nngn_math = require "nngn.lib.math"
 local player = require "nngn.lib.player"
 local textbox = require "nngn.lib.textbox"
@@ -86,6 +87,7 @@ register({
         else player.light() end
     end},
     {"N", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+        if mods & Input.MOD_ALT ~= 0 then return light.sun() end
         local a = {nngn.lighting:ambient_light()}
         if mods & Input.MOD_SHIFT == 0
         then for i = 1, 3 do a[i] = math.min(a[i] * 2, 1) end
