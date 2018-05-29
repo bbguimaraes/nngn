@@ -18,6 +18,7 @@ check_HEADERS += \
 	src/math/camera.cpp \
 	src/render/animation.cpp \
 	src/render/light.cpp \
+	src/render/sun.cpp \
 	src/timing/profile.cpp \
 	src/timing/stats.cpp \
 	src/timing/timing.cpp \

@@ -109,6 +109,7 @@ LUA_TESTS = \
 	%reldir%/entity.lua \
 	%reldir%/font.lua \
 	%reldir%/input.lua \
+	%reldir%/light.lua \
 	%reldir%/math.lua \
 	%reldir%/player.lua \
 	%reldir%/run.sh \

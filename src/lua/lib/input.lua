@@ -1,5 +1,6 @@
 local camera = require "nngn.lib.camera"
 local collision = require "nngn.lib.collision"
+local light = require "nngn.lib.light"
 local nngn_math = require "nngn.lib.math"
 local menu = require "nngn.lib.menu"
 local player = require "nngn.lib.player"
@@ -98,6 +99,7 @@ register({
     {"E", Input.SEL_PRESS, function(_, _, mods) player.menu(nil, mods) end},
     {"F", 0, function(_, press) player.action(nil, press) end},
     {"N", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+        if mods & Input.MOD_ALT ~= 0 then return light.sun() end
         local a = {nngn:lighting():ambient_light()}
         if mods & Input.MOD_SHIFT == 0
         then for i = 1, 3 do a[i] = math.min(a[i] * 2, 1) end

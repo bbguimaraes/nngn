@@ -2,13 +2,15 @@ if ENABLE_TESTS
 check_PROGRAMS += \
 	%reldir%/animation \
 	%reldir%/light \
-	%reldir%/render
+	%reldir%/render \
+	%reldir%/sun
 endif
 
 check_HEADERS += \
 	%reldir%/animation_test.h \
 	%reldir%/light_test.h \
-	%reldir%/render_test.h
+	%reldir%/render_test.h \
+	%reldir%/sun_test.h
 
 %canon_reldir%_animation_CPPFLAGS = $(check_CPPFLAGS)
 %canon_reldir%_animation_CXXFLAGS = $(check_CXXFLAGS)
@@ -37,6 +39,7 @@ check_HEADERS += \
 	src/math/math.cpp \
 	src/render/animation.cpp \
 	src/render/light.cpp \
+	src/render/sun.cpp \
 	src/timing/profile.cpp \
 	src/timing/stats.cpp \
 	src/timing/timing.cpp \
@@ -50,3 +53,11 @@ check_HEADERS += \
 %canon_reldir%_render_SOURCES = \
 	%reldir%/render_test.cpp \
 	%reldir%/render_test.moc.cpp
+
+%canon_reldir%_sun_CPPFLAGS = $(check_CPPFLAGS)
+%canon_reldir%_sun_CXXFLAGS = $(check_CXXFLAGS)
+%canon_reldir%_sun_LDADD = $(check_LDADD)
+%canon_reldir%_sun_SOURCES = \
+	src/render/sun.cpp \
+	%reldir%/sun_test.cpp \
+	%reldir%/sun_test.moc.cpp

@@ -54,6 +54,11 @@ void Lighting::set_enabled(bool b) {
     this->flags |= Flag::UPDATED;
 }
 
+void Lighting::set_update_sun(bool b) {
+    this->flags.set(Flag::UPDATE_SUN, b);
+    this->flags |= Flag::UPDATED;
+}
+
 void Lighting::set_ambient_light(const vec4 &v) {
     this->m_ambient_light = v;
     this->flags |= Flag::UPDATED;
@@ -129,7 +134,7 @@ bool Lighting::update(const Timing &t) {
             [](auto &x) { x.updated = false; });
     };
     const bool enabled = this->flags.is_set(Flag::ENABLED);
-    bool updated = this->flags.is_set(Flag::UPDATED);
+    bool updated = this->flags.is_set(Flag::UPDATED) || this->m_sun.updated();
     if(!enabled) {
         if(!updated)
             return false;
@@ -140,11 +145,15 @@ bool Lighting::update(const Timing &t) {
     this->m_ambient_anim.update(
         t, this->math->rnd_generator(),
         &this->m_ambient_light.w, &updated);
+    if(this->m_sun_light && this->flags.is_set(Flag::UPDATE_SUN))
+        this->m_sun.set_time(this->m_sun.time()
+            + std::chrono::duration_cast<Sun::duration>(t.dt * 3600));
     const bool view_updated =
         static_cast<bool>(this->flags & Flag::VIEW_UPDATED);
     const bool dir_updated = any_updated(this->m_dir_lights, this->n_dir);
     const bool point_updated = any_updated(this->m_point_lights, this->n_point);
-    updated = updated || view_updated || dir_updated || point_updated;
+    updated = updated || view_updated || dir_updated || point_updated
+        || this->m_sun.updated();
     if(!updated)
         return false;
     this->flags.clear(Flag::UPDATED | Flag::VIEW_UPDATED);
@@ -152,6 +161,9 @@ bool Lighting::update(const Timing &t) {
         clear_updated(&this->m_dir_lights, this->n_dir);
     if(point_updated)
         clear_updated(&this->m_point_lights, this->n_point);
+    this->m_sun.set_updated(false);
+    if(this->m_sun_light)
+        this->m_sun_light->set_dir(this->m_sun.dir());
     update_ubo();
     return true;
 }

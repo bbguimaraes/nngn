@@ -10,6 +10,7 @@ using nngn::Light;
 using nngn::Lighting;
 
 NNGN_LUA_DECLARE_USER_TYPE(Entity)
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Sun, "Sun")
 
 namespace {
 
@@ -111,14 +112,19 @@ void register_light(nngn::lua::table_view t) {
 
 void register_lighting(nngn::lua::table_view t) {
     t["enabled"] = &Lighting::enabled;
+    t["update_sun"] = &Lighting::update_sun;
     t["ambient_light"] = get<&Lighting::ambient_light>;
     t["n_dir_lights"] = n_dir_lights;
     t["n_point_lights"] = n_point_lights;
     t["dir_light"] = dir_light;
     t["point_light"] = point_light;
+    t["sun_light"] = [](const Lighting &l) { return l.sun_light(); };
+    t["sun"] = &Lighting::sun;
     t["set_enabled"] = &Lighting::set_enabled;
+    t["set_update_sun"] = &Lighting::set_update_sun;
     t["set_ambient_light"] = set<&Lighting::set_ambient_light>;
     t["set_ambient_anim"] = set_ambient_anim;
+    t["set_sun_light"] = &Lighting::set_sun_light;
     t["add_light"] = &Lighting::add_light;
     t["remove_light"] = &Lighting::remove_light;
 }

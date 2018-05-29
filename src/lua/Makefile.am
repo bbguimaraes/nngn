@@ -15,6 +15,7 @@ LUA_FILES += \
 	%reldir%/lib/graphics.lua \
 	%reldir%/lib/input.lua \
 	%reldir%/lib/inspect.lua \
+	%reldir%/lib/light.lua \
 	%reldir%/lib/math.lua \
 	%reldir%/lib/menu.lua \
 	%reldir%/lib/player.lua \

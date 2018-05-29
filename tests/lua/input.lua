@@ -211,6 +211,16 @@ local function test_input_n()
     cmp{1, 1, 1, 1}
 end
 
+local function test_input_n_alt()
+    local key = string.byte("N")
+    nngn:input():key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_ALT)
+    assert(nngn:lighting():sun_light())
+    nngn:input():key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_ALT)
+    assert(not nngn:lighting():sun_light())
+end
+
 local function test_input_l()
     local key = string.byte("L")
     nngn:lighting():set_enabled(false)
@@ -292,6 +302,7 @@ test_input_g()
 test_input_o()
 test_input_l()
 test_input_n()
+test_input_n_alt()
 test_menu_fairy()
 test_menu_light()
 test_menu_flashlight()
