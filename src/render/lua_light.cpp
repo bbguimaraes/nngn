@@ -65,8 +65,11 @@ NNGN_LUA_PROXY(Lighting,
         { return l.dir_lights()[i]; },
     "point_light", [](const Lighting &l, size_t i)
         { return l.point_lights()[i]; },
+    "sun_light", [](const Lighting &l) { return l.sun_light(); },
+    "sun", &Lighting::sun,
     "set_enabled", &Lighting::set_enabled,
     "set_ambient_light", s<&Lighting::set_ambient_light>,
     "set_ambient_anim", set_ambient_anim,
+    "set_sun_light", &Lighting::set_sun_light,
     "add_light", &Lighting::add_light,
     "remove_light", &Lighting::remove_light)

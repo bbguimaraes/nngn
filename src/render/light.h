@@ -1,6 +1,7 @@
 #ifndef NNGN_LIGHT_H
 #define NNGN_LIGHT_H
 
+#include <chrono>
 #include <vector>
 
 #include "const.h"
@@ -11,6 +12,7 @@
 #include "utils/flags.h"
 
 #include "animation.h"
+#include "sun.h"
 
 struct lua_State;
 struct Entity;
@@ -59,7 +61,9 @@ private:
     LightAnimation m_ambient_anim = {};
     size_t n_dir = 0, n_point = 0;
     std::array<Light, MAX_LIGHTS> m_dir_lights = {}, m_point_lights = {};
+    Light *m_sun_light = nullptr;
     LightsUBO m_ubo = NO_LIGHTS_UBO;
+    Sun m_sun = {};
 public:
     static const LightsUBO NO_LIGHTS_UBO;
     void init(Math *m) { this->math = m; }
@@ -69,10 +73,14 @@ public:
     std::span<Light> dir_lights();
     std::span<const Light> point_lights() const;
     std::span<Light> point_lights();
+    Light *sun_light() { return this->m_sun_light; }
+    const Light *sun_light() const { return this->m_sun_light; }
     const LightsUBO &ubo() const { return this->m_ubo; }
+    Sun *sun() { return &this->m_sun; }
     void set_enabled(bool b);
     void set_ambient_light(const vec4 &v);
     void set_ambient_anim(LightAnimation a);
+    void set_sun_light(Light *l) { this->m_sun_light = l; }
     Light *add_light(Light::Type t);
     void remove_light(Light *l);
     bool update(const Timing &t);

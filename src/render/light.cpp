@@ -114,6 +114,11 @@ void Lighting::remove_light(Light *l) {
 }
 
 bool Lighting::update(const Timing &t) {
+    const auto update_sun = [this](auto dt) {
+        this->m_sun.set_time(this->m_sun.time()
+            + std::chrono::duration_cast<Sun::duration>(dt * 3600));
+        this->m_sun_light->set_dir(this->m_sun.dir());
+    };
     const auto update_ubo = [this]() {
         this->m_ubo.view_pos =
             {this->view_pos.x, -this->view_pos.y, this->view_pos.z};
@@ -148,6 +153,10 @@ bool Lighting::update(const Timing &t) {
     this->m_ambient_anim.update(
         t, this->math->rnd_generator(),
         &this->m_ambient_light.w, &updated);
+    if(this->m_sun_light) {
+        update_sun(t.dt);
+        updated = true;
+    }
     const bool view_updated =
         static_cast<bool>(this->flags & Flag::VIEW_UPDATED);
     const bool dir_updated = any_updated(this->m_dir_lights, this->n_dir);
