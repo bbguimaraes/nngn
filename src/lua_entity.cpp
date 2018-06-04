@@ -73,9 +73,17 @@ void set_pos(Entities &es, const std::vector<std::byte> &v) {
 NNGN_LUA_PROXY(Entity,
     "SIZEOF", nngn::lua::var(sizeof(Entity)),
     "pos", [](const Entity &e) { return std::tuple(e.p.x, e.p.y, e.p.z); },
+    "vel", [](const Entity &e) { return std::tuple(e.v.x, e.v.y, e.v.z); },
+    "acc", [](const Entity &e) { return std::tuple(e.a.x, e.a.y, e.a.z); },
+    "max_vel", [](const Entity &e) { return e.max_v; },
     "renderer", [](const Entity &e) { return e.renderer; },
     "set_pos", [](Entity &e, float v0, float v1, float v2)
         { e.set_pos({v0, v1, v2}); },
+    "set_vel", [](Entity &e, float v0, float v1, float v2)
+        { e.set_vel({v0, v1, v2}); },
+    "set_acc", [](Entity &e, float v0, float v1, float v2)
+        { e.a = {v0, v1, v2}; },
+    "set_max_vel", [](Entity &e, float v) { e.max_v = v; },
     "set_renderer", &Entity::set_renderer)
 NNGN_LUA_PROXY(Entities,
     "max", &Entities::max,

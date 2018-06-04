@@ -14,17 +14,23 @@
 
 namespace nngn {
     struct Renderer;
+    struct Timing;
 }
 
 struct Entity {
     enum Flag : std::uintptr_t {
         ALIVE = 1u << 0, POS_UPDATED = 1u << 1,
     };
-    nngn::vec3 p = {0, 0, 0};
     nngn::Flags<Flag> flags = {};
+    nngn::vec3 p = {0, 0, 0};
+    nngn::vec3 v = {0, 0, 0};
+    float max_v = {};
+    nngn::vec3 a = {0, 0, 0};
     nngn::Renderer *renderer = nullptr;
+    bool alive() const { return this->flags.is_set(Flag::ALIVE); }
     bool pos_updated() const { return this->flags.is_set(Flag::POS_UPDATED); }
     void set_pos(const nngn::vec3 &p);
+    void set_vel(const nngn::vec3 &v);
     void set_renderer(nngn::Renderer *p);
 };
 
@@ -49,6 +55,7 @@ public:
     nngn::Hash tag_hash(const Entity &e) const;
     void set_name(Entity *e, std::string_view s);
     void set_tag(Entity *e, std::string_view s);
+    void update(const nngn::Timing &t);
     void clear_flags();
 };
 
