@@ -36,6 +36,7 @@ make nngn.js
 
 The following `configure` options are relevant when targeting WebAssembly:
 
+- `--disable-benchmarks`
 - `--disable-tests`
 - `--disable-tools`
 - `--without-vulkan`
@@ -107,6 +108,11 @@ The following sanitizers have been tested:
 - `undefined`
 - `pointer-compare`
 - `pointer-subtract`
+
+#### benchmarks
+
+Building the benchmakrs requires `Qt5Core` and `Qt5Test` (5.14.0) and can be
+enabled with the `--enable-benchmarks` flag.
 
 #### tools
 

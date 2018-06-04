@@ -7,8 +7,16 @@
 
 NNGN_LUA_PROXY(Player,
     sol::no_constructor,
+    "FLEFT", sol::var(Player::FLEFT),
+    "FRIGHT", sol::var(Player::FRIGHT),
+    "FDOWN", sol::var(Player::FDOWN),
+    "FUP", sol::var(Player::FUP),
+    "N_FACES", sol::var(Player::N_FACES),
     "entity", [](const Player &p) { return p.e; },
-    "set_entity", [](Player &p, Entity *e) { p.e = e; })
+    "face", [](const Player &p) { return p.face; },
+    "set_entity", [](Player &p, Entity *e) { p.e = e; },
+    "set_face", [](Player &p, Player::Face f) { p.face = f; },
+    "face_vec", &Player::face_vec)
 NNGN_LUA_PROXY(Players,
     sol::no_constructor,
     "n", &Players::n,

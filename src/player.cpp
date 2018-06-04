@@ -4,6 +4,17 @@
 #include "entity.h"
 #include "player.h"
 
+std::tuple<float, float> Player::face_vec(float s) const {
+    switch(this->face) {
+    case Face::FLEFT: return {-s, 0};
+    case Face::FRIGHT: return {s, 0};
+    case Face::FDOWN: return {0, -s};
+    case Face::FUP: return {0, s};
+    case Face::N_FACES:
+    default: return {};
+    }
+}
+
 Player *Players::cur() const {
     return this->v.empty()
         ? nullptr

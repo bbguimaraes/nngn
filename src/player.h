@@ -7,8 +7,11 @@
 struct Entity;
 
 struct Player {
+    enum Face : uint8_t { FLEFT, FRIGHT, FDOWN, FUP, N_FACES };
     Entity *e;
+    Face face = FDOWN;
     explicit constexpr Player(Entity *p_e) noexcept : e(p_e) {}
+    std::tuple<float, float> face_vec(float s) const;
 };
 
 class Players {

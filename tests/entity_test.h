@@ -6,6 +6,8 @@
 class EntityTest : public QObject {
     Q_OBJECT
 private slots:
+    void max_v_data();
+    void max_v();
     void add_remove();
 };
 
