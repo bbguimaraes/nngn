@@ -3,6 +3,8 @@
 
 #ifdef NNGN_PLATFORM_HAS_GLFW
 
+#include <algorithm>
+
 #include <GLFW/glfw3.h>
 
 #include "utils/ranges.h"

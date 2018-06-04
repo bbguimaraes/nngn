@@ -13,6 +13,9 @@ check_HEADERS += \
 %canon_reldir%_entity_LDADD = $(check_LDADD)
 %canon_reldir%_entity_SOURCES = \
 	src/entity.cpp \
+	src/timing/profile.cpp \
+	src/timing/stats.cpp \
+	src/timing/timing.cpp \
 	src/utils/log.cpp \
 	%reldir%/entity_test.cpp \
 	%reldir%/entity_test.moc.cpp
@@ -21,6 +24,7 @@ CLEANFILES += \
 	%reldir%/*.moc.cpp \
 	%reldir%/*/*.moc.cpp
 
+include %reldir%/bench/Makefile.am
 include %reldir%/graphics/Makefile.am
 include %reldir%/input/Makefile.am
 include %reldir%/lua/Makefile.am

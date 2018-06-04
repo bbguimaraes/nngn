@@ -58,6 +58,10 @@ register({
 }, paused_input)
 
 register({
+    {"A", 0, player.move},
+    {"D", 0, player.move},
+    {"S", 0, player.move},
+    {"W", 0, player.move},
     {"C", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
         if mods & Input.MOD_ALT == 0 then
             camera.reset()

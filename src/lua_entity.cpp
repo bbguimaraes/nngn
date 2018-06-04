@@ -31,6 +31,14 @@ void set_pos(Entity &e, float x, float y, float z) {
     e.set_pos({x, y, z});
 }
 
+void set_vel(Entity &e, float x, float y, float z) {
+    e.set_vel({x, y, z});
+}
+
+void set_acc(Entity &e, float x, float y, float z) {
+    e.a = {x, y, z};
+}
+
 auto entities_max(const Entities &es) {
     return nngn::narrow<lua_Integer>(es.max());
 }
@@ -110,8 +118,14 @@ void entities_set_pos(Entities &es, const nngn::lua_vector<std::byte> &v) {
 void register_entity(nngn::lua::table_view t) {
     t["SIZEOF"] = nngn::narrow<lua_Integer>(sizeof(Entity));
     t["pos"] = get<&Entity::p>;
+    t["vel"] = get<&Entity::v>;
+    t["acc"] = get<&Entity::a>;
+    t["max_vel"] = get<&Entity::max_v>;
     t["renderer"] = [](const Entity &e) { return e.renderer; };
     t["set_pos"] = set_pos;
+    t["set_vel"] = set_vel;
+    t["set_acc"] = set_acc;
+    t["set_max_vel"] = [](Entity &e, float v) { e.max_v = v; };
     t["set_renderer"] = &Entity::set_renderer;
 }
 

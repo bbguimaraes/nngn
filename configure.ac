@@ -64,6 +64,14 @@ AC_ARG_ENABLE([tests],
     [ENABLE_TESTS=$enableval])
 AM_CONDITIONAL([ENABLE_TESTS], [test "x$ENABLE_TESTS" == xyes])
 
+ENABLE_BENCHMARKS=no
+AC_ARG_ENABLE([benchmarks],
+    [AS_HELP_STRING(
+        [--enable-benchmarks],
+        [build benchmarks, requires Qt (default: no)])],
+    [ENABLE_BENCHMARKS=$enableval])
+AM_CONDITIONAL([ENABLE_BENCHMARKS], [test "x$ENABLE_BENCHMARKS" == xyes])
+
 ENABLE_LUA_ALLOC=no
 AC_ARG_ENABLE([lua-alloc],
     [AS_HELP_STRING(

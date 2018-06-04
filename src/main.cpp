@@ -187,6 +187,7 @@ int NNGN::loop(void) {
         && this->socket.process([&l = this->lua](auto s) { l.dostring(s); });
     if(!ok)
         return 1;
+    this->entities.update(this->timing);
     if(this->camera.update(this->timing))
         this->graphics->set_camera_updated();
     if(!this->renderers.update())

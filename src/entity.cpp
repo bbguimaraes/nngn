@@ -4,7 +4,10 @@
 
 #include "entity.h"
 
+#include "math/math.h"
 #include "render/renderers.h"
+#include "timing/profile.h"
+#include "timing/timing.h"
 #include "utils/log.h"
 #include "utils/utils.h"
 
@@ -50,7 +53,11 @@ void set_pos(Entity *e, vec3 p) {
 void Entity::set_pos(vec3 pos) {
     ::set_pos(this, pos);
     this->p = pos;
-    this->flags |= Flag::POS_UPDATED;
+    this->flags.set(Flag::POS_UPDATED);
+}
+
+void Entity::set_vel(vec3 vel) {
+    this->v = vel;
 }
 
 void Entity::set_renderer(nngn::Renderer *r) {
@@ -104,6 +111,21 @@ void Entities::set_name(Entity *e, std::string_view s) {
 
 void Entities::set_tag(Entity *e, std::string_view s) {
     copy(::tag(this, e), &::tag_hash(this, e), s);
+}
+
+void Entities::update(const nngn::Timing &t) {
+    NNGN_PROFILE_CONTEXT(entities);
+    const auto dt = t.fdt_s();
+    for(auto &x : this->v) {
+        if(x.a != vec3{}) {
+            x.set_vel(x.v + x.a * dt);
+            x.a = {};
+        }
+        if(x.max_v > 0)
+            x.v = nngn::Math::clamp_len(x.v, x.max_v);
+        if(x.v != vec3{})
+            x.set_pos(x.p + x.v * dt);
+    }
 }
 
 void Entities::clear_flags() {
