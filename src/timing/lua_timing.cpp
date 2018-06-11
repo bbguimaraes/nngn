@@ -40,5 +40,7 @@ NNGN_LUA_PROXY(Timing,
     "fdt_us", &Timing::fdt_us,
     "fdt_ms", &Timing::fdt_ms,
     "fdt_s", &Timing::fdt_s,
+    "scale", [](const Timing &t) { return t.scale; },
     "set_now_ns", set_now_ns,
-    "set_dt_ns", set_dt_ns)
+    "set_dt_ns", set_dt_ns,
+    "set_scale", [](Timing &t, float s) { t.scale = s; })

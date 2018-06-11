@@ -66,6 +66,12 @@ do
     local t = require("nngn.lib.timeline")
     t.timeline(t.FS.lua)
 end)"sv;
+constexpr auto CONFIGURE_GENERAL = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.configure")
+    p.configure(p.FS.general)
+end)"sv;
 constexpr auto CONFIGURE_LIMITS = R"(
 do
     require("nngn.lib.tools").add_to_path()
@@ -154,6 +160,7 @@ int main(int argc, char **argv) {
     add(plot_section, "graphics", PLOT_GRAPHICS);
     add(timeline_section, "prof", TIMELINE_PROF);
     add(timeline_section, "lua", TIMELINE_LUA);
+    add(configure_section, "general", CONFIGURE_GENERAL);
     add(configure_section, "limits", CONFIGURE_LIMITS);
     add(configure_section, "camera", CONFIGURE_CAMERA);
     add(configure_section, "render", CONFIGURE_RENDER);

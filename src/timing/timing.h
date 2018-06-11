@@ -24,6 +24,7 @@ struct Timing {
     time_point now = clock::now();
     u64 frame = 0;
     duration dt = duration(0);
+    float scale = 1.0f;
     template<typename F> static duration time(F &&f);
     duration::rep now_ns(void) const;
     duration::rep now_us(void) const;

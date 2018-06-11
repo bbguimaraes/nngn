@@ -25,6 +25,11 @@ local function float(title, min, max, init, div, text)
 end
 
 local FS = {
+    general = {
+        float(
+            "time scale (log₂)", -10000, 10000, 0, 1000,
+            "nngn.timing:set_scale(2 ^ %1)"),
+    },
     limits = {
         int("textures", 2, 64, 16, 'require("nngn.lib.texture").set_max(%1)'),
         int("entities", 8, 1048576, 1048576, "nngn.entities:set_max(%1)"),
