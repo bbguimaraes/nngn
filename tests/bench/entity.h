@@ -5,6 +5,7 @@
 
 #include <QTest>
 
+#include "math/camera.h"
 #include "render/renderers.h"
 
 class Entities;
@@ -12,6 +13,7 @@ class Entities;
 class EntityBench : public QObject {
     Q_OBJECT
     std::vector<nngn::SpriteRenderer> sprites = {};
+    std::vector<nngn::Camera> cameras = {};
     void clear();
     Entities gen_entities();
     Entities gen_entities_with_components();

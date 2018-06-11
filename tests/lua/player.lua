@@ -1,4 +1,5 @@
 dofile "src/lua/path.lua"
+local camera = require "nngn.lib.camera"
 local common = require "tests/lua/common"
 local entity = require "nngn.lib.entity"
 local nngn_math = require "nngn.lib.math"
@@ -18,9 +19,11 @@ end
 local function test_remove()
     local e = nngn.entities:add()
     local p = player.add(e)
+    camera.set_follow(e)
     player.remove(p)
     common.assert_eq(nngn.entities:n(), 0)
     common.assert_eq(player.n(), 0)
+    common.assert_eq(camera.following(), nil)
 end
 
 local function test_next()

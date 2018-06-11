@@ -13,6 +13,7 @@
 #include "utils/utils.h"
 
 namespace nngn {
+    struct Camera;
     struct Renderer;
     struct Timing;
 }
@@ -27,11 +28,13 @@ struct Entity {
     float max_v = {};
     nngn::vec3 a = {0, 0, 0};
     nngn::Renderer *renderer = nullptr;
+    nngn::Camera *camera = nullptr;
     bool alive() const { return this->flags.is_set(Flag::ALIVE); }
     bool pos_updated() const { return this->flags.is_set(Flag::POS_UPDATED); }
     void set_pos(const nngn::vec3 &p);
     void set_vel(const nngn::vec3 &v);
     void set_renderer(nngn::Renderer *p);
+    void set_camera(nngn::Camera *p);
 };
 
 class Entities {

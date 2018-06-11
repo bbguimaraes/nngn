@@ -10,6 +10,7 @@ local ROT_VEL
 local ZOOM_VEL
 local ROT_AXIS0 = 1
 local ROT_AXIS1 = 3
+local FOLLOW = nil
 
 local CAMERA = nngn.camera
 
@@ -47,7 +48,11 @@ local function reset(zoom)
     c:set_rot_acc(0, 0, 0)
     c:set_zoom_vel(0)
     c:set_zoom_acc(0)
-    local pos_y, pos_z, rot_x = 0, 0, 0
+    local pos_x, pos_y, pos_z, rot_x = 0, 0, 0, 0
+    if FOLLOW then
+        local fp = {FOLLOW:pos()}
+        pos_x, pos_y = fp[1], fp[2]
+    end
     if c:perspective() then
         rot_x = PERSP_ANGLE
         local z = c:fov_z() / zoom
@@ -55,7 +60,7 @@ local function reset(zoom)
         pos_y = -z * PERSP_ANGLE_SIN
         pos_z = z * PERSP_ANGLE_COS
     end
-    c:set_pos(0, pos_y, pos_z)
+    c:set_pos(pos_x, pos_y, pos_z)
     c:set_rot(rot_x, 0, 0)
     c:set_zoom(zoom)
 end
@@ -63,6 +68,27 @@ end
 local function set_perspective(p)
     nngn.renderers:set_perspective(p)
     nngn.camera:set_perspective(p)
+end
+
+local function following() return FOLLOW end
+
+local function set_follow(e)
+    local c = CAMERA
+    if FOLLOW then
+        FOLLOW:set_camera(nil)
+    end
+    FOLLOW = e
+    if e then
+        e:set_camera(c)
+    end
+end
+
+local function toggle_follow()
+    if FOLLOW then
+        set_follow(nil)
+    else
+        set_follow(require("nngn.lib.player").entity())
+    end
 end
 
 local function move(key, press, mods, keys)
@@ -99,6 +125,7 @@ local function move(key, press, mods, keys)
         if ax == 0 and ay == 0 and az == 0 and zoom_a == 0 then
             c:set_dash(false)
         end
+        if FOLLOW and (x or y) then set_follow(nil) end
     end
 end
 
@@ -121,6 +148,9 @@ return {
     set_rot_axes = set_rot_axes,
     reset = reset,
     set_perspective = set_perspective,
+    following = following,
+    toggle_follow = toggle_follow,
+    set_follow = set_follow,
     move = move,
     rotate = rotate,
 }

@@ -53,7 +53,8 @@ register({
     {"D", 0, player.move},
     {"S", 0, player.move},
     {"W", 0, player.move},
-    {"C", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+    {"C", Input.SEL_PRESS, function(_, _, mods)
+        if mods & Input.MOD_CTRL == 0 then return camera.toggle_follow() end
         if mods & Input.MOD_ALT == 0 then return camera.reset() end
         local c = camera.get()
         local p = not c:perspective()

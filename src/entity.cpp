@@ -4,6 +4,7 @@
 
 #include "entity.h"
 
+#include "math/camera.h"
 #include "math/math.h"
 #include "render/renderers.h"
 #include "timing/profile.h"
@@ -40,15 +41,17 @@ void copy(std::span<char, 32> v, nngn::Hash *h, std::string_view s) {
     *h = nngn::hash({v.data(), n});
 }
 
-void set_pos(Entity *e, const nngn::vec3 &p) {
+void set_pos(Entity *e, const nngn::vec3 &oldp, const nngn::vec3 &p) {
     if(e->renderer)
         e->renderer->set_pos(p);
+    if(e->camera)
+        e->camera->set_pos(e->camera->p + p - oldp);
 }
 
 }
 
 void Entity::set_pos(const nngn::vec3 &pos) {
-    ::set_pos(this, pos);
+    ::set_pos(this, this->p, pos);
     this->p = pos;
     this->flags.set(Flag::POS_UPDATED);
 }
@@ -62,6 +65,11 @@ void Entity::set_renderer(nngn::Renderer *r) {
         r->entity = this;
         r->set_pos(this->p);
     }
+}
+
+void Entity::set_camera(nngn::Camera *c) {
+    if((this->camera = c))
+        c->set_pos(this->p);
 }
 
 void Entities::set_max(std::size_t n) {

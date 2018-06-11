@@ -84,7 +84,8 @@ NNGN_LUA_PROXY(Entity,
     "set_acc", [](Entity &e, float v0, float v1, float v2)
         { e.a = {v0, v1, v2}; },
     "set_max_vel", [](Entity &e, float v) { e.max_v = v; },
-    "set_renderer", &Entity::set_renderer)
+    "set_renderer", &Entity::set_renderer,
+    "set_camera", &Entity::set_camera)
 NNGN_LUA_PROXY(Entities,
     "max", &Entities::max,
     "n", &Entities::n,

@@ -38,6 +38,7 @@ local function add(e)
     table.insert(list, ret)
     if #list == 1 then
         cur = #list
+        camera.set_follow(e)
     end
     return ret
 end
@@ -47,8 +48,13 @@ local function remove(p)
     if not p then
         return
     end
-    nngn:remove_entity(p.entity)
+    local e <const> = p.entity
     table.remove(list, utils.find(list, p))
+    if e == camera.following() then
+        p = list[cur]
+        camera.set_follow(p and p.entity)
+    end
+    nngn:remove_entity(e)
     cur = math.min(cur, #list)
 end
 
@@ -69,6 +75,10 @@ local function next(inc)
     inc = inc or 1
     stop(p)
     cur = utils.shift(cur, #list, inc, 1)
+    local e <const> = list[cur].entity
+    if camera.following() then
+        camera.set_follow(e)
+    end
 end
 
 local function on_face_change() end

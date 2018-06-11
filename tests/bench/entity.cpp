@@ -54,10 +54,12 @@ bool check_alive(const Entities &es) {
 
 EntityBench::EntityBench() {
     this->sprites.reserve(N);
+    this->cameras.reserve(N);
 }
 
 void EntityBench::clear() {
     this->sprites.clear();
+    this->cameras.clear();
 }
 
 Entities EntityBench::gen_entities() { return ::gen_entities(rnd_pos); }
@@ -66,7 +68,8 @@ Entities EntityBench::gen_entities_with_components() {
     this->clear();
     return ::gen_entities(
         rnd_pos,
-        [this](auto *e) { e->set_renderer(&this->sprites.emplace_back()); });
+        [this](auto *e) { e->set_renderer(&this->sprites.emplace_back()); },
+        [this](auto *e) { e->set_camera(&this->cameras.emplace_back()); });
 }
 
 void EntityBench::benchmark_full(Entities &&es) {
