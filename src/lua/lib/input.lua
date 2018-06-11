@@ -53,7 +53,8 @@ register({
     {"D", 0, player.move},
     {"S", 0, player.move},
     {"W", 0, player.move},
-    {"C", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+    {"C", Input.SEL_PRESS, function(_, _, mods)
+        if mods & Input.MOD_CTRL == 0 then return camera.toggle_follow() end
         if mods & Input.MOD_ALT == 0 then return camera.reset() end
         local p = not nngn.camera:perspective()
         nngn.camera:set_perspective(p)
@@ -66,6 +67,7 @@ register({
             local e = nngn.entities:add()
             player.load(e)
             nngn.players:add(e)
+            if nngn.players:n() == 1 then camera.set_follow(e) end
         else
             local p = nngn.players:cur()
             if p then player.remove(p) end

@@ -43,6 +43,20 @@ local function test_input_c()
     assert(not c:perspective())
 end
 
+local function test_input_c_follow()
+    local key = string.byte("C")
+    nngn.input:key_callback(key, Input.KEY_PRESS, 0)
+    common.assert_eq(camera.following(), nil)
+    local e = nngn.entities:add()
+    local p = nngn.players:add(e)
+    camera.set_follow(nil)
+    nngn.input:key_callback(key, Input.KEY_PRESS, 0)
+    common.assert_eq(deref(camera.following()), deref(e))
+    nngn.input:key_callback(key, Input.KEY_PRESS, 0)
+    common.assert_eq(camera.following(), nil)
+    player.remove(p)
+end
+
 local function test_input_p()
     local function group() return deref(nngn.input:binding_group()) end
     local key = string.byte("P")
@@ -57,10 +71,19 @@ local function test_input_p_tab()
     local key_p = string.byte("P")
     nngn.input:key_callback(key_p, Input.KEY_PRESS, Input.MOD_CTRL)
     common.assert_eq(nngn.players:n(), 1)
+    common.assert_eq(
+        deref(camera.following()),
+        deref(nngn.players:get(0):entity()))
     nngn.input:key_callback(key_p, Input.KEY_PRESS, Input.MOD_CTRL)
     common.assert_eq(nngn.players:n(), 2)
+    common.assert_eq(
+        deref(camera.following()),
+        deref(nngn.players:get(0):entity()))
     nngn.input:key_callback(key_p, Input.KEY_PRESS, Input.MOD_CTRL)
     common.assert_eq(nngn.players:n(), 3)
+    common.assert_eq(
+        deref(camera.following()),
+        deref(nngn.players:get(0):entity()))
     common.assert_eq(nngn.players:idx(), 0)
     nngn.input:key_callback(Input.KEY_TAB, Input.KEY_PRESS, 0)
     common.assert_eq(nngn.players:idx(), 1)
@@ -93,6 +116,7 @@ common.setup_hook(1)
 if opengl then test_input_i() end
 test_input_b()
 test_input_c()
+test_input_c_follow()
 test_input_p()
 test_input_p_tab()
 nngn:exit()

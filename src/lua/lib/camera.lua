@@ -6,6 +6,7 @@ local ZOOM_VEL
 local ANGLE = math.rad(60)
 local ANGLE_SIN = math.sin(ANGLE)
 local ANGLE_COS = math.cos(ANGLE)
+local FOLLOW = nil
 
 local CAMERA = nngn.camera
 
@@ -39,7 +40,11 @@ local function reset(zoom)
     c:set_rot_acc(0, 0, 0)
     c:set_zoom_vel(0)
     c:set_zoom_acc(0)
-    local pos_y, pos_z, rot_x = 0, 0, 0
+    local pos_x, pos_y, pos_z, rot_x = 0, 0, 0, 0
+    if FOLLOW then
+        local fp = {FOLLOW:pos()}
+        pos_x, pos_y = fp[1], fp[2]
+    end
     if c:perspective() then
         rot_x = ANGLE
         local z = c:fov_z() / zoom
@@ -47,9 +52,25 @@ local function reset(zoom)
         pos_y = -z * ANGLE_SIN
         pos_z = z * ANGLE_COS
     end
-    c:set_pos(0, pos_y, pos_z)
+    c:set_pos(pos_x, pos_y, pos_z)
     c:set_rot(rot_x, 0, 0)
     c:set_zoom(zoom)
+end
+
+local function following() return FOLLOW end
+
+local function set_follow(e)
+    local c = CAMERA
+    if FOLLOW then FOLLOW:set_camera(nil) end
+    FOLLOW = e
+    if e then e:set_camera(c) end
+end
+
+local function toggle_follow()
+    if FOLLOW then set_follow(nil)
+    elseif nngn.players:n() > 0 then
+        set_follow(nngn.players:cur():entity())
+    end
 end
 
 local function move(key, press, mods, keys)
@@ -86,6 +107,7 @@ local function move(key, press, mods, keys)
         if ax == 0 and ay == 0 and az == 0 and zoom_a == 0 then
             c:set_dash(false)
         end
+        if FOLLOW and (x or y) then set_follow(nil) end
     end
 end
 
@@ -97,5 +119,8 @@ return {
     set = set,
     set_max_vel = set_max_vel,
     reset = reset,
+    following = following,
+    toggle_follow = toggle_follow,
+    set_follow = set_follow,
     move = move,
 }

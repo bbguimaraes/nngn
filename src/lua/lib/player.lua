@@ -20,8 +20,13 @@ local function add()
 end
 
 local function remove(p)
-    nngn:remove_entity(p:entity())
+    local e <const> = p:entity()
     nngn.players:remove(p)
+    if e == camera.following() then
+        p = nngn.players:cur()
+        camera.set_follow(p and p:entity())
+    end
+    nngn:remove_entity(e)
 end
 
 local function stop(p)
@@ -34,8 +39,9 @@ local function next(inc)
     local p = nngn.players:cur()
     if not p then return end
     stop(p)
-    nngn.players:set_idx(
+    local p = nngn.players:set_idx(
         utils.shift(nngn.players:idx(), nngn.players:n(), inc))
+    if camera.following() then camera.set_follow(p:entity()) end
 end
 
 local function on_face_change() end
