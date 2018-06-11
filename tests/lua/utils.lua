@@ -61,6 +61,19 @@ local function test_shift()
     common.assert_eq(utils.shift(4, 3, true, 2), 2)
 end
 
+local function test_shift_table()
+    local t = {0, 1, 2}
+    common.assert_eq(
+        utils.shift_table(0, t, "default", true, function() return false end),
+        "default")
+    common.assert_eq(utils.shift_table(-1, t, "default", 1), "default")
+    common.assert_eq(utils.shift_table(0, t, nil, true), 1)
+    common.assert_eq(utils.shift_table(1, t, nil, true), 2)
+    common.assert_eq(utils.shift_table(2, t, nil, true), 0)
+    common.assert_eq(utils.shift_table(2, t, nil, false), 1)
+    common.assert_eq(utils.shift_table(0, t, nil, false), 2)
+end
+
 local function test_double_tap()
     local key = string.byte(" ")
     local interval = utils.get_double_tap_interval()
@@ -93,6 +106,7 @@ return {
     test_fmt_time,
     test_fmt_size,
     test_shift,
+    test_shift_table,
     test_double_tap,
     test_find,
 }

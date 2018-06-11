@@ -23,6 +23,10 @@ auto frame(const Timing &t) {
     return nngn::narrow<lua_Integer>(t.frame);
 }
 
+auto scale(const Timing &t) {
+    return nngn::narrow<lua_Number>(t.scale);
+}
+
 void set_now_ns(Timing &t, Timing::time_point::rep r) {
     t.now = Timing::time_point(Timing::duration(r));
 }
@@ -52,8 +56,10 @@ void register_timing(nngn::lua::table_view t) {
     t["fdt_us"] = get<&Timing::fdt_us>;
     t["fdt_ms"] = get<&Timing::fdt_ms>;
     t["fdt_s"] = get<&Timing::fdt_s>;
+    t["scale"] = scale;
     t["set_now_ns"] = set_now_ns;
     t["set_dt_ns"] = set_dt_ns;
+    t["set_scale"] = [](Timing &ti, float s) { ti.scale = s; };
 }
 
 }

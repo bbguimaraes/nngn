@@ -21,6 +21,7 @@ LUA_FILES += \
 	%reldir%/lib/serial.lua \
 	%reldir%/lib/texture.lua \
 	%reldir%/lib/timeline.lua \
+	%reldir%/lib/timing.lua \
 	%reldir%/lib/tools.lua \
 	%reldir%/lib/utils.lua \
 	%reldir%/main.lua \

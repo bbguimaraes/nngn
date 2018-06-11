@@ -2,7 +2,9 @@ dofile "src/lua/path.lua"
 local camera = require "nngn.lib.camera"
 local common = require "tests/lua/common"
 local input = require "nngn.lib.input"
+local math = require "nngn.lib.math"
 local player = require "nngn.lib.player"
+local timing = require "nngn.lib.timing"
 local utils = require "nngn.lib.utils"
 
 local function test_get_keys()
@@ -107,6 +109,19 @@ local function test_input_p_tab()
     common.assert_eq(player.n(), 0)
 end
 
+local function test_input_v()
+    local scale = nngn:timing():scale()
+    local t = timing.scales()
+    local key = string.byte("V")
+    nngn:timing():set_scale(t[1])
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    common.assert_eq(nngn:timing():scale(), t[2], math.float_eq)
+    nngn:input():key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT)
+    common.assert_eq(nngn:timing():scale(), t[1], math.float_eq)
+    nngn:timing():set_scale(scale)
+end
+
 local opengl = nngn:set_graphics(
     Graphics.OPENGL_ES_BACKEND,
     Graphics.opengl_params{maj = 3, min = 1, hidden = true})
@@ -125,4 +140,5 @@ test_input_c()
 test_input_c_follow()
 test_input_p()
 test_input_p_tab()
+test_input_v()
 nngn:exit()
