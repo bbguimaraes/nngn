@@ -14,6 +14,7 @@ check_HEADERS += \
 %canon_reldir%_entity_LDADD = $(nngn_LDADD) $(TEST_DEPS_LIBS)
 %canon_reldir%_entity_SOURCES = \
 	src/entity.cpp \
+	src/math/camera.cpp \
 	src/timing/profile.cpp \
 	src/timing/stats.cpp \
 	src/timing/timing.cpp \

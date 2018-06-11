@@ -62,19 +62,21 @@ register({
     {"D", 0, player.move},
     {"S", 0, player.move},
     {"W", 0, player.move},
-    {"C", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
-        if mods & Input.MOD_ALT == 0 then
+    {"C", Input.SEL_PRESS, function(_, _, mods)
+        if mods & Input.MOD_CTRL == 0 then
+            camera.toggle_follow()
+        elseif mods & Input.MOD_ALT == 0 then
             camera.reset()
         else
             camera.toggle_perspective()
         end
     end},
+    {"E", Input.SEL_PRESS, function(_, _, mods) player.menu(nil, mods) end},
+    {"F", 0, function(_, press) player.action(nil, press) end},
     {"O", Input.SEL_PRESS | Input.SEL_CTRL, function()
         local c <const> = camera:get()
         c:set_ignore_limits(not c:ignore_limits())
     end},
-    {"E", Input.SEL_PRESS, function(_, _, mods) player.menu(nil, mods) end},
-    {"F", 0, function(_, press) player.action(nil, press) end},
     {"P", Input.SEL_PRESS, function(_, _, mods)
         if mods & Input.MOD_CTRL == 0 then
             pause()

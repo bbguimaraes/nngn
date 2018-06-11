@@ -4,10 +4,12 @@
 
 #include "entity.h"
 
+#include "math/camera.h"
 #include "math/lua_vector.h"
 #include "render/renderers.h"
 
 NNGN_LUA_DECLARE_USER_TYPE(Entity)
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Camera, "Camera")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderer, "Renderer")
 
 namespace {
@@ -127,6 +129,7 @@ void register_entity(nngn::lua::table_view t) {
     t["set_acc"] = set_acc;
     t["set_max_vel"] = [](Entity &e, float v) { e.max_v = v; };
     t["set_renderer"] = &Entity::set_renderer;
+    t["set_camera"] = &Entity::set_camera;
 }
 
 void register_entities(nngn::lua::table_view t) {
