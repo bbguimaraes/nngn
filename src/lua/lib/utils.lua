@@ -68,6 +68,14 @@ local function shift(i, n, inc, base)
     return i
 end
 
+local function shift_table(v, t, d, inc, cmp)
+    cmp = cmp or function(l, r) return l == r end
+    for i, x in ipairs(t) do
+        if cmp(x, v) then return t[shift(i, #t, inc, 1)] end
+    end
+    return d
+end
+
 local DOUBLE_TAP = {}
 local DOUBLE_TAP_INTERVAL = 200
 
@@ -98,6 +106,7 @@ return {
     fmt_time = fmt_time,
     fmt_size = fmt_size,
     shift = shift,
+    shift_table = shift_table,
     get_double_tap_interval = get_double_tap_interval,
     set_double_tap_interval = set_double_tap_interval,
     check_double_tap = check_double_tap,

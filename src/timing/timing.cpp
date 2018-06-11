@@ -42,7 +42,8 @@ void Timing::update() {
     ++this->frame;
     const auto old = this->now;
     this->now = Timing::clock::now();
-    this->dt = this->now - old;
+    this->dt = std::chrono::duration_cast<Timing::duration>(
+        (this->now - old) / this->scale);
 }
 
 }

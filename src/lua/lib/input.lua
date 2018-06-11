@@ -1,6 +1,7 @@
 local camera = require "nngn.lib.camera"
 local nngn_math = require "nngn.lib.math"
 local player = require "nngn.lib.player"
+local timing = require "nngn.lib.timing"
 local utils = require "nngn.lib.utils"
 
 local input = BindingGroup.new()
@@ -41,6 +42,11 @@ register({
         local m = 1
         if mods & Input.MOD_SHIFT ~= 0 then m = -1 end
         nngn.graphics:set_swap_interval(nngn.graphics:swap_interval() + m)
+    end},
+    {"V", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+        nngn.timing:set_scale(utils.shift_table(
+            nngn.timing:scale(), timing.scales(), 1,
+            mods & Input.MOD_SHIFT == 0, nngn_math.float_eq))
     end},
 }, input, paused_input)
 
