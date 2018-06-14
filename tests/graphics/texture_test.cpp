@@ -72,6 +72,12 @@ void TextureTest::initTestCase() {
         x = static_cast<std::byte>(i++);
 }
 
+void TextureTest::constructor() {
+    nngn::Textures t;
+    QCOMPARE(t.n(), 1);
+    QCOMPARE(t.generation(), 0);
+}
+
 void TextureTest::read() {
     nngn::Textures t;
     t.set_max(1);
@@ -140,6 +146,19 @@ void TextureTest::load_err() {
     QCOMPARE(s.c_str(), cmp);
 }
 
+void TextureTest::load_ids() {
+    constexpr std::size_t n = 16;
+    TextureTestGraphics g;
+    nngn::Textures t;
+    t.set_max(n);
+    t.set_graphics(&g);
+    for(std::size_t i = 1; i < n; ++i) {
+        const auto id = t.load_data(std::to_string(i).c_str(), this->data);
+        QCOMPARE(id, i);
+        t.add_ref(id);
+    }
+}
+
 void TextureTest::load_max() {
     constexpr std::size_t n = 16;
     TextureTestGraphics g;
@@ -147,7 +166,7 @@ void TextureTest::load_max() {
     t.set_max(n);
     t.set_graphics(&g);
     for(std::size_t i = 1; i < n; ++i)
-        QVERIFY(t.load_data(std::to_string(i).c_str(), this->data));
+        t.add_ref(t.load_data(std::to_string(i).c_str(), this->data));
     const auto m = std::to_string(n);
     auto s = nngn::Log::capture([&t, &m]()
         { QVERIFY(!t.load(m.c_str())); });
@@ -155,6 +174,40 @@ void TextureTest::load_max() {
         "Textures::load: " + m + ": "
         "cannot load more textures (max = " + m + ")\n";
     QCOMPARE(s.c_str(), c.c_str());
+}
+
+void TextureTest::load_cache() {
+    TextureTestGraphics g;
+    nngn::Textures t;
+    t.set_max(2);
+    t.set_graphics(&g);
+    const auto id = t.load_data(this->data_file.c_str(), this->data);
+    QVERIFY(id);
+    QCOMPARE(t.n(), 2);
+    QVERIFY(g.called);
+    g.called = false;
+    QCOMPARE(t.load_data(this->data_file.c_str(), this->data), id);
+    QVERIFY(!g.called);
+    t.remove(id);
+    QCOMPARE(t.n(), 2);
+    t.remove(id);
+    QCOMPARE(t.n(), 1);
+}
+
+void TextureTest::remove() {
+    TextureTestGraphics g;
+    nngn::Textures t;
+    t.set_max(2);
+    t.set_graphics(&g);
+    const auto id0 = t.load_data(this->data_file.c_str(), this->data);
+    QVERIFY(id0);
+    t.add_ref(id0);
+    const auto id1 = t.load_data(this->data_file.c_str(), this->data);
+    QCOMPARE(id1, id0);
+    t.add_ref(id1);
+    t.remove(id0);
+    const auto id2 = t.load_data(this->data_file.c_str(), this->data);
+    QCOMPARE(id2, id0);
 }
 
 QTEST_MAIN(TextureTest)

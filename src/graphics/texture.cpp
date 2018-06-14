@@ -1,3 +1,5 @@
+#include <algorithm>
+#include <cassert>
 #include <cstring>
 #include <fstream>
 #include <vector>
@@ -22,6 +24,16 @@ namespace {
 
 constexpr auto SIZE = nngn::Graphics::TEXTURE_SIZE;
 constexpr auto EXTENT = nngn::Graphics::TEXTURE_EXTENT;
+
+u32 find(const std::vector<nngn::Hash> &v, std::string_view name) {
+    return static_cast<u32>(
+        std::distance(begin(v), std::find(begin(v), end(v), nngn::hash(name))));
+}
+
+u32 find_empty(const std::vector<u32> &v) {
+    return static_cast<u32>(
+        std::distance(begin(v), std::find(begin(v), end(v), 0)));
+}
 
 bool check_max(std::size_t n, u32 i) {
     if(static_cast<std::size_t>(i) < n)
@@ -127,10 +139,14 @@ bool Textures::write(
     }
 }
 
-u32 Textures::insert(u32 i, const std::byte *p) {
-    if(!this->update_data(i, p))
+u32 Textures::insert(u32 i, std::string_view name, const std::byte *p) {
+    assert(i < this->counts.size());
+    if(p && !this->update_data(static_cast<u32>(i), p))
         return 0;
-    ++this->m_n;
+    this->hashes[i] = hash(name);
+    this->counts[i] = 1;
+    this->names[i] = name;
+    ++this->gen;
     return i;
 }
 
@@ -158,30 +174,98 @@ void Textures::flip_y(std::span<std::byte> s) {
     }
 }
 
+u32 Textures::n(void) const {
+    return static_cast<u32>(
+        std::count_if(begin(this->counts), end(this->counts), std::identity{}));
+}
+
+void Textures::set_max(u32 n) {
+    this->hashes.resize(n);
+    this->counts.resize(n);
+    this->names.resize(n);
+}
+
 u32 Textures::load_data(const char *name, const std::byte *p) {
     NNGN_LOG_CONTEXT_CF(Textures);
     NNGN_LOG_CONTEXT(name);
-    const auto i = this->m_n;
-    if(!check_max(this->m_max, i))
+    if(const auto i = find(this->hashes, name); i < this->counts.size()) {
+        Log::l() << "already loaded, ignoring data" << std::endl;
+        ++this->counts[i];
+        return i;
+    }
+    const auto i = find_empty(this->counts);
+    if(!check_max(this->counts.size(), i))
         return 0;
-    return this->insert(i, p);
+    return this->insert(i, name, p);
 }
 
 u32 Textures::load(const char *filename) {
     NNGN_LOG_CONTEXT_CF(Textures);
     NNGN_LOG_CONTEXT(filename);
-    const auto i = this->m_n;
-    if(!check_max(this->m_max, i))
+    if(const auto i = find(this->hashes, filename); i < this->counts.size()) {
+        ++this->counts[i];
+        return i;
+    }
+    const auto i = find_empty(this->counts);
+    if(!check_max(this->counts.size(), i))
         return 0;
     const auto data = Textures::read(filename);
     if(data.empty())
         return 0;
-    return this->insert(i, data.data());
+    return this->insert(i, filename, data.data());
+}
+
+bool Textures::reload(u32 i) {
+    NNGN_LOG_CONTEXT_CF(Textures);
+    if(!this->graphics)
+        return true;
+    const auto data = Textures::read(this->names[i].c_str());
+    return !data.empty() && this->update_data(i, data.data());
+}
+
+bool Textures::reload_all(void) {
+    for(std::size_t i = 1, n = this->counts.size(); i < n; ++i)
+        if(this->counts[i] && !this->reload(static_cast<u32>(i)))
+            return false;
+    return true;
 }
 
 bool Textures::update_data(u32 i, const std::byte *p) const {
     NNGN_LOG_CONTEXT_CF(Textures);
     return !this->graphics || this->graphics->load_textures(i, 1, p);
+}
+
+void Textures::remove(u32 i) {
+    if(!i)
+        return;
+    assert(i);
+    assert(this->counts[i]);
+    --this->counts[i];
+    ++this->gen;
+}
+
+void Textures::add_ref(u32 i, std::size_t n) {
+    NNGN_LOG_CONTEXT_CF(Textures);
+    this->counts[i] = static_cast<u32>(this->counts[i] + n);
+    ++this->gen;
+}
+
+void Textures::add_ref(const char *filename, std::size_t n) {
+    NNGN_LOG_CONTEXT_CF(Textures);
+    NNGN_LOG_CONTEXT(filename);
+    const auto i = find(this->hashes, filename);
+    assert(i < this->counts.size());
+    this->counts[i] = static_cast<u32>(this->counts[i] + n);
+    ++this->gen;
+}
+
+std::vector<std::tuple<std::string_view, u32>>
+Textures::dump() const {
+    std::vector<std::tuple<std::string_view, u32>> ret;
+    ret.reserve(this->counts.size());
+    for(std::size_t i = 0, n = this->counts.size(); i < n; ++i)
+        ret.emplace_back(this->names[i], this->counts[i]);
+    return ret;
 }
 
 }

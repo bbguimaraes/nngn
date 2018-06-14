@@ -3,7 +3,23 @@ local tools <const> = require "nngn.lib.tools"
 local ps = {}
 local task
 
-local FS = {}
+local FS = {
+    textures = {
+        function() end,
+        function(t)
+            local p <const>, last_gen <const> = table.unpack(t)
+            local gen <const> = nngn:textures():generation()
+            if gen == last_gen then
+                return
+            end
+           t[2] = gen
+            p:write("c\nl Textures\nl generation ", gen, '\n')
+            for _, x in ipairs(nngn:textures():dump()) do
+                p:write("l ", x[2], " ", x[1], "\n")
+            end
+        end,
+    },
+}
 
 local update
 function update()

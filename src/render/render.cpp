@@ -4,6 +4,7 @@
 
 #include "entity.h"
 
+#include "graphics/texture.h"
 #include "timing/profile.h"
 #include "utils/literals.h"
 #include "utils/log.h"
@@ -62,6 +63,10 @@ bool update_span(
 }
 
 namespace nngn {
+
+void Renderers::init(Textures *t) {
+    this->textures = t;
+}
 
 std::size_t Renderers::n() const {
     return this->sprites.size();
@@ -183,10 +188,19 @@ Renderer *Renderers::load(nngn::lua::table_view t) {
         x->flags |= Renderer::Flag::UPDATED;
         return x;
     };
+    const auto load_tex = [this, &load](auto &v, const char *name) {
+        auto ret = load(v, name);
+        if(ret) {
+            assert(this->textures);
+            if(ret->tex)
+                this->textures->add_ref(ret->tex);
+        }
+        return ret;
+    };
     const auto type = chain_cast<Renderer::Type, lua_Integer>(t["type"]);
     switch(type) {
     case Renderer::Type::SPRITE:
-        return load(this->sprites, "sprite");
+        return load_tex(this->sprites, "sprite");
     case Renderer::Type::N_TYPES:
     default:
         Log::l() << "invalid type: " << static_cast<int>(type) << '\n';
@@ -197,6 +211,9 @@ Renderer *Renderers::load(nngn::lua::table_view t) {
 void Renderers::remove(Renderer *p) {
     const auto remove = [this, p]<typename T>(std::vector<T> *v, auto flag) {
         auto *const dp = static_cast<T*>(p);
+        if constexpr(requires { dp->tex; })
+            if(const auto t = dp->tex)
+                this->textures->remove(t);
         const_time_erase(v, dp);
         if(p != &*v->end()) {
             p->entity->renderer = p;
@@ -206,6 +223,8 @@ void Renderers::remove(Renderer *p) {
     };
     if(contains(this->sprites, *p))
         remove(&this->sprites, Flag::SPRITES_UPDATED);
+    else
+        assert(!"invalid renderer");
 }
 
 bool Renderers::update(void) {
