@@ -1,10 +1,12 @@
 #include "graphics/graphics.h"
 #include "os/platform.h"
+#include "timing/timing.h"
 #include "utils/log.h"
 
 namespace {
 
 struct NNGN {
+    nngn::Timing timing = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
     bool init(int argc, const char *const *argv);
     int loop();
@@ -25,6 +27,7 @@ bool NNGN::init(int argc, const char *const *argv) {
 int NNGN::loop() {
     if(this->graphics->window_closed())
         return 0;
+    this->timing.update();
     this->graphics->poll_events();
     if(!this->graphics->render())
         return 1;
