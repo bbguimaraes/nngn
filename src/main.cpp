@@ -9,14 +9,16 @@
  */
 #include "graphics/graphics.h"
 #include "os/platform.h"
+#include "timing/timing.h"
 #include "utils/log.h"
 
 namespace {
 
 struct NNGN {
+    nngn::Timing timing = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
     bool init(int argc, const char *const *argv);
-    int loop(void) const;
+    int loop(void);
 } *p_nngn;
 
 bool NNGN::init(int argc, const char *const *argv) {
@@ -31,9 +33,10 @@ bool NNGN::init(int argc, const char *const *argv) {
     return this->graphics->init();
 }
 
-int NNGN::loop(void) const {
+int NNGN::loop(void) {
     if(this->graphics->window_closed())
         return 0;
+    this->timing.update();
     this->graphics->poll_events();
     if(!this->graphics->render())
         return 1;
