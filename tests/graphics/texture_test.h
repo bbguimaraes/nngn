@@ -13,12 +13,16 @@ class TextureTest : public QObject {
     static std::byte data_alpha[nngn::Graphics::TEXTURE_SIZE];
 private slots:
     void initTestCase();
+    void constructor();
     void read();
     void load_data_test();
     void load();
     void load_alpha();
     void load_err();
+    void load_ids();
     void load_max();
+    void load_cache();
+    void remove();
 };
 
 #endif

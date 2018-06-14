@@ -15,6 +15,7 @@
 namespace nngn {
 
 struct Graphics;
+class Textures;
 
 /**
  * Rendering subsystem.  Renders to the screen via the graphics subsystem.
@@ -33,6 +34,9 @@ public:
         DEBUG_RENDERERS = 1u << 0,
         DEBUG_ALL = (1u << 1) - 1,
     };
+    // Initialization
+    /** Partially initializes this system.  \see set_graphics */
+    void init(Textures *t);
     // Configuration
     auto debug(void) const { return this->m_debug.t; }
     auto max_sprites(void) const { return this->sprites.capacity(); }
@@ -65,6 +69,7 @@ private:
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
+    Textures *textures = nullptr;
     Graphics *graphics = nullptr;
     std::vector<SpriteRenderer> sprites = {};
     u32

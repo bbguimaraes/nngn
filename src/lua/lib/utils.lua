@@ -1,3 +1,30 @@
+local function make_class(t, name, parent)
+    t.__index = t
+    t.__name = name
+    return setmetatable(t, parent)
+end
+
+local Class <const> = {}
+
+function Class.class(_, arg)
+    if type(arg) ~= "string" then
+        return make_class(arg)
+    end
+    return setmetatable({
+        public = function(_, parent)
+            return function(t) return make_class(t, arg, parent) end
+        end,
+    }, {
+        __call = function(_, t) return make_class(t, arg) end,
+    })
+end
+
+function Class:public(parent)
+    return function(t) return make_class(t, nil, parent) end
+end
+
+setmetatable(Class, {__call = Class.class})
+
 local function pprint(x, pre, write)
     write = write or io.write
     local t = type(x)
@@ -56,6 +83,7 @@ local function shift(i, n, inc, base)
 end
 
 return {
+    class = Class,
     pprint = pprint,
     pformat = pformat,
     map = map,

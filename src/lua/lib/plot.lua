@@ -62,6 +62,8 @@ local FS = {
         function(f)
             f:write("s 2\n")
             write_names(f,
+                "textures",
+                "",
                 "staging.req.n_allocations",
                 "staging.req.total_memory_kb",
                 "staging.n_allocations",
@@ -76,6 +78,7 @@ local FS = {
             local stg, buf = stats.staging, stats.buffers
             local kb = 0x1p-10
             write_data(f,
+                nngn.textures:n(), 0,
                 stg.req_n_allocations,
                 stg.req_total_memory * kb,
                 stg.n_allocations,

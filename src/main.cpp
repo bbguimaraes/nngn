@@ -96,6 +96,7 @@ bool NNGN::init(int argc, const char *const *argv) {
     this->schedule.init(&this->timing);
     this->input.input.init(this->lua);
     this->input.mouse.init(this->lua);
+    this->renderers.init(&this->textures);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::ranges::all_of(
