@@ -3,6 +3,7 @@ check_PROGRAMS += \
 	%reldir%/flags \
 	%reldir%/log \
 	%reldir%/scoped \
+	%reldir%/static_vector \
 	%reldir%/utils
 endif
 
@@ -13,6 +14,7 @@ check_HEADERS += \
 	%reldir%/utils_test.h
 
 dist_check_DATA += \
+	%reldir%/static_vector_test.h \
 	%reldir%/utils_test.txt
 
 %canon_reldir%_flags_CPPFLAGS = $(check_CPPFLAGS)
@@ -36,6 +38,13 @@ dist_check_DATA += \
 %canon_reldir%_scoped_SOURCES = \
 	%reldir%/scoped_test.cpp \
 	%reldir%/scoped_test.moc.cpp
+
+%canon_reldir%_static_vector_CPPFLAGS = $(check_CPPFLAGS)
+%canon_reldir%_static_vector_CXXFLAGS = $(check_CXXFLAGS)
+%canon_reldir%_static_vector_LDADD = $(check_LDADD)
+%canon_reldir%_static_vector_SOURCES = \
+	%reldir%/static_vector_test.cpp \
+	%reldir%/static_vector_test.moc.cpp
 
 %canon_reldir%_utils_CPPFLAGS = $(check_CPPFLAGS)
 %canon_reldir%_utils_CXXFLAGS = $(check_CXXFLAGS)

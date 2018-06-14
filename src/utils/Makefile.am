@@ -8,6 +8,7 @@ noinst_HEADERS += \
 	%reldir%/macros.h \
 	%reldir%/pointer_flag.h \
 	%reldir%/scoped.h \
+	%reldir%/static_vector.h \
 	%reldir%/utils.h \
 	%reldir%/vector.h
 nngn_SOURCES += \

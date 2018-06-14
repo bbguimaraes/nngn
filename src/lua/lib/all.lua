@@ -1,3 +1,4 @@
+entity = require "nngn.lib.entity"
 input = require "nngn.lib.input"
 inspect = require "nngn.inspect"
 math = require "nngn.lib.math"

@@ -36,7 +36,9 @@ nngn_js_CXXFLAGS = \
 nngn_js_LDFLAGS = \
 	$(nngn_js_CXXFLAGS) \
 	--source-map-base / \
-	--embed-file $(srcdir)/src/lua/@src/lua
+	--embed-file $(srcdir)/src/lua/@src/lua \
+	--embed-file $(srcdir)/src/lson/@src/lson \
+	--embed-file $(srcdir)/demos/@demos
 nngn_js_LDADD = $(DEPS_LIBS)
 
 TESTS = $(check_PROGRAMS)

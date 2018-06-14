@@ -1,14 +1,18 @@
 noinst_HEADERS += \
 	%reldir%/debug.h \
+	%reldir%/entity.h \
 	%reldir%/luastate.h
 
 nngn_SOURCES += \
+	%reldir%/entity.cpp \
+	%reldir%/lua_entity.cpp \
 	%reldir%/lua_luastate.cpp \
 	%reldir%/luastate.cpp \
 	%reldir%/main.cpp
 
 EXTRA_DIST += \
 	%reldir%/glsl \
+	%reldir%/lson \
 	%reldir%/lua
 
 include %reldir%/glsl/Makefile.am

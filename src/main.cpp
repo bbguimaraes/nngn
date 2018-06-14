@@ -1,5 +1,6 @@
 #include <sol/state_view.hpp>
 
+#include "entity.h"
 #include "luastate.h"
 
 #include "graphics/graphics.h"
@@ -39,10 +40,12 @@ struct NNGN {
     LuaState lua = {};
     Input input = {};
     nngn::Renderers renderers = {};
+    Entities entities = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(
         nngn::Graphics::Backend b, std::optional<const void*> params);
     int loop();
+    void remove_entity(Entity *e);
     void exit() { this->flags |= Flag::EXIT; }
     void die() { this->flags |= Flag::ERROR; }
 } *p_nngn;
@@ -108,15 +111,23 @@ int NNGN::loop() {
     const bool ok = this->input.input.update()
         && this->schedule.update()
         && this->socket.process([&l = this->lua](auto s) { l.dostring(s); })
-        && this->renderers.update()
-        && this->graphics->render()
-        && this->graphics->vsync();
+        && this->renderers.update();
     if(!ok)
+        return 1;
+    this->entities.clear_flags();
+    if(!this->graphics->render() || !this->graphics->vsync())
         return 1;
     nngn::Profile::swap();
     this->fps.frame(nngn::Timing::clock::now());
     this->graphics->set_window_title(this->fps.to_string().c_str());
     return -1;
+}
+
+void NNGN::remove_entity(Entity *e) {
+    assert(e);
+    if(e->renderer)
+        this->renderers.remove(e->renderer);
+    this->entities.remove(e);
 }
 
 NNGN_LUA_PROXY(NNGN,
@@ -132,7 +143,13 @@ NNGN_LUA_PROXY(NNGN,
     "mouse_input", sol::property(
         [](const NNGN &nngn) { return &nngn.input.mouse; }),
     "renderers", sol::readonly(&NNGN::renderers),
+    "entities", sol::readonly(&NNGN::entities),
     "set_graphics", &NNGN::set_graphics,
+    "remove_entity", &NNGN::remove_entity,
+    "remove_entity_v", [](NNGN &nngn, const sol::table &t) {
+        for(size_t i = 1, n = t.size(); i <= n; ++i)
+            nngn.remove_entity(t[i]);
+    },
     "exit", &NNGN::exit,
     "die", &NNGN::die)
 

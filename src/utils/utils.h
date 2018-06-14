@@ -37,6 +37,18 @@
     x(x&&) noexcept = delete; \
     x &operator=(x&&) noexcept = delete;
 
+#define NNGN_EXPOSE_ITERATOR(sing, plur, member) \
+    using sing##iterator = decltype(member)::iterator; \
+    using const_##sing##iterator = decltype(member)::const_iterator; \
+    const_##sing##iterator plur##cbegin() const \
+        { using std::cbegin; return cbegin(this->member); } \
+    const_##sing##iterator plur##cend() const \
+        { using std::cend; return cend(this->member); } \
+    sing##iterator plur##begin() \
+        { using std::begin; return begin(this->member); } \
+    sing##iterator plur##end() \
+        { using std::end; return end(this->member); }
+
 namespace nngn {
 
 enum class empty {};

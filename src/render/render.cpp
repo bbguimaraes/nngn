@@ -4,6 +4,8 @@
 
 #include <sol/table.hpp>
 
+#include "entity.h"
+
 #include "timing/profile.h"
 #include "utils/log.h"
 #include "utils/vector.h"
@@ -106,9 +108,9 @@ bool Renderers::set_graphics(Graphics *g) {
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
             [](void*, void *p, u64, u64) {
                 const auto v = std::array<nngn::Vertex, TRIANGLE_MAX>{{
-                    {{   0,  150, 0}, {1, 0, 0}},
-                    {{-200, -150, 0}, {0, 1, 0}},
-                    {{ 200, -150, 0}, {0, 0, 1}}}};
+                    {{  0,  16, 0}, {1, 0, 0}},
+                    {{-16, -16, 0}, {0, 1, 0}},
+                    {{ 16, -16, 0}, {0, 0, 1}}}};
                 memcpy(p, std::span{v});
             },
             [](void*, void *p, u64, u64) {
@@ -153,8 +155,10 @@ void Renderers::remove(Renderer *p) {
         { return v.data() <= p && p < v.data() + v.size(); };
     const auto remove = [this, p](auto *v, auto update_flag) {
         using T = typename std::decay_t<decltype(*v)>::pointer;
-        if(auto i = vector_linear_erase(v, static_cast<T>(p)); i != end(*v))
+        if(auto i = vector_linear_erase(v, static_cast<T>(p)); i != end(*v)) {
+            i->entity->renderer = &*i;
             i->flags |= Renderer::Flag::UPDATED;
+        }
         this->flags |= update_flag;
     };
     if(is_in(this->sprites))
