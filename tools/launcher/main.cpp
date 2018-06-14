@@ -14,6 +14,12 @@ using namespace std::string_view_literals;
 namespace {
 
 constexpr auto SOCKET_PATH = "/home/bbguimaraes/src/nngn/sock"sv;
+constexpr auto INSPECT_TEXTURE = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local i = require("nngn.lib.inspect")
+    i.inspect(table.unpack(i.FS.textures))
+end)"sv;
 constexpr auto PLOT_FPS = R"(
 do
     require("nngn.lib.tools").add_to_path()
@@ -78,6 +84,9 @@ int main(int argc, char **argv) {
             nullptr, "Warning",
             "Failed to open socket.\n\n" + launcher.socket().errorString());
     Window w;
+    const auto inspect_section = w.add_section("inspect");
+    const auto *const inspect_texture =
+        w.add_button(inspect_section, "texture");
     const auto plot_section = w.add_section("plot");
     const auto *const plot_fps = w.add_button(plot_section, "fps");
     const auto *const plot_lua = w.add_button(plot_section, "lua");
@@ -97,6 +106,9 @@ int main(int argc, char **argv) {
     QObject::connect(
         &launcher.socket(), &QLocalSocket::errorOccurred,
         &w, &QWidget::close);
+    QObject::connect(
+        inspect_texture, &QPushButton::pressed,
+        [&l = launcher] { l.exec(INSPECT_TEXTURE); });
     QObject::connect(
         plot_fps, &QPushButton::pressed,
         [&l = launcher] { l.exec(PLOT_FPS); });

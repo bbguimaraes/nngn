@@ -6,6 +6,7 @@
 
 #include "entity.h"
 
+#include "graphics/texture.h"
 #include "timing/profile.h"
 #include "utils/log.h"
 #include "utils/vector.h"
@@ -70,6 +71,10 @@ void update_boxes(nngn::Vertex **p, nngn::SpriteRenderer *x) {
 }
 
 namespace nngn {
+
+void Renderers::init(Textures *t) {
+    this->textures = t;
+}
 
 std::size_t Renderers::n() const {
     return this->sprites.size();
@@ -194,8 +199,17 @@ Renderer *Renderers::load(const sol::stack_table &t) {
         x->flags |= Renderer::Flag::UPDATED;
         return x;
     };
+    const auto load_tex = [this, &load](auto &v, const char *name) {
+        auto ret = load(v, name);
+        if(ret) {
+            assert(this->textures);
+            if(ret->tex)
+                this->textures->add_ref(ret->tex);
+        }
+        return ret;
+    };
     switch(const Renderer::Type type = t["type"]) {
-    case Renderer::Type::SPRITE: return load(this->sprites, "sprite");
+    case Renderer::Type::SPRITE: return load_tex(this->sprites, "sprite");
     case Renderer::Type::N_TYPES:
     default:
         Log::l() << "invalid type: " << static_cast<int>(type) << '\n';
@@ -214,8 +228,14 @@ void Renderers::remove(Renderer *p) {
         }
         this->flags |= update_flag;
     };
+    const auto remove_tex = [this, &remove, p](auto *v, auto update_flag) {
+        using T = typename std::decay_t<decltype(*v)>::const_pointer;
+        if(const auto t = static_cast<T>(p)->tex)
+            this->textures->remove(t);
+        remove(v, update_flag);
+    };
     if(is_in(this->sprites))
-        remove(&this->sprites, Flag::SPRITES_UPDATED);
+        remove_tex(&this->sprites, Flag::SPRITES_UPDATED);
 }
 
 bool Renderers::update() {

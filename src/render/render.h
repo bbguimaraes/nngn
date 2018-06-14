@@ -17,11 +17,14 @@ struct Entity;
 
 namespace nngn {
 
+class Textures;
+
 class Renderers {
     enum Flag : u8 {
         SPRITES_UPDATED = 1u << 0,
         RECT_UPDATED = 1u << 1,
     };
+    Textures *textures = nullptr;
     Graphics *graphics = nullptr;
     Flags<Flag> flags = {};
     std::vector<SpriteRenderer> sprites = {};
@@ -40,6 +43,7 @@ public:
         Vertex **p, vec2 bl, vec2 tr, float z, u32 tex, vec2 uv0, vec2 uv1);
     static void gen_quad_verts(
         Vertex **p, vec2 bl, vec2 tr, float z, vec3 color);
+    void init(Textures *t);
     auto max_sprites() const { return this->sprites.capacity(); }
     auto debug() const { return this->m_debug.t; }
     std::size_t n() const;

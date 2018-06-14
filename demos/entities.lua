@@ -1,5 +1,6 @@
 dofile "src/lua/path.lua"
 local entity = require "nngn.lib.entity"
+local texture = require "nngn.lib.texture"
 require "src/lua/input"
 
 require("nngn.lib.graphics").init()
@@ -12,12 +13,12 @@ nngn.textures:set_max(3)
 
 local rnd = function(w) return (nngn.math:rand() - .5) * 512 end
 local rnd_pos = function() return {rnd(), rnd(), 0} end
-local tex = nngn.textures:load("img/zelda.png")
+local tex <close> = texture.load("img/zelda.png")
 local renderers = {{
-    type = Renderer.SPRITE, size = {24, 24}, tex = tex,
+    type = Renderer.SPRITE, size = {24, 24}, tex = tex.tex,
     scale = {512//32, 512//32},
 }, {
-    type = Renderer.SPRITE, size = {16, 16}, tex = tex,
+    type = Renderer.SPRITE, size = {16, 16}, tex = tex.tex,
     scale = {512//16, 512//16}, coords = {2, 0}}}
 local n_renderers = #renderers
 for i = 1, N do

@@ -1,3 +1,16 @@
+local function class(t, parent)
+    t.__index = t
+    return setmetatable(t, parent)
+end
+
+local Class = setmetatable({}, {
+    __call = function(_, t) return class(t) end,
+})
+
+function Class:public(parent)
+    return function(t) return class(t, parent) end
+end
+
 local function pprint(x, pre, write)
     write = write or io.write
     local t = type(x)
@@ -56,6 +69,7 @@ local function shift(i, n, inc, base)
 end
 
 return {
+    class = Class,
     pprint = pprint,
     pformat = pformat,
     map = map,
