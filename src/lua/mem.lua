@@ -9,6 +9,9 @@ local function fmt(name, size, n, max)
         utils.fmt_size(size))
 end
 
+print(fmt(
+    "entities", Entity.SIZEOF,
+    nngn:entities():n(), nngn:entities():max()))
 print("renderers:")
 print(fmt(
     "- sprites", Renderer.SIZEOF_SPRITE,

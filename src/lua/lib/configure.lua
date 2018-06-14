@@ -26,6 +26,7 @@ end
 
 local FS = {
     limits = {
+        int("entities", 8, 1048576, 1048576, "nngn:entities():set_max(%1)"),
         int(
             "sprites", 8, 65536, 65536,
             "nngn:renderers():set_max_sprites(%1)"),

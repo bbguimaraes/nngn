@@ -105,6 +105,7 @@ check_HEADERS += \
 
 LUA_TESTS = \
 	%reldir%/common.lua \
+	%reldir%/entity.lua \
 	%reldir%/input.lua \
 	%reldir%/math.lua \
 	%reldir%/run.sh \

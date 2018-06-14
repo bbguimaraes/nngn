@@ -64,6 +64,15 @@
         return nngn_ret; \
     }(), (x))
 
+#define NNGN_EXPOSE_ITERATOR(n, m) \
+    NNGN_EXPOSE_ITERATOR0(n, m, cbegin) \
+    NNGN_EXPOSE_ITERATOR0(n, m, cend) \
+    NNGN_EXPOSE_ITERATOR0(n, m, begin) \
+    NNGN_EXPOSE_ITERATOR0(n, m, end)
+#define NNGN_EXPOSE_ITERATOR0(n, m, i) \
+    auto n##i(void) const { using std::i; return i(this->m); } \
+    auto n##i(void)       { using std::i; return i(this->m); }
+
 namespace nngn {
 
 namespace detail {

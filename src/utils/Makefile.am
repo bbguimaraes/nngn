@@ -14,6 +14,7 @@ noinst_HEADERS += \
 	%reldir%/ranges.h \
 	%reldir%/regexp.h \
 	%reldir%/scoped.h \
+	%reldir%/static_vector.h \
 	%reldir%/tuple.h \
 	%reldir%/utils.h \
 	%reldir%/types.h

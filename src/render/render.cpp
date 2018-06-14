@@ -2,6 +2,8 @@
 #include <cstring>
 #include <span>
 
+#include "entity.h"
+
 #include "timing/profile.h"
 #include "utils/log.h"
 #include "utils/ranges.h"
@@ -107,9 +109,9 @@ bool Renderers::set_graphics(Graphics *g) {
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
             [](void*, void *p, u64, u64) {
                 const auto v = std::array<nngn::Vertex, TRIANGLE_MAX>{{
-                    {{   0,  150, 0}, {1, 0, 0}},
-                    {{-200, -150, 0}, {0, 1, 0}},
-                    {{ 200, -150, 0}, {0, 0, 1}}}};
+                    {{  0,  16, 0}, {1, 0, 0}},
+                    {{-16, -16, 0}, {0, 1, 0}},
+                    {{ 16, -16, 0}, {0, 0, 1}}}};
                 memcpy(p, std::span{v});
             },
             [](void*, void *p, u64, u64) {
@@ -154,8 +156,10 @@ void Renderers::remove(Renderer *p) {
     const auto remove = [this, p]<typename T>(std::vector<T> *v, auto flag) {
         auto *const dp = static_cast<T*>(p);
         const_time_erase(v, dp);
-        if(p != &*v->end())
+        if(p != &*v->end()) {
+            p->entity->renderer = p;
             p->flags |= Renderer::Flag::UPDATED;
+        }
         this->flags |= flag;
     };
     if(contains(this->sprites, *p))

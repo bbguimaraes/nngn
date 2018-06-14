@@ -8,6 +8,7 @@ LUA_FILES += \
 	%reldir%/lib/all.lua \
 	%reldir%/lib/configure.lua \
 	%reldir%/lib/debug.lua \
+	%reldir%/lib/entity.lua \
 	%reldir%/lib/graphics.lua \
 	%reldir%/lib/input.lua \
 	%reldir%/lib/inspect.lua \

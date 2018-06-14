@@ -22,11 +22,14 @@
  */
 #include <algorithm>
 
+#include "entity.h"
+
 #include "graphics/graphics.h"
 #include "input/input.h"
 #include "input/mouse.h"
 #include "lua/alloc.h"
 #include "lua/function.h"
+#include "lua/iter.h"
 #include "lua/register.h"
 #include "lua/table.h"
 #include "math/math.h"
@@ -41,6 +44,8 @@
 #include "utils/log.h"
 #include "utils/scoped.h"
 
+NNGN_LUA_DECLARE_USER_TYPE(Entities, "Entities")
+NNGN_LUA_DECLARE_USER_TYPE(Entity, "Entity")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Math, "Math")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Timing, "Timing")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Schedule, "Schedule")
@@ -77,9 +82,11 @@ struct NNGN {
     nngn::lua::alloc_info lua_alloc = {};
     Input input = {};
     nngn::Renderers renderers = {};
+    Entities entities = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(nngn::Graphics::Backend b, const void *params);
     int loop(void);
+    void remove_entity(Entity *e);
     void exit(void) { this->flags |= Flag::EXIT; }
     void die(void) { this->flags |= Flag::ERROR; }
 } *p_nngn;
@@ -163,15 +170,23 @@ int NNGN::loop(void) {
     const bool ok = this->input.input.update()
         && this->schedule.update()
         && this->socket.process([&l = this->lua](auto s) { l.dostring(s); })
-        && this->renderers.update()
-        && this->graphics->render()
-        && this->graphics->vsync();
+        && this->renderers.update();
     if(!ok)
+        return 1;
+    this->entities.clear_flags();
+    if(!this->graphics->render() || !this->graphics->vsync())
         return 1;
     nngn::Profile::swap();
     this->fps.frame(nngn::Timing::clock::now());
     this->graphics->set_window_title(this->fps.to_string().c_str());
     return -1;
+}
+
+void NNGN::remove_entity(Entity *e) {
+    assert(e);
+    if(e->renderer)
+        this->renderers.remove(e->renderer);
+    this->entities.remove(e);
 }
 
 void register_nngn(nngn::lua::table &&t) {
@@ -186,7 +201,13 @@ void register_nngn(nngn::lua::table &&t) {
     t["input"] = [](NNGN &nngn) { return &nngn.input.input; };
     t["mouse_input"] = [](NNGN &nngn) { return &nngn.input.mouse; };
     t["renderers"] = accessor<&NNGN::renderers>;
+    t["entities"] = accessor<&NNGN::entities>;
     t["set_graphics"] = &NNGN::set_graphics;
+    t["remove_entity"] = &NNGN::remove_entity;
+    t["remove_entities"] = [](NNGN &nngn, nngn::lua::table_view es) {
+        for(auto [_, x] : ipairs(es))
+            nngn.remove_entity(x.get<Entity*>());
+    };
     t["exit"] = &NNGN::exit;
     t["die"] = &NNGN::die;
 }
