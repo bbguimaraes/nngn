@@ -11,6 +11,7 @@ noinst_HEADERS += \
 	%reldir%/pointer_flag.h \
 	%reldir%/ranges.h \
 	%reldir%/scoped.h \
+	%reldir%/static_vector.h \
 	%reldir%/tuple.h \
 	%reldir%/utils.h \
 	%reldir%/types.h

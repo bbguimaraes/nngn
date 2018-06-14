@@ -8,11 +8,14 @@
 #include "utils/def.h"
 #include "utils/flags.h"
 
+struct Entity;
+
 namespace nngn {
 
 struct Renderer {
     enum Type : u8 { SPRITE = 1, N_TYPES };
     enum Flag : u8 { UPDATED = 1u << 0 };
+    Entity *entity = nullptr;
     vec3 pos = {};
     Flags<Flag> flags = {};
     bool updated() const { return this->flags.is_set(Flag::UPDATED); }

@@ -1,6 +1,21 @@
+if ENABLE_TESTS
+check_PROGRAMS += \
+	%reldir%/entity
+endif
+
 check_HEADERS += \
+	%reldir%/entity_test.h \
 	%reldir%/registry.h \
 	%reldir%/tests.h
+
+%canon_reldir%_entity_CPPFLAGS = $(check_CPPFLAGS)
+%canon_reldir%_entity_CXXFLAGS = $(check_CXXFLAGS)
+%canon_reldir%_entity_LDADD = $(check_LDADD)
+%canon_reldir%_entity_SOURCES = \
+	src/entity.cpp \
+	src/utils/log.cpp \
+	%reldir%/entity_test.cpp \
+	%reldir%/entity_test.moc.cpp
 
 CLEANFILES += \
 	%reldir%/*.moc.cpp \

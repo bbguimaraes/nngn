@@ -11,3 +11,4 @@ run() {
 [[ "${srcdir:-}" ]] && cd "$srcdir"
 lua tests/lua/unit.lua
 run tests/lua/input.lua
+run tests/lua/entity.lua

@@ -20,6 +20,8 @@
  * - Failure to execute any of the arguments aborts the initialization process.
  *   A failure exit code is returned.
  */
+#include "entity.h"
+
 #include "graphics/graphics.h"
 #include "input/input.h"
 #include "input/mouse.h"
@@ -61,10 +63,12 @@ struct NNGN {
     nngn::lua::alloc_info lua_alloc = {};
     Input input = {};
     nngn::Renderers renderers = {};
+    Entities entities = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(
         nngn::Graphics::Backend b, std::optional<const void*> params);
     int loop(void);
+    void remove_entity(Entity *e);
     void exit(void) { this->flags |= Flag::EXIT; }
     void die(void) { this->flags |= Flag::ERROR; }
 } *p_nngn;
@@ -138,15 +142,23 @@ int NNGN::loop(void) {
     const bool ok = this->input.input.update()
         && this->schedule.update()
         && this->socket.process([&l = this->lua](auto s) { l.dostring(s); })
-        && this->renderers.update()
-        && this->graphics->render()
-        && this->graphics->vsync();
+        && this->renderers.update();
     if(!ok)
+        return 1;
+    this->entities.clear_flags();
+    if(!this->graphics->render() || !this->graphics->vsync())
         return 1;
     nngn::Profile::swap();
     this->fps.frame(nngn::Timing::clock::now());
     this->graphics->set_window_title(this->fps.to_string().c_str());
     return -1;
+}
+
+void NNGN::remove_entity(Entity *e) {
+    assert(e);
+    if(e->renderer)
+        this->renderers.remove(e->renderer);
+    this->entities.remove(e);
 }
 
 using nngn::lua::property, nngn::lua::readonly;
@@ -162,7 +174,13 @@ NNGN_LUA_PROXY(NNGN,
     "input", property([](const NNGN &nngn) { return &nngn.input.input; }),
     "mouse_input", property([](const NNGN &nngn) { return &nngn.input.mouse; }),
     "renderers", readonly(&NNGN::renderers),
+    "entities", readonly(&NNGN::entities),
     "set_graphics", &NNGN::set_graphics,
+    "remove_entity", &NNGN::remove_entity,
+    "remove_entity_v", [](NNGN &nngn, nngn::lua::table_view t) {
+        for(lua_Integer i = 1, n = t.size(); i <= n; ++i)
+            nngn.remove_entity(t[i]);
+    },
     "exit", &NNGN::exit,
     "die", &NNGN::die)
 

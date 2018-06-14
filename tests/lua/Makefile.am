@@ -34,6 +34,7 @@ check_HEADERS += \
 
 dist_check_DATA += \
 	%reldir%/common.lua \
+	%reldir%/entity.lua \
 	%reldir%/input.lua \
 	%reldir%/math.lua \
 	%reldir%/run.sh \
