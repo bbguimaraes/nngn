@@ -115,6 +115,7 @@ local function next(inc)
     if camera.following() then
         camera.set_follow(e)
     end
+    nngn:renderers():add_selection(e:renderer())
 end
 
 local function on_face_change() end

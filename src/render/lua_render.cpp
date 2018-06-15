@@ -49,6 +49,7 @@ void register_renderers(nngn::lua::table_view t) {
     t["n_screen_sprites"] = get<&Renderers::n_screen_sprites>;
     t["n_cubes"] = get<&Renderers::n_cubes>;
     t["n_voxels"] = get<&Renderers::n_voxels>;
+    t["selected"] = &Renderers::selected;
     t["set_max_sprites"] = set<&Renderers::set_max_sprites>;
     t["set_max_screen_sprites"] = set<&Renderers::set_max_screen_sprites>;
     t["set_max_cubes"] = set<&Renderers::set_max_cubes>;
@@ -58,6 +59,8 @@ void register_renderers(nngn::lua::table_view t) {
     t["set_perspective"] = &Renderers::set_perspective;
     t["load"] = &Renderers::load;
     t["remove"] = &Renderers::remove;
+    t["add_selection"] = &Renderers::add_selection;
+    t["remove_selection"] = &Renderers::remove_selection;
 }
 
 }

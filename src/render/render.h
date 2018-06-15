@@ -5,6 +5,7 @@
 #ifndef NNGN_RENDER_RENDER_H
 #define NNGN_RENDER_RENDER_H
 
+#include <unordered_set>
 #include <vector>
 
 #include "lua/table.h"
@@ -56,6 +57,7 @@ public:
     std::size_t n_cubes(void) const { return this->cubes.size(); }
     /** Number of active voxel renderers. */
     std::size_t n_voxels(void) const { return this->voxels.size(); }
+    bool selected(const Renderer *p) const;
     void set_debug(Debug d);
     void set_perspective(bool p);
     bool set_max_sprites(std::size_t n);
@@ -76,6 +78,8 @@ public:
     /** Removes a renderer.  The corresponding entity is not changed. */
     void remove(Renderer *p);
     /** Processes changed renderers/configuration and updates graphics. */
+    void add_selection(const Renderer *p);
+    void remove_selection(const Renderer *p);
     bool update(void);
 private:
     bool update_renderers(
@@ -90,7 +94,8 @@ private:
         CUBES_UPDATED = 1u << 2,
         VOXELS_UPDATED = 1u << 3,
         DEBUG_UPDATED = 1u << 4,
-        PERSPECTIVE = 1u << 5,
+        SELECTION_UPDATED = 1u << 5,
+        PERSPECTIVE = 1u << 6,
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
@@ -102,6 +107,7 @@ private:
     std::vector<SpriteRenderer> screen_sprites = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
+    std::unordered_set<const Renderer*> selections = {};
     u32
         sprite_vbo = {}, sprite_ebo = {},
         sprite_debug_vbo = {}, sprite_debug_ebo = {},
@@ -112,7 +118,8 @@ private:
         voxel_vbo = {}, voxel_ebo = {},
         voxel_debug_vbo = {}, voxel_debug_ebo = {},
         text_vbo = {}, text_ebo = {},
-        textbox_vbo = {}, textbox_ebo = {};
+        textbox_vbo = {}, textbox_ebo = {},
+        selection_vbo = {}, selection_ebo = {};
 };
 
 inline bool Renderers::perspective(void) const {
@@ -121,6 +128,10 @@ inline bool Renderers::perspective(void) const {
 
 inline auto Renderers::max_screen_sprites(void) const {
     return this->screen_sprites.capacity();
+}
+
+inline bool Renderers::selected(const Renderer *p) const {
+    return this->selections.find(p) != cend(this->selections);
 }
 
 }

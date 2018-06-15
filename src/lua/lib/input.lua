@@ -110,11 +110,14 @@ register({
             .. Textbox.TEXT_BLUE_STR .. "s"
             .. Textbox.TEXT_WHITE_STR .. "t")
     end},
-    {Input.KEY_TAB, Input.SEL_PRESS, function(_, _, mods)
+    {Input.KEY_TAB, 0, function(_, press, mods)
+        if not press then
+            return nngn:renderers():remove_selection(player.entity():renderer())
+        end
         if mods & Input.MOD_SHIFT == 0 then
-            player.next(1)
+            player.next(1, press)
         else
-            player.next(-1)
+            player.next(-1, press)
         end
     end},
     {Input.KEY_LEFT, 0, camera.move},
