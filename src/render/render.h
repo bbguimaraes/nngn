@@ -5,6 +5,7 @@
 #ifndef NNGN_RENDER_RENDER_H
 #define NNGN_RENDER_RENDER_H
 
+#include <unordered_set>
 #include <vector>
 
 #include "lua/table.h"
@@ -53,6 +54,7 @@ public:
     std::size_t n_cubes(void) const { return this->cubes.size(); }
     /** Number of active voxel renderers. */
     std::size_t n_voxels(void) const { return this->voxels.size(); }
+    bool selected(const Renderer *p) const;
     void set_debug(Debug d);
     void set_perspective(bool p);
     bool set_max_sprites(std::size_t n);
@@ -72,6 +74,8 @@ public:
     /** Removes a renderer.  The corresponding entity is not changed. */
     void remove(Renderer *p);
     /** Processes changed renderers/configuration and updates graphics. */
+    void add_selection(const Renderer *p);
+    void remove_selection(const Renderer *p);
     bool update(void);
 private:
     bool update_renderers(
@@ -83,7 +87,8 @@ private:
         CUBES_UPDATED = 1u << 1,
         VOXELS_UPDATED = 1u << 2,
         DEBUG_UPDATED = 1u << 3,
-        PERSPECTIVE = 1u << 4,
+        SELECTION_UPDATED = 1u << 4,
+        PERSPECTIVE = 1u << 5,
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
@@ -94,6 +99,7 @@ private:
     std::vector<SpriteRenderer> sprites = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
+    std::unordered_set<const Renderer*> selections = {};
     u32
         sprite_vbo = {}, sprite_ebo = {},
         cube_vbo = {}, cube_ebo = {},
@@ -102,11 +108,16 @@ private:
         voxel_debug_vbo = {}, voxel_debug_ebo = {},
         box_vbo = {}, box_ebo = {},
         text_vbo = {}, text_ebo = {},
-        textbox_vbo = {}, textbox_ebo = {};
+        textbox_vbo = {}, textbox_ebo = {},
+        selection_vbo = {}, selection_ebo = {};
 };
 
 inline bool Renderers::perspective(void) const {
     return this->flags.is_set(Flag::PERSPECTIVE);
+}
+
+inline bool Renderers::selected(const Renderer *p) const {
+    return this->selections.find(p) != cend(this->selections);
 }
 
 }

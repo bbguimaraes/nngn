@@ -43,6 +43,7 @@ struct Gen {
         const Font &font, const Text &txt, bool mono, float left,
         vec2 *pos_p, float *color_p, u64 *i_p, u64 *n_visible_p);
     static void textbox(Vertex **p, const Textbox &x);
+    static void selection(Vertex **p, const SpriteRenderer &x);
 };
 
 inline void Gen::quad_indices(u64 i_64, u64 n, u32 *p) {
@@ -280,6 +281,12 @@ inline void Gen::textbox(Vertex **p, const Textbox &x) {
     constexpr vec3 box_color = {1, 1, 1};
     Gen::quad_vertices(p, x.title_bl, x.title_tr, 0, title_color);
     Gen::quad_vertices(p, x.str_bl, x.str_tr, 0, box_color);
+}
+
+inline void Gen::selection(Vertex **p, const SpriteRenderer &x) {
+    const auto pos = x.pos.xy();
+    const auto s = x.size / 2.0f;
+    nngn::Gen::quad_vertices(p, pos - s, pos + s, 0, {1, 1, 0});
 }
 
 }

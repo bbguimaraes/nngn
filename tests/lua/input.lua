@@ -83,12 +83,30 @@ local function test_input_p_tab()
     common.assert_eq(player.n(), 3)
     common.assert_eq(deref(camera.following()), deref(e0))
     common.assert_eq(player.idx(), 0)
+    local r0 = e0:renderer()
+    local r1 = player.get(1).entity:renderer()
+    local r2 = player.get(2).entity:renderer()
+    local cmp = function(t)
+        common.assert_eq({
+            nngn.renderers:selected(r0),
+            nngn.renderers:selected(r1),
+            nngn.renderers:selected(r2),
+        }, t, common.deep_cmp)
+    end
+    cmp{false, false, false}
     nngn.input:key_callback(Input.KEY_TAB, Input.KEY_PRESS, 0)
     common.assert_eq(player.idx(), 1)
+    cmp{false, true, false}
+    nngn.input:key_callback(Input.KEY_TAB, Input.KEY_RELEASE, 0)
+    cmp{false, false, false}
     nngn.input:key_callback(Input.KEY_TAB, Input.KEY_PRESS, 0)
     common.assert_eq(player.idx(), 2)
+    cmp{false, false, true}
+    nngn.input:key_callback(Input.KEY_TAB, Input.KEY_RELEASE, 0)
+    cmp{false, false, false}
     nngn.input:key_callback(Input.KEY_TAB, Input.KEY_PRESS, 0)
     common.assert_eq(player.idx(), 0)
+    cmp{true, false, false}
     nngn.input:key_callback(
         key_p, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT)
     common.assert_eq(player.n(), 2)
