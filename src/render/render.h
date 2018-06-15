@@ -3,6 +3,7 @@
 
 #include <bit>
 #include <string>
+#include <unordered_set>
 #include <vector>
 
 #include <sol/forward.hpp>
@@ -29,7 +30,8 @@ class Renderers {
         CUBES_UPDATED = 1u << 1,
         VOXELS_UPDATED = 1u << 2,
         RECT_UPDATED = 1u << 3,
-        PERSPECTIVE = 1u << 4,
+        SELECTION_UPDATED = 1u << 4,
+        PERSPECTIVE = 1u << 5,
     };
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
@@ -39,6 +41,7 @@ class Renderers {
     std::vector<SpriteRenderer> sprites = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
+    std::unordered_set<const Renderer*> selections = {};
     u32
         sprite_vbo = {}, sprite_ebo = {},
         cube_vbo = {}, cube_ebo = {},
@@ -47,7 +50,8 @@ class Renderers {
         voxel_debug_vbo = {}, voxel_debug_ebo = {},
         box_vbo = {}, box_ebo = {},
         text_vbo = {}, text_ebo = {},
-        textbox_vbo = {}, textbox_ebo = {};
+        textbox_vbo = {}, textbox_ebo = {},
+        selection_vbo = {}, selection_ebo = {};
 public:
     enum Debug : u8 {
         RECT = 1u << 0, N_DEBUG = 1,
@@ -77,6 +81,7 @@ public:
     std::size_t n_sprites() const { return this->sprites.size(); }
     std::size_t n_cubes() const { return this->cubes.size(); }
     std::size_t n_voxels() const { return this->voxels.size(); }
+    bool selected(const Renderer *p) const;
     bool set_max_sprites(std::size_t n);
     bool set_max_cubes(std::size_t n);
     bool set_max_voxels(std::size_t n);
@@ -86,6 +91,8 @@ public:
     bool set_graphics(Graphics *g);
     Renderer *load(const sol::stack_table &t);
     void remove(Renderer *p);
+    void add_selection(const Renderer *p);
+    void remove_selection(const Renderer *p);
     bool update();
 };
 
@@ -204,6 +211,9 @@ inline void Renderers::gen_cube_verts(
     *((*p)++) = {{tr.x, tr.y, bl.z}, {uv_.zy(), ftex}};
     *((*p)++) = { tr               , {uv_.zw(), ftex}};
 }
+
+inline bool Renderers::selected(const Renderer *p) const
+    { return this->selections.find(p) != cend(this->selections); }
 
 }
 

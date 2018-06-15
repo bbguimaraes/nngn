@@ -205,6 +205,31 @@ void update_textbox(void *data, void *vp, u64, u64) {
     nngn::Renderers::gen_quad_verts(&p, t->str_bl, t->str_tr, 0, {1, 1, 1});
 }
 
+using UpdateSelectionData = std::tuple<
+    std::unordered_set<const nngn::Renderer*>::const_iterator*,
+    std::span<const nngn::SpriteRenderer>>;
+
+void update_selections(
+    const UpdateSelectionData *data, nngn::Vertex *p, u64, u64 n
+) {
+    auto &[it_p, sprites] = *data;
+    const auto is_sprite = [b = &*begin(sprites), e = &*end(sprites)](auto *x)
+        { return b <= x && x < e; };
+    auto it = *it_p;
+    while(n--) {
+        const auto &x = **it++;
+        if(!is_sprite(&x))
+            continue;
+        const auto &dx = static_cast<const nngn::SpriteRenderer&>(x);
+        const auto s = dx.size / 2.0f;
+        nngn::Renderers::gen_quad_verts(
+            &p, {dx.pos.x - s.x, dx.pos.y - s.y},
+            {dx.pos.x + s.x, dx.pos.y + s.y},
+            0, {1, 1, 0});
+    }
+    *it_p = it;
+}
+
 }
 
 namespace nngn {
@@ -278,7 +303,8 @@ bool Renderers::set_graphics(Graphics *g) {
         TRIANGLE_MAX = 3,
         TRIANGLE_VBO_SIZE = TRIANGLE_MAX * sizeof(Vertex),
         TRIANGLE_EBO_SIZE = TRIANGLE_MAX * sizeof(u32),
-        TEXTBOX_MAX = 1;
+        TEXTBOX_MAX = 1,
+        SELECTION_MAX = 1024;
     using Pipeline = Graphics::PipelineConfiguration;
     using Stage = Graphics::RenderList::Stage;
     using BufferPair = std::pair<u32, u32>;
@@ -390,6 +416,16 @@ bool Renderers::set_graphics(Graphics *g) {
             .type = index,
             .size = 2 * 6 * TEXTBOX_MAX * sizeof(u32),
         }))
+        && (this->selection_vbo = g->create_buffer({
+            .name = "selection_vbo",
+            .type = vertex,
+            .size = 4 * SELECTION_MAX * sizeof(Vertex),
+        }))
+        && (this->selection_ebo = g->create_buffer({
+            .name = "selection_ebo",
+            .type = index,
+            .size = 6 * SELECTION_MAX * sizeof(u32),
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -428,6 +464,7 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->box_vbo, this->box_ebo},
                     {this->cube_debug_vbo, this->cube_debug_ebo},
                     {this->voxel_debug_vbo, this->voxel_debug_ebo},
+                    {this->selection_vbo, this->selection_ebo},
                 }),
             }}),
             .hud = std::to_array<Stage>({{
@@ -500,6 +537,19 @@ void Renderers::remove(Renderer *p) {
         remove(&this->cubes, Flag::CUBES_UPDATED);
     if(is_in(this->voxels))
         remove(&this->voxels, Flag::VOXELS_UPDATED);
+    auto i = this->selections.find(p);
+    if(i != this->selections.end())
+        this->selections.erase(i);
+}
+
+void Renderers::add_selection(const Renderer *r) {
+    this->selections.insert(r);
+    this->flags |= Flag::SELECTION_UPDATED;
+}
+
+void Renderers::remove_selection(const Renderer *r) {
+    this->selections.erase(r);
+    this->flags |= Flag::SELECTION_UPDATED;
 }
 
 bool Renderers::update() {
@@ -624,6 +674,25 @@ bool Renderers::update() {
             ::update_textbox,
             [](void *d, void *p, auto...) { update_indices<6>(d, p, 0, 2); });
     };
+    const auto update_selections = [this] {
+        NNGN_LOG_CONTEXT("selection");
+        if(!this->flags.is_set(Flag::SELECTION_UPDATED))
+            return true;
+        const auto vbo = this->selection_vbo;
+        const auto ebo = this->selection_ebo;
+        const auto &v = this->selections;
+        const auto n = v.size();
+        if(!n) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        return update_with_state<::update_selections, update_indices<6>>(
+            this->graphics, vbo, ebo, 0, 0,
+            n, 4 * sizeof(Vertex), n, 6 * sizeof(std::uint32_t),
+            rptr(UpdateSelectionData{
+                rptr(cbegin(this->selections)),
+                std::span{std::as_const(this->sprites)}}));
+    };
     const auto updated = [&flags = this->flags](auto f, const auto &v) {
         return flags.is_set(f)
             ? (flags.clear(f), true)
@@ -653,7 +722,7 @@ bool Renderers::update() {
             this->graphics->set_buffer_size(this->voxel_debug_ebo, 0);
         }
     }
-    return update_text() && update_textbox();
+    return update_text() && update_textbox() && update_selections();
 }
 
 }

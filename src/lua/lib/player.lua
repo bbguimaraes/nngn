@@ -55,7 +55,9 @@ local function next(inc)
     stop(p)
     local p = nngn.players:set_idx(
         utils.shift(nngn.players:idx(), nngn.players:n(), inc))
-    if camera.following() then camera.set_follow(p:entity()) end
+        local e = p:entity()
+    if camera.following() then camera.set_follow(e) end
+    nngn.renderers:add_selection(e:renderer())
 end
 
 local function on_face_change() end
