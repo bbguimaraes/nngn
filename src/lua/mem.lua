@@ -27,6 +27,9 @@ print("animations:")
 print(fmt(
     "- sprite", Animation.SIZEOF_SPRITE,
     nngn.animations:n_sprite(), nngn.animations:max_sprite()))
+print(fmt(
+    "- light", Animation.SIZEOF_LIGHT,
+    nngn.animations:n_light(), nngn.animations:max_light()))
 print("colliders:")
 print(fmt(
     "- aabb", Collider.SIZEOF_AABB,

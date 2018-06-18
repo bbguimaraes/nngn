@@ -143,6 +143,10 @@ local FS = {
         int(
             "grid size", 1, 1024, 64,
             "nngn.grid:set_dimensions(nngn.grid:spacing(), %1)"),
+        bool("lighting", false, "nngn.lighting:set_enabled(%1)"),
+        float(
+            "ambient light", 0, 100, 100, 100,
+            "nngn.lighting:set_ambient_light(1, 1, 1, %1)"),
         bool("textbox monospaced", false, "nngn.textbox:set_monospaced(%1)"),
         int("textbox speed", 0, 600, 16, "nngn.textbox:set_speed(%1)"),
     },

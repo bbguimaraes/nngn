@@ -62,6 +62,7 @@ using nngn::u8, nngn::i32, nngn::u32, nngn::u64;
 namespace {
 
 enum : u32 {
+    LIGHTS_UBO_BINDING,
     CAMERA_UBO_BINDING,
     MAIN_TEX_BINDING = 0,
     FONT_TEX_BINDING,
@@ -93,10 +94,12 @@ class OpenGLBackend final : public nngn::GLFWBackend {
         CALLBACK_ERROR = 1u << 1,
         RESIZED = 1u << 2,
         CAMERA_UPDATED = 1u << 3,
+        LIGHTING_UPDATED = 1u << 4,
     };
     nngn::Flags<Flag> flags = {};
     int maj = 0, min = 0;
     nngn::GLBuffer camera_ubo = {}, camera_hud_ubo = {};
+    nngn::GLBuffer lights_ubo = {}, no_lights_ubo = {};
     std::list<nngn::GLBuffer> stg_buffers = {};
     std::vector<nngn::GLBuffer> buffers = std::vector<nngn::GLBuffer>(1);
     std::vector<Pipeline> pipelines = {{}};
@@ -139,6 +142,8 @@ public:
     bool error() final { return this->flags.is_set(Flag::CALLBACK_ERROR); }
     nngn::GraphicsStats stats() override { return {}; }
     void set_camera_updated() final { this->flags |= Flag::CAMERA_UPDATED; }
+    void set_lighting_updated() final
+        { this->flags |= Flag::LIGHTING_UPDATED; }
     bool set_n_frames(std::size_t) override { return true; }
     u32 create_pipeline(const PipelineConfiguration &conf) final;
     u32 create_buffer(const BufferConfiguration &conf) final;
@@ -239,6 +244,15 @@ bool OpenGLBackend::init_instance() {
     if(!OpenGLBackend::create_uniform_buffer("camera_hud_ubo"sv,
             sizeof(nngn::CameraUBO), &this->camera_hud_ubo))
         return false;
+    if(!OpenGLBackend::create_uniform_buffer("no_lights_ubo"sv,
+            sizeof(nngn::LightsUBO), &this->no_lights_ubo))
+        return false;
+    CHECK_RESULT(glBufferSubData,
+        GL_UNIFORM_BUFFER, 0, sizeof(nngn::LightsUBO),
+        nngn::rptr(nngn::LightsUBO{}));
+    if(!OpenGLBackend::create_uniform_buffer("lights_ubo"sv,
+            sizeof(nngn::LightsUBO), &this->lights_ubo))
+        return false;
 #define P(x) static_cast<std::size_t>(PipelineConfiguration::Type::x)
     nngn::GLProgram
         &triangle_prog = this->programs[P(TRIANGLE)],
@@ -256,6 +270,8 @@ bool OpenGLBackend::init_instance() {
         return false;
     if(!triangle_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
+    if(!triangle_prog.bind_ubo("Lights", LIGHTS_UBO_BINDING))
+        return false;
     if(!sprite_prog.create(
             "src/glsl/gl/sprite.vert"sv, "src/glsl/gl/sprite.frag"sv,
             nngn::GLSL_GL_SPRITE_VERT, nngn::GLSL_GL_SPRITE_FRAG))
@@ -263,12 +279,16 @@ bool OpenGLBackend::init_instance() {
     CHECK_RESULT(glUseProgram, sprite_prog.id());
     if(!sprite_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
+    if(!sprite_prog.bind_ubo("Lights", LIGHTS_UBO_BINDING))
+        return false;
     if(!voxel_prog.create(
             "src/glsl/gl/sprite.vert"sv, "src/glsl/gl/voxel.frag"sv,
             nngn::GLSL_GL_SPRITE_VERT, nngn::GLSL_GL_VOXEL_FRAG))
         return false;
     CHECK_RESULT(glUseProgram, voxel_prog.id());
     if(!voxel_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
+        return false;
+    if(!voxel_prog.bind_ubo("Lights", LIGHTS_UBO_BINDING))
         return false;
     if(!font_prog.create(
             "src/glsl/gl/font.vert"sv, "src/glsl/gl/font.frag"sv,
@@ -381,10 +401,10 @@ bool OpenGLBackend::create_vao(
     NNGN_LOG_CONTEXT_CF(OpenGLBackend);
     using A = std::array<std::array<nngn::VAO::Attrib, 3>, N_PROGRAMS>;
     static constexpr A attrs = {{
-        {{{"position", 3}, {"color", 3}}},
-        {{{"position", 3}, {"tex_coord", 3}}},
-        {{{"position", 3}, {"tex_coord", 3}}},
-        {{{"position", 3}, {"tex_coord", 3}}},
+        {{{"position", 3}, {"normal", 3}, {"color", 3}}},
+        {{{"position", 3}, {"normal", 3}, {"tex_coord", 3}}},
+        {{{"position", 3}, {"normal", 3}, {"tex_coord", 3}}},
+        {{{"position", 3}, {{}, 3}, {"tex_coord", 3}}},
     }};
     static constexpr std::array names = {
         "triangle", "sprite", "voxel", "font",
@@ -500,6 +520,15 @@ bool OpenGLBackend::render() {
         CHECK_RESULT(glBufferSubData, GL_UNIFORM_BUFFER, 0, sizeof(c), &c);
         return true;
     };
+    const auto update_lighting = [this]() {
+        if(~this->flags & Flag::LIGHTING_UPDATED)
+            return true;
+        this->flags.clear(Flag::LIGHTING_UPDATED);
+        const auto &ubo = *this->lighting.ubo;
+        CHECK_RESULT(glBindBuffer, GL_UNIFORM_BUFFER, this->lights_ubo.id());
+        CHECK_RESULT(glBufferSubData, GL_UNIFORM_BUFFER, 0, sizeof(ubo), &ubo);
+        return true;
+    };
     const auto render = [this](auto *l) {
         using PFlag = PipelineConfiguration::Flag;
         for(auto &x : *l) {
@@ -537,11 +566,14 @@ bool OpenGLBackend::render() {
         }
         return true;
     };
-    if(!update_camera())
+    if(!update_camera() || !update_lighting())
         return false;
     const auto render_pass = [this, render] {
         nngn::GLDebugGroup group = {"color"sv};
         CHECK_RESULT(glBindTexture, GL_TEXTURE_2D_ARRAY, this->tex.id());
+        CHECK_RESULT(
+            glBindBufferRange, GL_UNIFORM_BUFFER, LIGHTS_UBO_BINDING,
+            this->lights_ubo.id(), 0, sizeof(nngn::LightsUBO));
         CHECK_RESULT(
             glBindBufferRange, GL_UNIFORM_BUFFER, CAMERA_UBO_BINDING,
             this->camera_ubo.id(), 0, sizeof(nngn::CameraUBO));
@@ -552,6 +584,9 @@ bool OpenGLBackend::render() {
         CHECK_RESULT(glUniform1f, this->triangle_prog_alpha_loc, 1);
         if(!render(&render_list.normal))
             return false;
+        CHECK_RESULT(
+            glBindBufferRange, GL_UNIFORM_BUFFER, LIGHTS_UBO_BINDING,
+            this->no_lights_ubo.id(), 0, sizeof(nngn::LightsUBO));
         CHECK_RESULT(glUseProgram, triangle_prog.id());
         CHECK_RESULT(glUniform1f, this->triangle_prog_alpha_loc, .5);
         if(!render(&render_list.overlay))

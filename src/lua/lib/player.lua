@@ -37,23 +37,6 @@ local function get_entity(p)
     end
 end
 
-local function data(p, f)
-    if not p then p = nngn.players:cur() end
-    if not p then return end
-    local d = DATA[deref(p)]
-    if not d then d = {} DATA[deref(p)] = d end
-    if not f then return d end
-    if type(f) ~= "table" then f = {f} end
-    for _, x in ipairs(f) do
-        local t = d[x]
-        if not t then t = {} d[x] = t end
-        d = t
-    end
-    return d
-end
-
-local function set_data(p, t) DATA[deref(p)] = t end
-
 local function load(e, inc)
     if not presets then
         error("no player presets loaded")
@@ -96,6 +79,9 @@ local function remove(p)
     end
     local d <const> = p.data
     if d.fairy then nngn:remove_entity(d.fairy) end
+    if d.fairy_light then nngn:remove_entity(d.fairy_light) end
+    if d.light then nngn:remove_entity(d.light) end
+    if d.flashlight then nngn:remove_entity(d.flashlight) end
     local e <const> = p.entity
     table.remove(list, utils.find(list, p))
     if e == camera.following() then
@@ -138,7 +124,88 @@ local function next(inc)
     nngn.renderers:add_selection(e:renderer())
 end
 
-local function on_face_change() end
+local function face_vec(p, l)
+    if p.face & 2 == 0 then
+        return {l * ((p.face << 1) - 1), 0}
+    else
+        return {0, l * (((p.face & 1) << 1) - 1)}
+    end
+end
+
+local function light(p, show)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local d <const> = p.data
+    if show == nil then
+        show = not d.light
+    end
+    if show then
+        local pos <const> = face_vec(p, 8)
+        pos[2] = pos[2] + p.entity:renderer():z_off()
+        if pos[1] ~= 0 then
+            pos[2] = pos[2] - 4
+        end
+        pos[3] = 24
+        if d.light then
+            d.light:set_pos(table.unpack(pos))
+        else
+            d.light = entity.load(nil, nil, {
+                pos = pos, parent = p.entity,
+                light = {
+                    type = Light.POINT,
+                    color = {1, .8, .5, 1}, att = 512},
+                })
+        end
+    elseif d.light then
+        nngn:remove_entity(d.light)
+        d.light = nil
+    end
+end
+
+local function flashlight(p, show)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local d <const> = p.data
+    if show == nil then
+        show = not d.flashlight
+    end
+    if show then
+        local dir <const> = face_vec(p, 1)
+        dir[3] = 0
+        if d.flashlight then
+            d.flashlight:light():set_dir(table.unpack(dir))
+        else
+            d.flashlight = entity.load(nil, nil, {
+                pos = {0, p.entity:renderer():z_off(), 12},
+                parent = p.entity,
+                light = {
+                    type = Light.POINT, dir = dir, color = {1, 1, 1, 1},
+                    att = 512, cutoff = math.cos(math.rad(22.5))},
+                })
+        end
+    elseif d.flashlight then
+        nngn:remove_entity(d.flashlight)
+        d.flashlight = nil
+    end
+end
+
+local function on_face_change(p)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local d <const> = p.data
+    if d.light then
+        light(p, true)
+    end
+    if d.flashlight then
+        flashlight(p, true)
+    end
+end
 
 local function face_for_dir(hor, ver)
     if hor ~= 0 then
@@ -216,16 +283,33 @@ local function fairy(p, show)
             return
         end
         nngn:remove_entity(d.fairy)
+        nngn:remove_entity(d.fairy_light)
         d.fairy = nil
+        d.fairy_light = nil
     else
         if show ~= nil and not show then
             return
         end
+        local e <const> = p.entity
         local t = dofile("src/lson/fairy2.lua")
         t.pos = {-8, 16, 0}
         t.renderer.z_off = -40
-        t.parent = p.entity
+        t.parent = e
         d.fairy = entity.load(nil, nil, t)
+        d.fairy_light = entity.load(nil, nil, {
+            pos = {-8, e:renderer():z_off() - 12, 38},
+            parent = t.parent,
+            light = {type = Light.POINT, color = {.5, .5, 1, 1}, att = 512},
+            anim = {
+                light = {
+                    rate_ms = 100,
+                    f = {
+                        type = AnimationFunction.RANDOM_F,
+                        min = .85, max = 1,
+                    },
+                },
+            },
+        })
     end
 end
 
@@ -246,4 +330,6 @@ return {
     next = next,
     move = move,
     fairy = fairy,
+    light = light,
+    flashlight = flashlight,
 }

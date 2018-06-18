@@ -1,5 +1,23 @@
 local texture = require "nngn.lib.texture"
 
+local function load_light(t)
+    local l = nngn.lighting:add_light(t.type)
+    if not l then return end
+    if t.dir then l:set_dir(table.unpack(t.dir)) end
+    if t.color then l:set_color(table.unpack(t.color)) end
+    if t.att then
+        local att = t.att
+        if type(att) == "table" then
+            l:set_att(table.unpack(t.att))
+        else
+            l:set_att(t.att)
+        end
+    end
+    if t.spec then l:set_spec(t.spec) end
+    if t.cutoff then l:set_cutoff(t.cutoff) end
+    return l
+end
+
 local function load(e, f, extra)
     if not e then e = nngn.entities:add() end
     local t = {}
@@ -27,6 +45,11 @@ local function load(e, f, extra)
     if t.anim then
         if e:animation() then nngn.animations:remove(e:animation()) end
         e:set_animation(nngn.animations:load(t.anim))
+    end
+    if t.light then
+        if e:light() then nngn.lighting:remove_light(e:light()) end
+        local l = load_light(t.light)
+        if l then e:set_light(l) end
     end
     if t.parent then e:set_parent(t.parent) end
     return e

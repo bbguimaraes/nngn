@@ -38,19 +38,20 @@ bool Grid::update() const {
             this->m_vbo, 0, this->m_size, n * sizeof(Vertex),
             const_cast<Grid*>(this),
             [](void *data, void *vp, std::uint64_t i, std::uint64_t nw) {
+                constexpr vec3 norm = {0, 0, 1};
                 auto *g = static_cast<const Grid*>(data);
                 auto *p = static_cast<Vertex*>(vp);
                 const auto max = static_cast<float>(g->m_size) * g->m_spacing;
                 for(const auto e = i + nw; i < e; ++i) {
                     const auto fi = static_cast<float>(i);
-                    *(p++) = {{-max, fi * -g->m_spacing, 0}, g->color};
-                    *(p++) = {{ max, fi * -g->m_spacing, 0}, g->color};
-                    *(p++) = {{-max, fi *  g->m_spacing, 0}, g->color};
-                    *(p++) = {{ max, fi *  g->m_spacing, 0}, g->color};
-                    *(p++) = {{fi * -g->m_spacing, -max, 0}, g->color};
-                    *(p++) = {{fi * -g->m_spacing,  max, 0}, g->color};
-                    *(p++) = {{fi *  g->m_spacing, -max, 0}, g->color};
-                    *(p++) = {{fi *  g->m_spacing,  max, 0}, g->color};
+                    *(p++) = {{-max, fi * -g->m_spacing, 0}, norm, g->color};
+                    *(p++) = {{ max, fi * -g->m_spacing, 0}, norm, g->color};
+                    *(p++) = {{-max, fi *  g->m_spacing, 0}, norm, g->color};
+                    *(p++) = {{ max, fi *  g->m_spacing, 0}, norm, g->color};
+                    *(p++) = {{fi * -g->m_spacing, -max, 0}, norm, g->color};
+                    *(p++) = {{fi * -g->m_spacing,  max, 0}, norm, g->color};
+                    *(p++) = {{fi *  g->m_spacing, -max, 0}, norm, g->color};
+                    *(p++) = {{fi *  g->m_spacing,  max, 0}, norm, g->color};
                 }
             })
         && this->graphics->write_to_buffer(

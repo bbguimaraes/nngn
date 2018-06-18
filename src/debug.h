@@ -35,7 +35,7 @@ inline std::ostream &operator <<(std::ostream &os, const nngn::mat4 &m) {
 }
 
 inline std::ostream &operator <<(std::ostream &os, const nngn::Vertex &v)
-    { return os << "{"  << v.pos << ", " << v.color << "}"; }
+    { return os << "{" << v.pos << ", " << v.norm << ", " << v.color << "}"; }
 
 template<typename T0, typename T1>
 inline std::string vdiff(const T0 &v0, const T1 &v1) {

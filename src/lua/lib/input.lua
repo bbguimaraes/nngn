@@ -59,6 +59,9 @@ register({
 }, input, paused_input)
 
 register({
+    {"L", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+        nngn.lighting:set_enabled(not nngn.lighting:enabled())
+    end},
     {"P", Input.SEL_PRESS, resume},
 }, paused_input)
 
@@ -75,7 +78,20 @@ register({
         c:set_perspective(p)
         nngn.renderers:set_perspective(p)
     end},
+    {"F", Input.SEL_PRESS, function() player.flashlight() end},
     {"H", Input.SEL_PRESS, function() player.fairy() end},
+    {"L", Input.SEL_PRESS, function(_, _, mods)
+        if mods & Input.MOD_CTRL ~= 0 then
+            nngn.lighting:set_enabled(not nngn.lighting:enabled())
+        else player.light() end
+    end},
+    {"N", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+        local a = {nngn.lighting:ambient_light()}
+        if mods & Input.MOD_SHIFT == 0
+        then for i = 1, 3 do a[i] = math.min(a[i] * 2, 1) end
+        else for i = 1, 3 do a[i] = math.max(a[i] / 2, 0) end end
+        nngn.lighting:set_ambient_light(table.unpack(a))
+    end},
     {"O", Input.SEL_PRESS | Input.SEL_CTRL, function()
         nngn.colliders:set_resolve(not nngn.colliders:resolve())
     end},

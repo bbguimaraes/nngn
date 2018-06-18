@@ -19,6 +19,8 @@ check_HEADERS += \
 	src/lua/state.cpp \
 	src/lua/traceback.cpp \
 	src/math/camera.cpp \
+	src/render/animation.cpp \
+	src/render/light.cpp \
 	src/timing/profile.cpp \
 	src/timing/stats.cpp \
 	src/timing/timing.cpp \

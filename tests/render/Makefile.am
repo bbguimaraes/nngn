@@ -1,11 +1,13 @@
 if ENABLE_TESTS
 check_PROGRAMS += \
 	%reldir%/animation \
+	%reldir%/light \
 	%reldir%/render
 endif
 
 check_HEADERS += \
 	%reldir%/animation_test.h \
+	%reldir%/light_test.h \
 	%reldir%/render_test.h
 
 %canon_reldir%_animation_CPPFLAGS = $(check_CPPFLAGS)
@@ -22,6 +24,21 @@ check_HEADERS += \
 	src/utils/log.cpp \
 	%reldir%/animation_test.cpp \
 	%reldir%/animation_test.moc.cpp
+
+%canon_reldir%_light_CPPFLAGS = $(check_CPPFLAGS)
+%canon_reldir%_light_CXXFLAGS = $(check_CXXFLAGS)
+%canon_reldir%_light_LDADD = $(check_LDADD)
+%canon_reldir%_light_SOURCES = \
+	src/entity.cpp \
+	src/math/camera.cpp \
+	src/render/animation.cpp \
+	src/render/light.cpp \
+	src/timing/profile.cpp \
+	src/timing/stats.cpp \
+	src/timing/timing.cpp \
+	src/utils/log.cpp \
+	%reldir%/light_test.cpp \
+	%reldir%/light_test.moc.cpp
 
 %canon_reldir%_render_CPPFLAGS = $(check_CPPFLAGS)
 %canon_reldir%_render_CXXFLAGS = $(check_CXXFLAGS)

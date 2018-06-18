@@ -8,6 +8,7 @@
 #include "math/camera.h"
 #include "math/math.h"
 #include "render/animation.h"
+#include "render/light.h"
 #include "render/renderers.h"
 #include "timing/profile.h"
 #include "timing/timing.h"
@@ -54,6 +55,8 @@ void set_pos(Entity *e, nngn::vec3 oldp, nngn::vec3 p) {
         e->camera->set_pos(e->camera->p + p - oldp);
     if(e->collider)
         e->collider->pos = p;
+    if(e->light)
+        e->light->set_pos(p);
 }
 
 }
@@ -93,6 +96,13 @@ void Entity::set_animation(nngn::Animation *p_a) {
 void Entity::set_camera(nngn::Camera *c) {
     if((this->camera = c))
         c->set_pos(this->p);
+}
+
+void Entity::set_light(nngn::Light *l) {
+    if((this->light = l)) {
+        l->e = this;
+        l->set_pos(this->p);
+    }
 }
 
 void Entity::set_parent(Entity *e) {

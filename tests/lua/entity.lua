@@ -31,8 +31,27 @@ local function test_load()
     assert(e:animation() ~= nil)
     entity.load(e, nil, {collider = {type = Collider.AABB}})
     assert(e:collider() ~= nil)
+    entity.load(e, nil, {light = {type = Light.DIR}})
+    assert(e:light() ~= nil)
     entity.load(e, nil, {parent = e})
     common.assert_eq(deref(e:parent()), deref(e))
+    nngn:remove_entity(e)
+end
+
+local function test_load_light()
+    local dir, color = {1, 2, 3}, {4, 5, 6, 7}
+    local att, spec, cutoff = 8, 9, 10
+    local e = entity.load(nil, nil, {
+        light = {
+            type = Light.DIR, dir = dir, color = color, att = att, spec = spec,
+            cutoff = cutoff}})
+    local l = e:light()
+    assert(l)
+    common.assert_eq({l:dir()}, dir, common.deep_cmp)
+    common.assert_eq({l:color()}, color, common.deep_cmp)
+    common.assert_eq({l:att()}, {1, 0.5625, 1.171875}, common.deep_cmp)
+    common.assert_eq(l:spec(), spec)
+    common.assert_eq(l:cutoff(), cutoff)
     nngn:remove_entity(e)
 end
 
@@ -87,6 +106,7 @@ nngn.renderers:set_max_sprites(1)
 nngn.colliders:set_max_colliders(1)
 common.setup_hook(1)
 test_load()
+test_load_light()
 test_by_name()
 test_by_name_hash()
 test_by_tag()
