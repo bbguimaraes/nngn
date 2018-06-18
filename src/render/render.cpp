@@ -16,6 +16,7 @@
 
 #include "gen.h"
 #include "grid.h"
+#include "light.h"
 #include "render.h"
 
 using namespace nngn::literals;
@@ -46,6 +47,10 @@ template<std::size_t per_obj>
 void update_quad_indices_base(const std::tuple<u64> *bi, u32 *p, u64 i, u64 n) {
     return update_quad_indices<per_obj>({}, p, std::get<0>(*bi) + i, n);
 }
+
+// XXX gcc
+template void update_quad_indices_base<36>(
+    const std::tuple<u64>*, u32*, u64, u64);
 
 template<auto gen, typename VT, typename T>
 bool write_to_buffer(
@@ -124,13 +129,14 @@ namespace nngn {
 
 void Renderers::init(
     Textures *t, const Fonts *f, const Textbox *tb, const Grid *g,
-    const Colliders *c
+    const Colliders *c, const Lighting *l
 ) {
     this->textures = t;
     this->fonts = f;
     this->textbox = tb;
     this->grid = g;
     this->colliders = c;
+    this->lighting = l;
 }
 
 std::size_t Renderers::n() const {
@@ -220,7 +226,9 @@ bool Renderers::set_graphics(Graphics *g) {
         TRIANGLE_VBO_SIZE = TRIANGLE_MAX * sizeof(Vertex),
         TRIANGLE_EBO_SIZE = TRIANGLE_MAX * sizeof(u32),
         TEXTBOX_MAX = 1,
-        SELECTION_MAX = 1024;
+        SELECTION_MAX = 1024,
+        LIGHTS_MAX = 2 * NNGN_MAX_LIGHTS,
+        RANGE_MAX = NNGN_MAX_LIGHTS;
     using Pipeline = Graphics::PipelineConfiguration;
     using Stage = Graphics::RenderList::Stage;
     using BufferPair = std::pair<u32, u32>;
@@ -413,14 +421,34 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "sphere_ebo",
             .type = index,
         }))
+        && (this->lights_vbo = g->create_buffer({
+            .name = "lights_vbo",
+            .type = vertex,
+            .size = 24_z * LIGHTS_MAX * sizeof(Vertex),
+        }))
+        && (this->lights_ebo = g->create_buffer({
+            .name = "lights_ebo",
+            .type = index,
+            .size = 36_z * LIGHTS_MAX * sizeof(u32),
+        }))
+        && (this->range_vbo = g->create_buffer({
+            .name = "range_vbo",
+            .type = vertex,
+            .size = 24_z * RANGE_MAX * sizeof(Vertex),
+        }))
+        && (this->range_ebo = g->create_buffer({
+            .name = "range_ebo",
+            .type = index,
+            .size = 36_z * RANGE_MAX * sizeof(u32),
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
             [](void*, void *p, u64, u64) {
                 const auto v = std::array<nngn::Vertex, TRIANGLE_MAX>{{
-                    {{  0,  16, 0}, {1, 0, 0}},
-                    {{-16, -16, 0}, {0, 1, 0}},
-                    {{ 16, -16, 0}, {0, 0, 1}}}};
+                    {{  0,  16, 0}, {0, 0, 1}, {1, 0, 0}},
+                    {{-16, -16, 0}, {0, 0, 1}, {0, 1, 0}},
+                    {{ 16, -16, 0}, {0, 0, 1}, {0, 0, 1}}}};
                 memcpy(p, std::span{v});
             },
             [](void*, void *p, u64, u64) {
@@ -461,11 +489,13 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->selection_vbo, this->selection_ebo},
                     {this->aabb_vbo, this->aabb_ebo},
                     {this->bb_vbo, this->bb_ebo},
+                    {this->lights_vbo, this->lights_ebo},
                 }),
             }, {
                 .pipeline = line_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->grid->vbo(), this->grid->ebo()},
+                    {this->range_vbo, this->range_ebo},
                 }),
             }}),
             .screen = std::to_array<Stage>({{
@@ -829,6 +859,63 @@ bool Renderers::update_debug(
         return update_span<gen, update_quad_indices<6>>(
             this->graphics, s, vbo, ebo, 4, 6);
     };
+    const auto update_lights = [this] {
+        NNGN_LOG_CONTEXT("lights");
+        const auto vbo = this->lights_vbo;
+        const auto ebo = this->lights_ebo;
+        if(!this->m_debug.is_set(Debug::DEBUG_LIGHT))
+            return this->graphics->set_buffer_size(ebo, 0);
+        const auto dir = this->lighting->dir_lights();
+        const auto point = this->lighting->point_lights();
+        const auto n = dir.size() + point.size();
+        if(!n)
+            return this->graphics->set_buffer_size(ebo, 0);
+        const auto gen = [this, vbo, ebo](
+            u64 *voff, u64 *eoff, u64 *ei,
+            std::span<const Light> s, auto f
+        ) {
+            if(s.empty())
+                return true;
+            constexpr auto vsize = 6_z * 4_z * sizeof(Vertex);
+            constexpr auto esize = 6_z * 6_z * sizeof(u32);
+            const auto vo = std::exchange(*voff, *voff + s.size() * vsize);
+            const auto eo = std::exchange(*eoff, *eoff + s.size() * esize);
+            const auto cur_ei = std::exchange(*ei, *ei + s.size());
+            return write_to_buffer<decltype(f){}, nngn::Vertex>(
+                    this->graphics, vbo, vo, s.size(), vsize,
+                    rptr(std::tuple{s.data()}))
+                && write_to_buffer<update_quad_indices_base<6 * 6>, u32>(
+                    this->graphics, ebo, eo, s.size(), esize,
+                    rptr(std::tuple{cur_ei}));
+        };
+        constexpr auto vgen = [](
+            const auto *data, nngn::Vertex *p, u64 i, u64 nw
+        ) {
+            auto [lights] = *data;
+            for(nw += i; i < nw; ++i) {
+                const auto &x = lights[i];
+                Gen::light(&p, x, x.pos);
+            }
+        };
+        u64 voff = {}, eoff = {}, ei = {};
+        return gen(&voff, &eoff, &ei, dir, vgen)
+            && gen(&voff, &eoff, &ei, point, vgen)
+            && this->graphics->set_buffer_size(vbo, voff)
+            && this->graphics->set_buffer_size(ebo, eoff);
+    };
+    const auto update_light_ranges = [this] {
+        NNGN_LOG_CONTEXT("light_range");
+        const auto vbo = this->range_vbo;
+        const auto ebo = this->range_ebo;
+        if(!this->m_debug.is_set(Debug::DEBUG_LIGHT))
+            return this->graphics->set_buffer_size(ebo, 0);
+        const std::span s = this->lighting->point_lights();
+        if(s.empty())
+            return this->graphics->set_buffer_size(ebo, 0);
+        constexpr auto gen = [](auto *p, auto *x) { Gen::light_range(p, *x); };
+        return update_span<gen, update_quad_indices<6 * 6>>(
+            this->graphics, s, vbo, ebo, 6_z * 4_z, 6_z * 6_z);
+    };
     const auto update = [
         this,
         enabled = this->m_debug.is_set(Debug::DEBUG_RENDERERS),
@@ -845,7 +932,8 @@ bool Renderers::update_debug(
         && update(voxels_updated, update_voxel_debug, this->voxel_debug_ebo)
         && update_aabbs() && update_aabb_circles()
         && update_bbs() && update_bb_circles()
-        && update_coll_spheres();
+        && update_coll_spheres()
+        && update_lights() && update_light_ranges();
 }
 
 }

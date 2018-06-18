@@ -57,6 +57,7 @@ EntityBench::EntityBench() {
     this->cameras.reserve(N);
     this->animations.reserve(N);
     this->colliders.reserve(N);
+    this->lights.reserve(N);
 }
 
 void EntityBench::clear() {
@@ -64,6 +65,7 @@ void EntityBench::clear() {
     this->cameras.clear();
     this->animations.clear();
     this->colliders.clear();
+    this->lights.clear();
 }
 
 Entities EntityBench::gen_entities() { return ::gen_entities(rnd_pos); }
@@ -76,7 +78,8 @@ Entities EntityBench::gen_entities_with_components() {
         [this](auto *e) { e->set_camera(&this->cameras.emplace_back()); },
         [this](auto *e)
             { e->set_animation(&this->animations.emplace_back()); },
-        [this](auto *e) { e->set_collider(&this->colliders.emplace_back()); });
+        [this](auto *e) { e->set_collider(&this->colliders.emplace_back()); },
+        [this](auto *e) { e->set_light(&this->lights.emplace_back()); });
 }
 
 void EntityBench::benchmark_full(Entities &&es) {

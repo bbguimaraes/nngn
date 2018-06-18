@@ -10,6 +10,7 @@
 #include "utils/utils.h"
 
 #include "animation.h"
+#include "light.h"
 #include "renderers.h"
 
 using nngn::uvec2;
@@ -173,8 +174,38 @@ void SpriteAnimation::update(const Timing &t) {
     r->flags |= Renderer::Flag::UPDATED;
 }
 
+void LightAnimation::load(nngn::lua::table_view t) {
+    using D = std::chrono::milliseconds;
+    if(const auto o = t["rate_ms"].get<std::optional<D::rep>>())
+        this->rate = D{*o};
+    if(const auto o = t["timer_ms"].get<std::optional<D::rep>>())
+        this->timer = D{*o};
+    this->f = {};
+    if(const auto o = t["f"].get<std::optional<nngn::lua::table>>())
+        this->f.load(*o);
+}
+
+void LightAnimation::update(
+        const Timing &t, Math::rnd_generator_t *rnd,
+        float *a, bool *updated) {
+    if(this->f.done())
+        return;
+    const auto dt = std::chrono::duration_cast<decltype(this->timer)>(t.dt);
+    if((this->timer += dt) < this->rate)
+        return;
+    this->timer -= this->rate;
+    *a = this->f.update(t, rnd)[0];
+    *updated = true;
+}
+
+void LightAnimation::update(const Timing &t, Math::rnd_generator_t *rnd) {
+    auto *l = this->entity->light;
+    return this->update(t, rnd, &l->color.w, &l->updated);
+}
+
 void Animations::set_max(size_t n) {
     set_capacity(&this->sprite, n);
+    set_capacity(&this->light, n);
 }
 
 void Animations::remove(Animation *p) {
@@ -185,6 +216,8 @@ void Animations::remove(Animation *p) {
     };
     if(contains(this->sprite, *p))
         remove(&this->sprite);
+    if(contains(this->light, *p))
+        remove(&this->light);
 }
 
 Animation *Animations::load(nngn::lua::table_view t) {
@@ -205,14 +238,19 @@ Animation *Animations::load(nngn::lua::table_view t) {
         return load("sprite", &this->sprite, v.get<nngn::lua::table_view>());
     else if(type == nngn::lua::type::user_data)
         return load("sprite", &this->sprite, v.get<SpriteAnimation*>());
+    if(const auto o = t["light"].get<std::optional<nngn::lua::table>>())
+        return load("light", &this->light, *o);
     Log::l() << "no animation data\n";
     return nullptr;
 }
 
 void Animations::update(const Timing &t) {
     NNGN_PROFILE_CONTEXT(animations);
+    auto *rnd = this->math->rnd_generator();
     for(auto &x : this->sprite)
         x.update(t);
+    for(auto &x : this->light)
+        x.update(t, rnd);
 }
 
 }

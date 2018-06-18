@@ -42,6 +42,7 @@
 #include "os/socket.h"
 #include "render/animation.h"
 #include "render/grid.h"
+#include "render/light.h"
 #include "render/render.h"
 #include "timing/fps.h"
 #include "timing/profile.h"
@@ -71,6 +72,7 @@ NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderers, "Renderers")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Animations, "Animations")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Colliders, "Colliders")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Textures, "Textures")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Lighting, "Lighting")
 
 namespace {
 
@@ -104,6 +106,7 @@ struct NNGN {
     nngn::Colliders colliders = {};
     Entities entities = {};
     nngn::Textures textures = {};
+    nngn::Lighting lighting = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(nngn::Graphics::Backend b, const void *params);
     int loop(void);
@@ -146,9 +149,10 @@ bool NNGN::init(int argc, const char *const *argv) {
         return false;
     this->renderers.init(
         &this->textures, &this->fonts, &this->textbox, &this->grid,
-        &this->colliders);
+        &this->colliders, &this->lighting);
     this->animations.init(&this->math);
     this->textbox.init(&this->fonts);
+    this->lighting.init(&this->math);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::all_of(
@@ -197,6 +201,7 @@ bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
         &this->camera.screen, &this->camera.proj, &this->camera.screen_proj,
         &this->camera.view});
     this->camera.set_screen(g->window_size());
+    g->set_lighting({&this->lighting.ubo()});
     this->graphics = std::move(g);
     return ret;
 }
@@ -222,14 +227,18 @@ int NNGN::loop(void) {
     this->entities.update_children();
     if(this->camera.flags & nngn::Camera::Flag::SCREEN_UPDATED)
         this->textbox.set_screen_updated();
-    if(this->camera.update(this->timing))
+    if(this->camera.update(this->timing)) {
         this->graphics->set_camera_updated();
+        this->lighting.update_view(this->camera.p);
+    }
     if(this->textbox.update(this->timing))
         this->textbox.update_size(this->camera.screen);
     if(!this->renderers.update())
         return 1;
     this->entities.clear_flags();
     this->textbox.clear_updated();
+    if(this->lighting.update(this->timing))
+        this->graphics->set_lighting_updated();
     if(!this->graphics->render() || !this->graphics->vsync())
         return 1;
     nngn::Profile::swap();
@@ -246,6 +255,8 @@ void NNGN::remove_entity(Entity *e) {
         this->animations.remove(e->anim);
     if(e->collider)
         this->colliders.remove(e->collider);
+    if(e->light)
+        this->lighting.remove_light(e->light);
     this->entities.remove(e);
 }
 
@@ -269,6 +280,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["colliders"] = accessor<&NNGN::colliders>;
     t["entities"] = accessor<&NNGN::entities>;
     t["textures"] = accessor<&NNGN::textures>;
+    t["lighting"] = accessor<&NNGN::lighting>;
     t["set_graphics"] = &NNGN::set_graphics;
     t["remove_entity"] = &NNGN::remove_entity;
     t["remove_entities"] = [](NNGN &nngn, nngn::lua::table_view es) {

@@ -13,7 +13,10 @@ check_HEADERS += \
 %canon_reldir%_entity_LDADD = $(check_LDADD)
 %canon_reldir%_entity_SOURCES = \
 	src/entity.cpp \
+	src/lua/user.cpp \
 	src/math/camera.cpp \
+	src/render/animation.cpp \
+	src/render/light.cpp \
 	src/timing/profile.cpp \
 	src/timing/stats.cpp \
 	src/timing/timing.cpp \

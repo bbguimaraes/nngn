@@ -6,6 +6,8 @@ local function new_player()
     return {
         idx = 1,
         actions = {
+            function(p, press) if press then player.light(p) end end,
+            function(p, press) if press then player.flashlight(p) end end,
             function(p, press) if press then player.fairy(p) end end,
         },
     }
@@ -38,6 +40,14 @@ local function show_menu(m)
         },
     }
     for i, t in ipairs{
+        {
+            tex = "img/chrono_trigger/cathedral.png", size = {32, 64},
+            scale = {512//8, 512//16}, coords = {44, 14},
+        },
+        {
+            tex = "img/zelda/zelda.png", size = {64, 64},
+            scale = {512//16, 512//16}, coords = {4, 1},
+        },
         fairy,
     } do
         local pos <const> = {menu_pos(n, idx, i)}

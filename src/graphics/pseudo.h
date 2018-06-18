@@ -48,7 +48,9 @@ struct Pseudograph : Graphics {
     void set_mouse_move_callback(void*, mouse_move_callback_f) override {}
     void resize(int, int) override {}
     void set_camera(const Camera&) override {}
+    void set_lighting(const Lighting&) override {}
     void set_camera_updated() override {}
+    void set_lighting_updated() override {}
     u32 create_pipeline(const PipelineConfiguration&) override { return 1; }
     u32 create_buffer(const BufferConfiguration&) override { return 1; }
     bool set_buffer_capacity(u32, u64) override { return true; }

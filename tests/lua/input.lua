@@ -1,6 +1,7 @@
 dofile "src/lua/path.lua"
 local camera = require "nngn.lib.camera"
 local common = require "tests/lua/common"
+local entity = require "nngn.lib.entity"
 local input = require "nngn.lib.input"
 local math = require "nngn.lib.math"
 local player = require "nngn.lib.player"
@@ -190,14 +191,72 @@ local function test_input_o()
     assert(nngn:colliders():resolve())
 end
 
+local function test_input_n()
+    local key = string.byte("N")
+    local cmp = function(t)
+        common.assert_eq({nngn:lighting():ambient_light()}, t, common.deep_cmp)
+    end
+    nngn:lighting():set_ambient_light(1, 1, 1, 1)
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    cmp{1, 1, 1, 1}
+    nngn:input():key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT)
+    cmp{0.5, 0.5, 0.5, 1}
+    nngn:input():key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT)
+    cmp{0.25, 0.25, 0.25, 1}
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    cmp{0.5, 0.5, 0.5, 1}
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    cmp{1, 1, 1, 1}
+end
+
+local function test_input_l()
+    local key = string.byte("L")
+    nngn:lighting():set_enabled(false)
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(nngn:lighting():enabled())
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(not nngn:lighting():enabled())
+end
+
 local function test_menu_fairy()
+    local key_e <const>, key_f <const> = string.byte("EF", 1, -1)
     local p = player.add()
     assert(not p.data.fairy)
-    local key = string.byte("F")
-    nngn:input():key_callback(key, Input.KEY_PRESS, 0)
+    nngn:input():key_callback(key_e, Input.KEY_PRESS, 0)
+    nngn:input():key_callback(key_e, Input.KEY_PRESS, 0)
+    nngn:input():key_callback(key_e, Input.KEY_PRESS, 0)
+    nngn:input():key_callback(key_f, Input.KEY_PRESS, 0)
+    nngn:input():key_callback(key_f, Input.KEY_PRESS, 0)
     assert(p.data.fairy)
-    nngn:input():key_callback(key, Input.KEY_PRESS, 0)
+    nngn:input():key_callback(key_f, Input.KEY_PRESS, 0)
     assert(not p.data.fairy)
+    player.remove(p)
+end
+
+local function test_menu_light()
+    local key <const> = string.byte("F")
+    local p = player.add(entity.load(nil, "src/lson/crono.lua"))
+    assert(not p.data.light)
+    nngn:input():key_callback(key, Input.KEY_PRESS, 0)
+    assert(p.data.light)
+    nngn:input():key_callback(key, Input.KEY_PRESS, 0)
+    assert(not p.data.light)
+    player.remove(p)
+end
+
+local function test_menu_flashlight()
+    local key_e <const>, key_f <const> = string.byte("EF", 1, -1)
+    local p = player.add(entity.load(nil, "src/lson/crono.lua"))
+    assert(not p.data.flashlight)
+    nngn:input():key_callback(key_e, Input.KEY_PRESS, 0)
+    nngn:input():key_callback(key_e, Input.KEY_PRESS, 0)
+    nngn:input():key_callback(key_f, Input.KEY_PRESS, 0)
+    nngn:input():key_callback(key_f, Input.KEY_PRESS, 0)
+    assert(p.data.flashlight)
+    nngn:input():key_callback(key_f, Input.KEY_PRESS, 0)
+    assert(not p.data.flashlight)
     player.remove(p)
 end
 
@@ -206,10 +265,11 @@ local opengl = nngn:set_graphics(
     Graphics.opengl_params{maj = 3, min = 1, hidden = true})
 if not opengl then nngn:set_graphics(Graphics.PSEUDOGRAPH) end
 input.install()
-nngn:entities():set_max(3)
-nngn:graphics():resize_textures(3)
-nngn:textures():set_max(3)
-nngn:renderers():set_max_sprites(3)
+nngn:entities():set_max(7)
+nngn:graphics():resize_textures(4)
+nngn:textures():set_max(4)
+nngn:renderers():set_max_sprites(6)
+nngn:renderers():set_max_screen_sprites(6)
 nngn:animations():set_max(3)
 nngn:colliders():set_max_colliders(4)
 player.set{
@@ -230,5 +290,9 @@ test_input_v()
 test_input_space()
 test_input_g()
 test_input_o()
+test_input_l()
+test_input_n()
 test_menu_fairy()
+test_menu_light()
+test_menu_flashlight()
 nngn:exit()

@@ -8,6 +8,7 @@
 #include "collision/colliders.h"
 #include "math/camera.h"
 #include "render/animation.h"
+#include "render/light.h"
 #include "render/renderers.h"
 
 class Entities;
@@ -18,6 +19,7 @@ class EntityBench : public QObject {
     std::vector<nngn::Camera> cameras = {};
     std::vector<nngn::Animation> animations = {};
     std::vector<nngn::AABBCollider> colliders = {};
+    std::vector<nngn::Light> lights = {};
     void clear();
     Entities gen_entities();
     Entities gen_entities_with_components();

@@ -17,6 +17,7 @@ struct Entity;
 
 namespace nngn {
 
+struct Light;
 struct SpriteRenderer;
 struct Timing;
 
@@ -67,15 +68,29 @@ public:
     void update(const Timing &t);
 };
 
+class LightAnimation : public Animation {
+    std::chrono::milliseconds rate = {}, timer = {};
+    AnimationFunction f = {};
+public:
+    void load(nngn::lua::table_view t);
+    void update(
+        const Timing &t, Math::rnd_generator_t *rnd,
+        float *a, bool *updated);
+    void update(const Timing &t, Math::rnd_generator_t *rnd);
+};
+
 class Animations {
     Math *math = nullptr;
     std::vector<SpriteAnimation> sprite = {};
+    std::vector<LightAnimation> light = {};
 public:
     void init(Math *m) { this->math = m; }
-    size_t max() const { return this->max_sprite(); }
+    size_t max() const { return this->max_sprite() + this->max_light(); }
     size_t max_sprite() const { return this->sprite.capacity(); }
-    size_t n() const { return this->n_sprite(); }
+    size_t max_light() const { return this->light.capacity(); }
+    size_t n() const { return this->n_sprite() + this->n_light(); }
     size_t n_sprite() const { return this->sprite.size(); }
+    size_t n_light() const { return this->light.size(); }
     void set_max(size_t n);
     void remove(Animation *p);
     Animation *load(nngn::lua::table_view t);

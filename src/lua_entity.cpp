@@ -9,12 +9,14 @@
 
 #include "collision/colliders.h"
 #include "render/animation.h"
+#include "render/light.h"
 #include "render/renderers.h"
 
 NNGN_LUA_DECLARE_USER_TYPE(Entity)
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Animation, "Animation")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Camera, "Camera")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Collider, "Collider")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Light, "Light")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderer, "Renderer")
 
 namespace {
@@ -131,6 +133,7 @@ void register_entity(nngn::lua::table_view t) {
     t["renderer"] = [](const Entity &e) { return e.renderer; };
     t["collider"] = [](const Entity &e) { return e.collider; };
     t["animation"] = [](const Entity &e) { return e.anim; };
+    t["light"] = nngn::lua::value_accessor<&Entity::light>;
     t["parent"] = nngn::lua::value_accessor<&Entity::parent>;
     t["set_pos"] = set_pos;
     t["set_vel"] = set_vel;
@@ -140,6 +143,7 @@ void register_entity(nngn::lua::table_view t) {
     t["set_collider"] = &Entity::set_collider;
     t["set_animation"] = &Entity::set_animation;
     t["set_camera"] = &Entity::set_camera;
+    t["set_light"] = &Entity::set_light;
     t["set_parent"] = &Entity::set_parent;
 }
 

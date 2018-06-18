@@ -19,6 +19,7 @@ struct Colliders;
 struct Graphics;
 class Fonts;
 class Grid;
+class Lighting;
 class Textures;
 class Textbox;
 
@@ -39,13 +40,14 @@ public:
         DEBUG_RENDERERS = 1u << 0,
         DEBUG_CIRCLE = 1u << 1,
         DEBUG_BB = 1u << 2,
-        DEBUG_ALL = (1u << 3) - 1,
+        DEBUG_LIGHT = 1u << 3,
+        DEBUG_ALL = (1u << 4) - 1,
     };
     // Initialization
     /** Partially initializes this system.  \see set_graphics */
     void init(
         Textures *t, const Fonts *f, const Textbox *tb, const Grid *g,
-        const Colliders *c);
+        const Colliders *c, const Lighting *l);
     // Configuration
     auto debug(void) const { return *this->m_debug; }
     bool perspective(void) const;
@@ -112,6 +114,7 @@ private:
     const Textbox *textbox = nullptr;
     const Grid *grid = nullptr;
     const Colliders *colliders = nullptr;
+    const Lighting *lighting = nullptr;
     std::vector<SpriteRenderer> sprites = {};
     std::vector<SpriteRenderer> screen_sprites = {};
     std::vector<CubeRenderer> cubes = {};
@@ -133,7 +136,9 @@ private:
         aabb_circle_vbo = {}, aabb_circle_ebo = {},
         bb_vbo = {}, bb_ebo = {},
         bb_circle_vbo = {}, bb_circle_ebo = {},
-        sphere_vbo = {}, sphere_ebo = {};
+        sphere_vbo = {}, sphere_ebo = {},
+        lights_vbo = {}, lights_ebo = {},
+        range_vbo = {}, range_ebo = {};
 };
 
 inline bool Renderers::perspective(void) const {

@@ -2,7 +2,8 @@
 #include "camera_ubo.h"
 
 LAYOUT(location = 0) in vec3 position;
-LAYOUT(location = 1) in vec3 tex_coord;
+LAYOUT(location = 1) in vec3 norm;
+LAYOUT(location = 2) in vec3 tex_coord;
 LAYOUT(location = 0) out vec3 frag_color;
 LAYOUT(location = 1) out vec3 frag_tex_coord;
 

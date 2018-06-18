@@ -52,14 +52,17 @@ void register_sprite(nngn::lua::table_view t) {
 void register_animation(nngn::lua::table_view t) {
     t["SIZEOF_SPRITE"] =
         nngn::narrow<lua_Integer>(sizeof(nngn::SpriteAnimation));
+    t["SIZEOF_LIGHT"] = nngn::narrow<lua_Integer>(sizeof(nngn::LightAnimation));
     t["sprite"] = [](Animation *a) { return static_cast<SpriteAnimation*>(a); };
 }
 
 void register_animations(nngn::lua::table_view t) {
     t["max"] = get<&Animations::max>;
     t["max_sprite"] = get<&Animations::max_sprite>;
+    t["max_light"] = get<&Animations::max_light>;
     t["n"] = get<&Animations::n>;
     t["n_sprite"] = get<&Animations::n_sprite>;
+    t["n_light"] = get<&Animations::n_light>;
     t["set_max"] = set<&Animations::set_max>;
     t["load"] = &Animations::load;
     t["load_v"] = load_v;

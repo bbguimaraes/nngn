@@ -173,6 +173,14 @@ struct TextureDescriptorSets : public nngn::DescriptorSets {
         VkImageView tex_img_view, VkImageView font_img_view) const;
 };
 
+struct LightingDescriptorSets : UBODescriptorSets {
+    bool init(VkDevice dev, VkDeviceSize min_ubo_align);
+    VkDeviceSize size(std::size_t n_frames) const;
+    u32 offset(std::size_t i) const;
+    u32 offset_no_light(std::size_t n_frames) const;
+    void write(VkBuffer ubo, std::size_t n_frames, VkDeviceSize offset) const;
+};
+
 class TexArray : public nngn::Image {
 public:
     VkImageView view() const { return this->img_view; }
@@ -226,6 +234,7 @@ class VulkanBackend final : public nngn::GLFWBackend {
     nngn::DescriptorPool descriptor_pool = {};
     CameraDescriptorSets camera_descriptor_sets = {};
     TextureDescriptorSets texture_descriptor_sets = {};
+    LightingDescriptorSets lighting_descriptor_sets = {};
     Shaders shaders = {};
     VkRenderPass render_pass = {};
     VkPipelineCache pipeline_cache = {};
@@ -293,6 +302,8 @@ public:
     void set_swap_interval(int i) final;
     void set_camera_updated() final
         { this->camera_descriptor_sets.updated().set(); }
+    void set_lighting_updated() final
+        { this->lighting_descriptor_sets.updated().set(); }
     u32 create_pipeline(const PipelineConfiguration &conf) final;
     u32 create_buffer(const BufferConfiguration &conf) final;
     bool set_buffer_capacity(u32 b, u64 size) final;
@@ -308,6 +319,7 @@ public:
         unsigned char c, std::uint32_t n,
         const nngn::uvec2 *size, const std::byte *v) final;
     void set_camera(const Camera &c) final;
+    void set_lighting(const Lighting &l) final;
     bool set_render_list(const RenderList &l) final;
     bool render() final;
     bool vsync() final;
@@ -537,6 +549,58 @@ void TextureDescriptorSets::write(
     add_write(this->ids()[0], tex_img_view, sampler);
     add_write(this->ids()[1], font_img_view, sampler);
     vkUpdateDescriptorSets(this->dev, i, writes.data(), 0, nullptr);
+}
+
+bool LightingDescriptorSets::init(VkDevice dev_, VkDeviceSize min_ubo_align) {
+    NNGN_LOG_CONTEXT_CF(LightingDescriptorSets);
+    return UBODescriptorSets::init(
+        dev_, sizeof(nngn::LightsUBO), min_ubo_align,
+        std::to_array<VkDescriptorSetLayoutBinding>({{
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .descriptorCount = 1,
+            .stageFlags =
+                VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        }}));
+}
+
+VkDeviceSize LightingDescriptorSets::size(std::size_t n_frames) const {
+    return this->alignment() * (n_frames + 1);
+}
+
+u32 LightingDescriptorSets::offset(std::size_t i) const {
+    return static_cast<u32>(i * this->alignment());
+}
+
+u32 LightingDescriptorSets::offset_no_light(std::size_t n_frames) const {
+    return this->offset(n_frames);
+}
+
+void LightingDescriptorSets::write(
+    VkBuffer ubo, std::size_t n_frames, VkDeviceSize offset
+) const {
+    NNGN_LOG_CONTEXT_CF(LightingDescriptorSets);
+    const auto n = n_frames + 1;
+    std::vector<VkDescriptorBufferInfo> buf_info = {};
+    std::vector<VkWriteDescriptorSet> writes = {};
+    buf_info.reserve(n);
+    writes.reserve(n);
+    VkDeviceSize off = offset, align = this->alignment();
+    for(std::size_t i = 0; i < n; ++i, off += align)
+        writes.push_back({
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = this->ids()[i],
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+            .pBufferInfo = &buf_info.emplace_back(VkDescriptorBufferInfo{
+                .buffer = ubo,
+                .offset = off,
+                .range = sizeof(nngn::LightsUBO),
+            }),
+        });
+    vkUpdateDescriptorSets(
+        this->dev, static_cast<u32>(writes.size()), writes.data(), 0, nullptr);
 }
 
 bool TexArray::init(
@@ -796,7 +860,7 @@ bool VulkanBackend::init_device(std::size_t i) {
     }();
     bool ok = this->dev.init(
             this->instance, physical_dev, graphics_family, present_family,
-            DEVICE_EXTENSIONS, layers, {})
+            DEVICE_EXTENSIONS, layers, VkPhysicalDeviceFeatures{})
         && this->dev_mem.init(
             this->instance.id(), this->dev.physical_dev(), this->dev.id());
     if(!ok)
@@ -811,6 +875,8 @@ bool VulkanBackend::init_device(std::size_t i) {
     ok = this->camera_descriptor_sets.init(
             this->dev.id(), prop.limits.minUniformBufferOffsetAlignment)
         && this->texture_descriptor_sets.init(this->dev.id())
+        && this->lighting_descriptor_sets.init(
+            this->dev.id(), prop.limits.minUniformBufferOffsetAlignment)
         && (this->sampler = this->dev.create_sampler(
             VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, {},
             VK_SAMPLER_MIPMAP_MODE_NEAREST, Graphics::TEXTURE_MIP_LEVELS))
@@ -844,6 +910,7 @@ bool VulkanBackend::init_device(std::size_t i) {
     if(!ok)
         return false;
     const auto descriptor_layouts = std::to_array<VkDescriptorSetLayout>({
+        this->lighting_descriptor_sets.layout(),
         this->camera_descriptor_sets.layout(),
         this->texture_descriptor_sets.layout(),
     });
@@ -943,6 +1010,7 @@ bool VulkanBackend::recreate_swapchain() {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
     this->flags.clear(Flag::RECREATE_SWAPCHAIN);
     this->set_camera_updated();
+    this->set_lighting_updated();
     vkDeviceWaitIdle(this->dev.id());
     auto &info = this->m_surface_info;
     info.init(this->swap_chain.surface(), this->dev.physical_dev());
@@ -994,7 +1062,8 @@ bool VulkanBackend::update_render_list() {
         .binding = 0,
         .stride = sizeof(V),
         .inputRate = VK_VERTEX_INPUT_RATE_VERTEX}});
-    const auto vertex_vattrs = nngn::vk_vertex_attrs<V, &V::pos, &V::color>();
+    const auto vertex_vattrs =
+        nngn::vk_vertex_attrs<V, &V::pos, &V::norm, &V::color>();
     const auto vertex_vinput = nngn::vk_vertex_input(bindings, vertex_vattrs);
     constexpr auto
         rast_back_cull = raster_info(VK_CULL_MODE_BACK_BIT),
@@ -1150,7 +1219,7 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
                             == PipelineConfiguration::Type::FONT];
                 if(next_tex != cur_tex) {
                     bind_descriptors(
-                        b, this->pipeline_layout, name, 1,
+                        b, this->pipeline_layout, name, 2,
                         std::array{next_tex}, {});
                     cur_tex = next_tex;
                 }
@@ -1192,14 +1261,19 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
             .maxDepth = 1,
         };
         const VkRect2D scissors = {{}, {width, height}};
+        const auto &light_desc = this->lighting_descriptor_sets;
         const auto &camera_desc = this->camera_descriptor_sets;
         const auto &tex_desc = this->texture_descriptor_sets;
         bind_descriptors(
             b, this->pipeline_layout, "normal", 0,
-            std::array{camera_desc.ids()[0], tex_desc.ids()[0]},
+            std::array{
+                light_desc.ids()[i], camera_desc.ids()[0], tex_desc.ids()[0]},
             std::array{camera_desc.offset(i)});
         push_alpha(b, this->pipeline_layout, 1);
         render(b, "normal", viewport, scissors, this->render_list.normal);
+        bind_descriptors(
+            b, this->pipeline_layout, "no_light", 0,
+            std::array{light_desc.ids()[this->n_frames]}, {});
         push_alpha(b, this->pipeline_layout, .5);
         render(b, "overlay", viewport, scissors, this->render_list.overlay);
         vkCmdClearAttachments(
@@ -1212,7 +1286,7 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
                 .layerCount = 1,
             }));
         bind_descriptors(
-            b, this->pipeline_layout, "screen", 0,
+            b, this->pipeline_layout, "screen", 1,
             std::array{camera_desc.ids()[0], tex_desc.ids()[0]},
             std::array{camera_desc.offset_screen(i)});
         render(b, "screen", viewport, scissors, this->render_list.screen);
@@ -1346,10 +1420,12 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
     const u32
         n_camera_desc = 1,
         n_tex_desc = 2,
-        n_desc = n_camera_desc + n_tex_desc;
+        n_light_desc = 1 + static_cast<u32>(n_frames),
+        n_desc = n_camera_desc + n_tex_desc + n_light_desc;
     const VkDeviceSize
         ubo_camera_size = this->camera_descriptor_sets.size(this->n_frames),
-        ubo_size = ubo_camera_size;
+        ubo_size = ubo_camera_size
+            + this->lighting_descriptor_sets.size(this->n_frames);
     const bool ok = this->ubo.init<host_mem>(
             this->dev.id(), &this->dev_mem, ubo_size,
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
@@ -1360,6 +1436,9 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
         && this->descriptor_pool.reset()
         && this->descriptor_pool.recreate(
             n_desc, std::to_array<VkDescriptorPoolSize>({{
+                .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                .descriptorCount = n_light_desc,
+            }, {
                 .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
                 .descriptorCount = n_camera_desc,
             }, {
@@ -1385,12 +1464,28 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
             "texture_descriptor_set"sv)
         && this->instance.set_obj_name(
             this->dev.id(), this->texture_descriptor_sets.ids()[1],
-            "font_texture_descriptor_set"sv);
+            "font_texture_descriptor_set"sv)
+        && this->lighting_descriptor_sets.reset(
+            this->descriptor_pool.id(), n_light_desc)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->lighting_descriptor_sets.layout(),
+            "lighting_descriptor_set_layout"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(),
+            this->lighting_descriptor_sets.ids(),
+            "lighting_descriptor_set"sv);
     if(!ok)
         return false;
     this->camera_descriptor_sets.write(this->ubo.id(), 0);
     this->texture_descriptor_sets.write(
         this->sampler, this->tex.view(), this->font_tex.view());
+    this->lighting_descriptor_sets.write(
+        this->ubo.id(), this->n_frames, ubo_camera_size);
+    this->ubo.memcpy(
+        this->dev.id(),
+        ubo_camera_size + static_cast<VkDeviceSize>(
+            this->lighting_descriptor_sets.offset_no_light(this->n_frames)),
+        nngn::as_byte_span(nngn::rptr(nngn::LightsUBO{})));
     this->frame_fences.resize(this->n_frames);
     std::ranges::fill(this->frame_fences, VkFence{});
     this->stg_buffer.resize(this->n_frames);
@@ -1556,6 +1651,11 @@ void VulkanBackend::set_camera(const Camera &c) {
     this->camera_descriptor_sets.updated().set();
 }
 
+void VulkanBackend::set_lighting(const Lighting &l) {
+    GLFWBackend::set_lighting(l);
+    this->lighting_descriptor_sets.updated().set();
+}
+
 bool VulkanBackend::render() {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
     NNGN_PROFILE_CONTEXT(render);
@@ -1573,6 +1673,18 @@ bool VulkanBackend::render() {
             this->camera_descriptor_sets.offset_screen(this->cur_frame),
             nngn::as_byte_span(nngn::rptr(nngn::CameraUBO{
                 .proj = CLIP_PROJ * *this->camera.screen_proj})));
+    };
+    const auto update_lighting = [this] {
+        if(!this->lighting_descriptor_sets.updated()[this->cur_frame])
+            return;
+        this->lighting_descriptor_sets.updated().reset(this->cur_frame);
+        const auto &src = *this->lighting.ubo;
+        this->ubo.memcpy(
+            this->dev.id(),
+            this->camera_descriptor_sets.size(this->n_frames)
+                + static_cast<VkDeviceSize>(
+                    this->lighting_descriptor_sets.offset(this->cur_frame)),
+            nngn::as_byte_span(&src));
     };
     const auto cmd = this->cur_cmd_buffer();
     const auto queue = this->dev.graphics_queue();
@@ -1596,6 +1708,7 @@ bool VulkanBackend::render() {
     if(auto f = std::exchange(this->frame_fences[this->cur_frame], ctx.fence))
         vkWaitForFences(this->dev.id(), 1, &f, VK_TRUE, UINT64_MAX);
     update_camera();
+    update_lighting();
     if(!this->create_cmd_buffer(ctx.img_idx))
         return false;
     vkResetFences(this->dev.id(), 1, &ctx.fence);

@@ -72,7 +72,7 @@ inline std::ostream &operator <<(std::ostream &os, const mat4 &m) {
 }
 
 inline std::ostream &operator <<(std::ostream &os, const Vertex &v) {
-    return os << "{" << v.pos << ", " << v.color << "}";
+    return os << "{" << v.pos << ", " << v.norm << ", " << v.color << "}";
 }
 
 }

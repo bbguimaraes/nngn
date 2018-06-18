@@ -58,6 +58,9 @@ register({
         end
         nngn:graphics():set_swap_interval(nngn:graphics():swap_interval() + m)
     end},
+    {"L", Input.SEL_PRESS | Input.SEL_CTRL, function()
+        nngn:lighting():set_enabled(not nngn:lighting():enabled())
+    end},
     {"V", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
         nngn:timing():set_scale(utils.shift_table(
             nngn:timing():scale(), timing.scales(), 1,
@@ -94,6 +97,13 @@ register({
     end},
     {"E", Input.SEL_PRESS, function(_, _, mods) player.menu(nil, mods) end},
     {"F", 0, function(_, press) player.action(nil, press) end},
+    {"N", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+        local a = {nngn:lighting():ambient_light()}
+        if mods & Input.MOD_SHIFT == 0
+        then for i = 1, 3 do a[i] = math.min(a[i] * 2, 1) end
+        else for i = 1, 3 do a[i] = math.max(a[i] / 2, 0) end end
+        nngn:lighting():set_ambient_light(table.unpack(a))
+    end},
     {"O", Input.SEL_PRESS | Input.SEL_CTRL, function()
         collision:toggle_resolve()
     end},
