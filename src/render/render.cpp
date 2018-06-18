@@ -16,6 +16,7 @@
 #include "utils/vector.h"
 
 #include "grid.h"
+#include "light.h"
 #include "render.h"
 
 using nngn::u8, nngn::u32, nngn::u64;
@@ -90,7 +91,7 @@ void update_sprites_ortho(nngn::Vertex **p, nngn::SpriteRenderer *x) {
     const auto s = x->size / 2.0f;
     nngn::Renderers::gen_quad_verts(
         p, pos - s, pos + s, -pos.y - x->z_off,
-        x->tex, x->uv0, x->uv1);
+        {0, 0, 1}, x->tex, x->uv0, x->uv1);
 }
 
 void update_sprites_persp(nngn::Vertex **p, nngn::SpriteRenderer *x) {
@@ -99,7 +100,7 @@ void update_sprites_persp(nngn::Vertex **p, nngn::SpriteRenderer *x) {
     const nngn::vec2 bl = {x->pos.x - s.x, -s.y - x->z_off};
     nngn::Renderers::gen_quad_verts_persp(
         p, bl, {x->pos.x + s.x, bl.y + x->size.y},
-        x->pos.y + x->z_off, x->tex, x->uv0, x->uv1);
+        x->pos.y + x->z_off, {0, -1, 0}, x->tex, x->uv0, x->uv1);
 }
 
 void update_cubes_ortho(nngn::Vertex **p, nngn::CubeRenderer *x) {
@@ -127,17 +128,18 @@ void update_voxels_persp(nngn::Vertex **p, nngn::VoxelRenderer *x) {
 }
 
 void update_boxes(nngn::Vertex **p, nngn::SpriteRenderer *x) {
+    constexpr nngn::vec3 norm = {0, 0, 1};
     const auto pos = x->pos.xy();
     auto s = x->size / 2.0f;
     nngn::vec2 bl = pos - s, tr = pos + s;
-    nngn::Renderers::gen_quad_verts(p, bl, tr, 0, {1, 1, 1});
+    nngn::Renderers::gen_quad_verts(p, bl, tr, 0, norm, {1, 1, 1});
     s = {0.5f, 0.5f};
     bl = pos - s;
     tr = pos + s;
-    nngn::Renderers::gen_quad_verts(p, bl, tr, 0, {1, 0, 0});
+    nngn::Renderers::gen_quad_verts(p, bl, tr, 0, norm, {1, 0, 0});
     bl.y = x->pos.y + x->z_off - s.y;
     tr.y = x->pos.y + x->z_off + s.y;
-    nngn::Renderers::gen_quad_verts(p, bl, tr, 0, {1, 0, 0});
+    nngn::Renderers::gen_quad_verts(p, bl, tr, 0, norm, {1, 0, 0});
 }
 
 void update_cube_dbg(nngn::Vertex **p, nngn::CubeRenderer *x) {
@@ -193,7 +195,8 @@ void update_text(const UpdateTextData *data, nngn::Vertex *p, u64, u64 n) {
             + nngn::vec2(font_size / 2, txt.size.y - font_size / 2)
             + static_cast<nngn::vec2>(fc.bearing);
         nngn::Renderers::gen_quad_verts(
-            &p, cpos, cpos + size, color, static_cast<u32>(c),
+            &p, cpos, cpos + size, color,
+            {0, 0, 1}, static_cast<u32>(c),
             {0, size.y / font_size}, {size.x / font_size, 0});
         pos.x += fc.advance;
         ++n_visible;
@@ -205,10 +208,13 @@ void update_text(const UpdateTextData *data, nngn::Vertex *p, u64, u64 n) {
 }
 
 void update_textbox(void *data, void *vp, u64, u64) {
+    constexpr nngn::vec3 norm = {0, 0, 1};
     auto *p = static_cast<nngn::Vertex*>(vp);
     const auto *const t = static_cast<const nngn::Textbox*>(data);
-    nngn::Renderers::gen_quad_verts(&p, t->title_bl, t->title_tr, 0, {0, 0, 1});
-    nngn::Renderers::gen_quad_verts(&p, t->str_bl, t->str_tr, 0, {1, 1, 1});
+    nngn::Renderers::gen_quad_verts(
+        &p, t->title_bl, t->title_tr, 0, norm, {0, 0, 1});
+    nngn::Renderers::gen_quad_verts(
+        &p, t->str_bl, t->str_tr, 0, norm, {1, 1, 1});
 }
 
 using UpdateSelectionData = std::tuple<
@@ -231,7 +237,7 @@ void update_selections(
         nngn::Renderers::gen_quad_verts(
             &p, {dx.pos.x - s.x, dx.pos.y - s.y},
             {dx.pos.x + s.x, dx.pos.y + s.y},
-            0, {1, 1, 0});
+            0, {0, 0, 1}, {1, 1, 0});
     }
     *it_p = it;
 }
@@ -245,7 +251,7 @@ void update_aabbs(const UpdateAABBData *data, nngn::Vertex *p, u64 i, u64 n) {
     for(; n--; ++i) {
         const auto &x = aabbs[i];
         nngn::Renderers::gen_quad_verts(
-            &p, x.bl, x.tr, 0,
+            &p, x.bl, x.tr, 0, {0, 0, 1},
             lookup.find(&x) != cend(lookup)
                 ? nngn::vec3(0, 1, 0) : nngn::vec3(1, 0, 0));
     }
@@ -256,7 +262,8 @@ void update_aabb_circles(
 ) {
     const auto uv = x->radius < 32.0f ? CIRCLE_UV_32 : CIRCLE_UV_64;
     nngn::Renderers::gen_quad_verts(
-        p, x->center - x->radius, x->center + x->radius, 0, 1, uv[0], uv[1]);
+        p, x->center - x->radius, x->center + x->radius, 0, {0, 0, 1}, 1,
+        uv[0], uv[1]);
 }
 
 using UpdateBBData = std::tuple<
@@ -265,6 +272,7 @@ using UpdateBBData = std::tuple<
 
 void update_bbs(const UpdateBBData *data, nngn::Vertex *p, u64 i, u64 n) {
     auto &[bbs, lookup] = *data;
+    constexpr nngn::vec3 norm = {0, 0, 1};
     for(; n--; ++i) {
         const auto &x = bbs[i];
         const auto color = lookup.find(&x) != cend(lookup)
@@ -282,10 +290,10 @@ void update_bbs(const UpdateBBData *data, nngn::Vertex *p, u64 i, u64 n) {
                 r.x * x.sin + r.y * x.cos};
             r += pos;
         }
-        *p++ = {{rot[0], 0}, color};
-        *p++ = {{rot[1], 0}, color};
-        *p++ = {{rot[2], 0}, color};
-        *p++ = {{rot[3], 0}, color};
+        *p++ = {{rot[0], 0}, norm, color};
+        *p++ = {{rot[1], 0}, norm, color};
+        *p++ = {{rot[2], 0}, norm, color};
+        *p++ = {{rot[3], 0}, norm, color};
     }
 }
 
@@ -294,7 +302,52 @@ void update_spheres(
 ) {
     const auto uv = x->r / 2.0f < 32.0f ? CIRCLE_UV_32 : CIRCLE_UV_64;
     nngn::Renderers::gen_quad_verts(
-        p, (x->pos - x->r).xy(), (x->pos + x->r).xy(), 0, 1, uv[0], uv[1]);
+        p, (x->pos - x->r).xy(), (x->pos + x->r).xy(), 0, {0, 0, 1}, 1,
+        uv[0], uv[1]);
+}
+
+template<auto vgen>
+bool update_lights(
+    nngn::Graphics *g, u32 vbo, u32 ebo,
+    u64 *voff, u64 *eoff, u64 *ei,
+    std::span<const nngn::Light> s
+) {
+    constexpr auto vsize = 6 * 4 * sizeof(nngn::Vertex);
+    constexpr auto esize = 6 * 6 * sizeof(u32);
+    const auto vo = std::exchange(*voff, *voff + s.size() * vsize);
+    const auto eo = std::exchange(*eoff, *eoff + s.size() * esize);
+    const auto cur_ei = std::exchange(*ei, *ei + s.size());
+    return write_to_buffer<vgen, nngn::Vertex>(
+            g, vbo, vo, s.size(), vsize, nngn::rptr(std::tuple{s.data()}))
+        && write_to_buffer<update_indices_with_base<6 * 6>, u32>(
+            g, ebo, eo, s.size(), esize, nngn::rptr(std::tuple{cur_ei}));
+}
+
+void update_dir_lights(
+    const std::tuple<const nngn::Light*> *data, nngn::Vertex *p, u64 i, u64 n
+) {
+    auto [lights] = *data;
+    for(n += i; i < n; ++i) {
+        const auto &x = lights[i];
+        nngn::Renderers::gen_cube_verts(
+            &p, x.ortho_view_pos(), nngn::vec3{8}, x.color.xyz());
+    }
+}
+
+void update_point_lights(
+    const std::tuple<const nngn::Light*> *data, nngn::Vertex *p, u64 i, u64 n
+) {
+    auto [lights] = *data;
+    for(n += i; i < n; ++i) {
+        const auto &x = lights[i];
+        nngn::Renderers::gen_cube_verts(
+            &p, x.pos, nngn::vec3{8}, x.color.xyz());
+    }
+}
+
+void update_ranges(nngn::Vertex **p, const nngn::Light *x) {
+    nngn::Renderers::gen_cube_verts(
+        p, x->pos, nngn::vec3{.2f * x->range()}, x->color.xyz());
 }
 
 }
@@ -303,13 +356,14 @@ namespace nngn {
 
 void Renderers::init(
     Textures *t, const Fonts *f, const Textbox *tb, const Grid *g,
-    const Colliders *c
+    const Colliders *c, const Lighting *l
 ) {
     this->textures = t;
     this->fonts = f;
     this->textbox = tb;
     this->grid = g;
     this->colliders = c;
+    this->lighting = l;
 }
 
 std::size_t Renderers::n() const {
@@ -393,7 +447,9 @@ bool Renderers::set_graphics(Graphics *g) {
         TRIANGLE_VBO_SIZE = TRIANGLE_MAX * sizeof(Vertex),
         TRIANGLE_EBO_SIZE = TRIANGLE_MAX * sizeof(u32),
         TEXTBOX_MAX = 1,
-        SELECTION_MAX = 1024;
+        SELECTION_MAX = 1024,
+        LIGHTS_MAX = 2 * NNGN_MAX_LIGHTS,
+        RANGE_MAX = NNGN_MAX_LIGHTS;
     using Pipeline = Graphics::PipelineConfiguration;
     using Stage = Graphics::RenderList::Stage;
     using BufferPair = std::pair<u32, u32>;
@@ -565,14 +621,34 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "sphere_ebo",
             .type = index,
         }))
+        && (this->lights_vbo = g->create_buffer({
+            .name = "lights_vbo",
+            .type = vertex,
+            .size = 24 * LIGHTS_MAX * sizeof(Vertex),
+        }))
+        && (this->lights_ebo = g->create_buffer({
+            .name = "lights_ebo",
+            .type = index,
+            .size = 36 * LIGHTS_MAX * sizeof(u32),
+        }))
+        && (this->range_vbo = g->create_buffer({
+            .name = "range_vbo",
+            .type = vertex,
+            .size = 24 * RANGE_MAX * sizeof(Vertex),
+        }))
+        && (this->range_ebo = g->create_buffer({
+            .name = "range_ebo",
+            .type = index,
+            .size = 36 * RANGE_MAX * sizeof(u32),
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
             [](void*, void *p, u64, u64) {
                 const auto v = std::array<nngn::Vertex, TRIANGLE_MAX>{{
-                    {{  0,  16, 0}, {1, 0, 0}},
-                    {{-16, -16, 0}, {0, 1, 0}},
-                    {{ 16, -16, 0}, {0, 0, 1}}}};
+                    {{  0,  16, 0}, {0, 0, 1}, {1, 0, 0}},
+                    {{-16, -16, 0}, {0, 0, 1}, {0, 1, 0}},
+                    {{ 16, -16, 0}, {0, 0, 1}, {0, 0, 1}}}};
                 memcpy(p, std::span{v});
             },
             [](void*, void *p, u64, u64) {
@@ -613,11 +689,13 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->selection_vbo, this->selection_ebo},
                     {this->aabb_vbo, this->aabb_ebo},
                     {this->bb_vbo, this->bb_ebo},
+                    {this->lights_vbo, this->lights_ebo},
                 }),
             }, {
                 .pipeline = line_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->grid->vbo(), this->grid->ebo()},
+                    {this->range_vbo, this->range_ebo},
                 }),
             }}),
             .hud = std::to_array<Stage>({{
@@ -936,6 +1014,50 @@ bool Renderers::update() {
         return update_span<::update_spheres, update_indices<6>>(
             this->graphics, v, vbo, ebo, 4, 6);
     };
+    const auto update_lights = [this] {
+        NNGN_LOG_CONTEXT("lights");
+        const auto vbo = this->lights_vbo;
+        const auto ebo = this->lights_ebo;
+        if(!this->m_debug.is_set(Debug::LIGHT)) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        const auto dir = this->lighting->dir_lights();
+        const auto point = this->lighting->point_lights();
+        const auto n = dir.size() + point.size();
+        if(!n) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        std::uint64_t voff = {}, eoff = {};
+        std::uint64_t ei = {};
+        const bool ok = ::update_lights<update_dir_lights>(
+                this->graphics, vbo, ebo, &voff, &eoff, &ei, dir)
+            && ::update_lights<update_point_lights>(
+                this->graphics, vbo, ebo, &voff, &eoff, &ei, point);
+        if(!ok)
+            return false;
+        this->graphics->set_buffer_size(vbo, voff);
+        this->graphics->set_buffer_size(ebo, eoff);
+        return true;
+    };
+    const auto update_ranges = [this] {
+        NNGN_LOG_CONTEXT("range");
+        const auto vbo = this->range_vbo;
+        const auto ebo = this->range_ebo;
+        if(!this->m_debug.is_set(Debug::LIGHT)) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        const auto cv = this->lighting->point_lights();
+        const auto v = std::span{const_cast<Light*>(cv.data()), cv.size()};
+        if(v.empty()) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        return update_span<::update_ranges, update_indices<6 * 6>>(
+            this->graphics, v, vbo, ebo, 6 * 4, 6 * 6);
+    };
     const auto updated = [&flags = this->flags](auto f, const auto &v) {
         return flags.is_set(f)
             ? (flags.clear(f), true)
@@ -968,7 +1090,8 @@ bool Renderers::update() {
     return update_text() && update_textbox() && update_selections()
         && update_aabbs() && update_aabb_circles()
         && update_bbs() && update_bb_circles()
-        && update_spheres();
+        && update_spheres()
+        && update_lights() && update_ranges();
 }
 
 }

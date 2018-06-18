@@ -23,6 +23,7 @@ namespace nngn {
 struct Colliders;
 class Fonts;
 class Grid;
+class Lighting;
 class Textures;
 class Textbox;
 
@@ -41,6 +42,7 @@ class Renderers {
     const Textbox *textbox = nullptr;
     const Grid *grid = nullptr;
     const Colliders *colliders = nullptr;
+    const Lighting *lighting = nullptr;
     Flags<Flag> flags = {};
     std::vector<SpriteRenderer> sprites = {};
     std::vector<CubeRenderer> cubes = {};
@@ -60,21 +62,25 @@ class Renderers {
         aabb_circle_vbo = {}, aabb_circle_ebo = {},
         bb_vbo = {}, bb_ebo = {},
         bb_circle_vbo = {}, bb_circle_ebo = {},
-        sphere_vbo = {}, sphere_ebo = {};
+        sphere_vbo = {}, sphere_ebo = {},
+        lights_vbo = {}, lights_ebo = {},
+        range_vbo = {}, range_ebo = {};
 public:
     enum Debug : u8 {
-        RECT = 1u << 0, CIRCLE = 1u << 1, BB = 1u << 2, N_DEBUG = 3,
+        RECT = 1u << 0, CIRCLE = 1u << 1, BB = 1u << 2, LIGHT = 1u << 3,
+        N_DEBUG = 4,
     };
 private:
     Flags<Debug> m_debug = {};
 public:
     static void gen_quad_idxs(u64 i, u64 n, u32 *p);
     static void gen_quad_verts(
-        Vertex **p, vec2 bl, vec2 tr, float z, u32 tex, vec2 uv0, vec2 uv1);
+        Vertex **p, vec2 bl, vec2 tr, float z, vec3 norm,
+        u32 tex, vec2 uv0, vec2 uv1);
     static void gen_quad_verts(
-        Vertex **p, vec2 bl, vec2 tr, float z, vec3 color);
+        Vertex **p, vec2 bl, vec2 tr, float z, vec3 norm, vec3 color);
     static void gen_quad_verts_persp(
-        Vertex **p, vec2 bl, vec2 tr, float y,
+        Vertex **p, vec2 bl, vec2 tr, float y, vec3 norm,
         u32 tex, vec2 uv0, vec2 uv1);
     static void gen_cube_verts(Vertex **p, vec3 pos, vec3 size, vec3 color);
     static void gen_cube_verts(
@@ -82,7 +88,7 @@ public:
         u32 tex, const std::array<vec4, 6> &uv);
     void init(
         Textures *t, const Fonts *f, const Textbox *tb, const Grid *g,
-        const Colliders *c);
+        const Colliders *c, const Lighting *l);
     auto max_sprites() const { return this->sprites.capacity(); }
     auto max_cubes() const { return this->cubes.capacity(); }
     auto max_voxels() const { return this->voxels.capacity(); }
@@ -118,39 +124,39 @@ inline void Renderers::gen_quad_idxs(u64 i_64, u64 n, u32 *p) {
 }
 
 inline void Renderers::gen_quad_verts(
-    Vertex **pp, vec2 bl, vec2 tr, float z, vec3 color
+    Vertex **pp, vec2 bl, vec2 tr, float z, vec3 norm, vec3 color
 ) {
     auto *p = *pp;
-    *p++ = {{bl,         z}, color};
-    *p++ = {{tr.x, bl.y, z}, color};
-    *p++ = {{bl.x, tr.y, z}, color};
-    *p++ = {{tr,         z}, color};
+    *p++ = {{bl,         z}, norm, color};
+    *p++ = {{tr.x, bl.y, z}, norm, color};
+    *p++ = {{bl.x, tr.y, z}, norm, color};
+    *p++ = {{tr,         z}, norm, color};
     *pp = p;
 }
 
 inline void Renderers::gen_quad_verts(
-    Vertex **pp, vec2 bl, vec2 tr, float z,
+    Vertex **pp, vec2 bl, vec2 tr, float z, vec3 norm,
     u32 tex, vec2 uv0, vec2 uv1
 ) {
     const auto tex_f = static_cast<float>(tex);
     auto *p = *pp;
-    *p++ = {{bl,         z}, {uv0.x, uv0.y, tex_f}};
-    *p++ = {{tr.x, bl.y, z}, {uv1.x, uv0.y, tex_f}};
-    *p++ = {{bl.x, tr.y, z}, {uv0.x, uv1.y, tex_f}};
-    *p++ = {{tr,         z}, {uv1.x, uv1.y, tex_f}};
+    *p++ = {{bl,         z}, norm, {uv0.x, uv0.y, tex_f}};
+    *p++ = {{tr.x, bl.y, z}, norm, {uv1.x, uv0.y, tex_f}};
+    *p++ = {{bl.x, tr.y, z}, norm, {uv0.x, uv1.y, tex_f}};
+    *p++ = {{tr,         z}, norm, {uv1.x, uv1.y, tex_f}};
     *pp = p;
 }
 
 inline void Renderers::gen_quad_verts_persp(
-    Vertex **pp, vec2 bl, vec2 tr, float y,
+    Vertex **pp, vec2 bl, vec2 tr, float y, vec3 norm,
     u32 tex, vec2 uv0, vec2 uv1
 ) {
     const auto tex_f = static_cast<float>(tex);
     auto *p = *pp;
-    *p++ = {{bl.x, y, bl.y}, {uv0.x, uv0.y, tex_f}};
-    *p++ = {{tr.x, y, bl.y}, {uv1.x, uv0.y, tex_f}};
-    *p++ = {{bl.x, y, tr.y}, {uv0.x, uv1.y, tex_f}};
-    *p++ = {{tr.x, y, tr.y}, {uv1.x, uv1.y, tex_f}};
+    *p++ = {{bl.x, y, bl.y}, norm, {uv0.x, uv0.y, tex_f}};
+    *p++ = {{tr.x, y, bl.y}, norm, {uv1.x, uv0.y, tex_f}};
+    *p++ = {{bl.x, y, tr.y}, norm, {uv0.x, uv1.y, tex_f}};
+    *p++ = {{tr.x, y, tr.y}, norm, {uv1.x, uv1.y, tex_f}};
     *pp = p;
 }
 
@@ -159,30 +165,30 @@ inline void Renderers::gen_cube_verts(
 ) {
     const auto s = size / 2.0f;
     const auto bl = pos - s, tr = pos + s;
-    *((*p)++) = { bl               , color};
-    *((*p)++) = {{bl.x, tr.y, bl.z}, color};
-    *((*p)++) = {{tr.x, bl.y, bl.z}, color};
-    *((*p)++) = {{tr.x, tr.y, bl.z}, color};
-    *((*p)++) = {{bl.x, bl.y, tr.z}, color};
-    *((*p)++) = {{tr.x, bl.y, tr.z}, color};
-    *((*p)++) = {{bl.x, tr.y, tr.z}, color};
-    *((*p)++) = { tr               , color};
-    *((*p)++) = { bl               , color};
-    *((*p)++) = {{bl.x, bl.y, tr.z}, color};
-    *((*p)++) = {{bl.x, tr.y, bl.z}, color};
-    *((*p)++) = {{bl.x, tr.y, tr.z}, color};
-    *((*p)++) = {{tr.x, bl.y, bl.z}, color};
-    *((*p)++) = {{tr.x, tr.y, bl.z}, color};
-    *((*p)++) = {{tr.x, bl.y, tr.z}, color};
-    *((*p)++) = { tr               , color};
-    *((*p)++) = { bl               , color};
-    *((*p)++) = {{tr.x, bl.y, bl.z}, color};
-    *((*p)++) = {{bl.x, bl.y, tr.z}, color};
-    *((*p)++) = {{tr.x, bl.y, tr.z}, color};
-    *((*p)++) = {{bl.x, tr.y, bl.z}, color};
-    *((*p)++) = {{bl.x, tr.y, tr.z}, color};
-    *((*p)++) = {{tr.x, tr.y, bl.z}, color};
-    *((*p)++) = { tr               , color};
+    *((*p)++) = { bl               , { 0,  0, -1}, color};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, { 0,  0, -1}, color};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, { 0,  0, -1}, color};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, { 0,  0, -1}, color};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, { 0,  0,  1}, color};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, { 0,  0,  1}, color};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, { 0,  0,  1}, color};
+    *((*p)++) = { tr               , { 0,  0,  1}, color};
+    *((*p)++) = { bl               , {-1,  0,  0}, color};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, {-1,  0,  0}, color};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, {-1,  0,  0}, color};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, {-1,  0,  0}, color};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, { 1,  0,  0}, color};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, { 1,  0,  0}, color};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, { 1,  0,  0}, color};
+    *((*p)++) = { tr               , { 1,  0,  0}, color};
+    *((*p)++) = { bl               , { 0, -1,  0}, color};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, { 0, -1,  0}, color};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, { 0, -1,  0}, color};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, { 0, -1,  0}, color};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, { 0,  1,  0}, color};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, { 0,  1,  0}, color};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, { 0,  1,  0}, color};
+    *((*p)++) = { tr               , { 0,  1,  0}, color};
 }
 
 inline void Renderers::gen_cube_verts(
@@ -193,35 +199,35 @@ inline void Renderers::gen_cube_verts(
     const auto s = size / 2.0f;
     const auto bl = pos - s, tr = pos + s;
     auto uv_ = uv[5];
-    *((*p)++) = { bl               , {uv_.xy(), ftex}};
-    *((*p)++) = {{bl.x, tr.y, bl.z}, {uv_.xw(), ftex}};
-    *((*p)++) = {{tr.x, bl.y, bl.z}, {uv_.zy(), ftex}};
-    *((*p)++) = {{tr.x, tr.y, bl.z}, {uv_.zw(), ftex}};
+    *((*p)++) = { bl               , { 0,  0, -1}, {uv_.xy(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, { 0,  0, -1}, {uv_.xw(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, { 0,  0, -1}, {uv_.zy(), ftex}};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, { 0,  0, -1}, {uv_.zw(), ftex}};
     uv_ = uv[4];
-    *((*p)++) = {{bl.x, bl.y, tr.z}, {uv_.xy(), ftex}};
-    *((*p)++) = {{tr.x, bl.y, tr.z}, {uv_.zy(), ftex}};
-    *((*p)++) = {{bl.x, tr.y, tr.z}, {uv_.xw(), ftex}};
-    *((*p)++) = { tr               , {uv_.zw(), ftex}};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, { 0,  0,  1}, {uv_.xy(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, { 0,  0,  1}, {uv_.zy(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, { 0,  0,  1}, {uv_.xw(), ftex}};
+    *((*p)++) = { tr               , { 0,  0,  1}, {uv_.zw(), ftex}};
     uv_ = uv[1];
-    *((*p)++) = { bl               , {uv_.xy(), ftex}};
-    *((*p)++) = {{bl.x, bl.y, tr.z}, {uv_.xw(), ftex}};
-    *((*p)++) = {{bl.x, tr.y, bl.z}, {uv_.zy(), ftex}};
-    *((*p)++) = {{bl.x, tr.y, tr.z}, {uv_.zw(), ftex}};
+    *((*p)++) = { bl               , {-1,  0,  0}, {uv_.xy(), ftex}};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, {-1,  0,  0}, {uv_.xw(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, {-1,  0,  0}, {uv_.zy(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, {-1,  0,  0}, {uv_.zw(), ftex}};
     uv_ = uv[0];
-    *((*p)++) = {{tr.x, bl.y, bl.z}, {uv_.xy(), ftex}};
-    *((*p)++) = {{tr.x, tr.y, bl.z}, {uv_.zy(), ftex}};
-    *((*p)++) = {{tr.x, bl.y, tr.z}, {uv_.xw(), ftex}};
-    *((*p)++) = { tr               , {uv_.zw(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, { 1,  0,  0}, {uv_.xy(), ftex}};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, { 1,  0,  0}, {uv_.zy(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, { 1,  0,  0}, {uv_.xw(), ftex}};
+    *((*p)++) = { tr               , { 1,  0,  0}, {uv_.zw(), ftex}};
     uv_ = uv[3];
-    *((*p)++) = { bl               , {uv_.xy(), ftex}};
-    *((*p)++) = {{tr.x, bl.y, bl.z}, {uv_.zy(), ftex}};
-    *((*p)++) = {{bl.x, bl.y, tr.z}, {uv_.xw(), ftex}};
-    *((*p)++) = {{tr.x, bl.y, tr.z}, {uv_.zw(), ftex}};
+    *((*p)++) = { bl               , { 0, -1,  0}, {uv_.xy(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, { 0, -1,  0}, {uv_.zy(), ftex}};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, { 0, -1,  0}, {uv_.xw(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, { 0, -1,  0}, {uv_.zw(), ftex}};
     uv_ = uv[2];
-    *((*p)++) = {{bl.x, tr.y, bl.z}, {uv_.xy(), ftex}};
-    *((*p)++) = {{bl.x, tr.y, tr.z}, {uv_.xw(), ftex}};
-    *((*p)++) = {{tr.x, tr.y, bl.z}, {uv_.zy(), ftex}};
-    *((*p)++) = { tr               , {uv_.zw(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, { 0,  1,  0}, {uv_.xy(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, { 0,  1,  0}, {uv_.xw(), ftex}};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, { 0,  1,  0}, {uv_.zy(), ftex}};
+    *((*p)++) = { tr               , { 0,  1,  0}, {uv_.zw(), ftex}};
 }
 
 inline bool Renderers::selected(const Renderer *p) const

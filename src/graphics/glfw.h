@@ -22,6 +22,7 @@ protected:
     GLFWwindow *w = nullptr;
     Parameters params = {};
     Camera camera = {};
+    Lighting lighting = {};
     bool create_window();
 public:
     NNGN_NO_COPY(GLFWBackend)
@@ -44,6 +45,7 @@ public:
         void *data, mouse_move_callback_f f) override;
     void resize(int, int) override {}
     void set_camera(const Camera &c) override { this->camera = c; }
+    void set_lighting(const Lighting &l) override { this->lighting = l; }
     void poll_events() const final;
     bool render() override;
 };

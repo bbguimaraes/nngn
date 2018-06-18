@@ -16,6 +16,7 @@ namespace nngn {
     struct Camera;
     struct Animation;
     struct Collider;
+    struct Light;
     struct Renderer;
     struct Timing;
 }
@@ -33,6 +34,7 @@ struct Entity {
     nngn::Collider *collider = nullptr;
     nngn::Animation *anim = nullptr;
     nngn::Camera *camera = nullptr;
+    nngn::Light *light = nullptr;
     Entity *parent = nullptr;
     bool alive() const { return this->flags.is_set(Flag::ALIVE); }
     bool pos_updated() const { return this->flags.is_set(Flag::POS_UPDATED); }
@@ -42,6 +44,7 @@ struct Entity {
     void set_collider(nngn::Collider *p);
     void set_animation(nngn::Animation *p);
     void set_camera(nngn::Camera *p);
+    void set_light(nngn::Light *l);
     void set_parent(Entity *e);
 };
 

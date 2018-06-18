@@ -1,6 +1,7 @@
 dofile "src/lua/path.lua"
 local camera = require "nngn.lib.camera"
 local common = require "tests/lua/common"
+local entity = require "nngn.lib.entity"
 local input = require "nngn.lib.input"
 local math = require "nngn.lib.math"
 local player = require "nngn.lib.player"
@@ -181,7 +182,7 @@ local function test_input_o()
 end
 
 local function test_input_h()
-    local p = nngn.players:add(nngn.entities:add())
+    local p = nngn.players:add(entity.load(nil, "src/lson/crono.lua"))
     assert(not player.data(p).fairy)
     local key = string.byte("H")
     nngn.input:key_callback(key, Input.KEY_PRESS, 0)
@@ -189,6 +190,51 @@ local function test_input_h()
     nngn.input:key_callback(key, Input.KEY_PRESS, 0)
     assert(not player.data(p).fairy)
     player.remove(p)
+end
+
+local function test_input_l()
+    local key = string.byte("L")
+    nngn.lighting:set_enabled(false)
+    nngn.input:key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(nngn.lighting:enabled())
+    nngn.input:key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(not nngn.lighting:enabled())
+    local p = nngn.players:add(entity.load(nil, "src/lson/crono.lua"))
+    nngn.input:key_callback(key, Input.KEY_PRESS, 0)
+    assert(player.data(p).light)
+    nngn.input:key_callback(key, Input.KEY_PRESS, 0)
+    assert(not player.data(p).light)
+    player.remove(p)
+end
+
+local function test_input_f()
+    local key = string.byte("F")
+    local p = nngn.players:add(entity.load(nil, "src/lson/crono.lua"))
+    nngn.input:key_callback(key, Input.KEY_PRESS, 0)
+    assert(player.data(p).flashlight)
+    nngn.input:key_callback(key, Input.KEY_PRESS, 0)
+    assert(not player.data(p).flashlight)
+    player.remove(p)
+end
+
+local function test_input_n()
+    local key = string.byte("N")
+    local cmp = function(t)
+        common.assert_eq({nngn.lighting:ambient_light()}, t, common.deep_cmp)
+    end
+    nngn.lighting:set_ambient_light(1, 1, 1, 1)
+    nngn.input:key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    cmp{1, 1, 1, 1}
+    nngn.input:key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT)
+    cmp{0.5, 0.5, 0.5, 1}
+    nngn.input:key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT)
+    cmp{0.25, 0.25, 0.25, 1}
+    nngn.input:key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    cmp{0.5, 0.5, 0.5, 1}
+    nngn.input:key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    cmp{1, 1, 1, 1}
 end
 
 local opengl = nngn:set_graphics(
@@ -216,4 +262,7 @@ test_input_space()
 test_input_g()
 test_input_o()
 test_input_h()
+test_input_l()
+test_input_f()
+test_input_n()
 nngn:exit()

@@ -10,6 +10,8 @@
 #include <string>
 #include <tuple>
 
+#include "const.h"
+
 #include "math/mat4.h"
 #include "math/math.h"
 #include "math/vec2.h"
@@ -25,7 +27,23 @@ struct GLFWwindow;
 namespace nngn {
 
 struct CameraUBO { mat4 proj, view; };
-struct Vertex { vec3 pos, color; };
+struct LightsUBO {
+    vec3 view_pos = {};
+    uint32_t n_dir = 0;
+    vec3 ambient = {};
+    uint32_t n_point = 0;
+    struct {
+        std::array<vec4, NNGN_MAX_LIGHTS> dir = {};
+        std::array<vec4, NNGN_MAX_LIGHTS> color_spec = {};
+    } dir;
+    struct {
+        std::array<vec4, NNGN_MAX_LIGHTS> dir = {};
+        std::array<vec4, NNGN_MAX_LIGHTS> color_spec = {};
+        std::array<vec4, NNGN_MAX_LIGHTS> pos = {};
+        std::array<vec4, NNGN_MAX_LIGHTS> att_cutoff = {};
+    } point;
+};
+struct Vertex { vec3 pos, norm, color; };
 
 struct Graphics {
     using size_callback_f = void (*)(void*, uvec2);
@@ -125,6 +143,9 @@ struct Graphics {
         const uvec2 *screen = nullptr;
         const mat4 *proj = nullptr, *hud_proj = nullptr, *view = nullptr;
     };
+    struct Lighting {
+        const LightsUBO *ubo = nullptr;
+    };
     static constexpr u32
         TEXTURE_EXTENT = 512,
         TEXTURE_EXTENT_LOG2 = std::countr_zero(std::bit_floor(TEXTURE_EXTENT)),
@@ -190,7 +211,9 @@ struct Graphics {
         void *data, mouse_move_callback_f f) = 0;
     virtual void resize(int w, int h) = 0;
     virtual void set_camera(const Camera &c) = 0;
+    virtual void set_lighting(const Lighting &l) = 0;
     virtual void set_camera_updated() = 0;
+    virtual void set_lighting_updated() = 0;
     // Pipelines
     virtual u32 create_pipeline(const PipelineConfiguration &conf) = 0;
     // Buffers

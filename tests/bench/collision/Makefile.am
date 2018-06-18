@@ -20,6 +20,8 @@ check_HEADERS += \
 	src/collision/collision.cpp \
 	src/collision/native.cpp \
 	src/math/camera.cpp \
+	src/render/animation.cpp \
+	src/render/light.cpp \
 	src/timing/profile.cpp \
 	src/timing/stats.cpp \
 	src/timing/timing.cpp \

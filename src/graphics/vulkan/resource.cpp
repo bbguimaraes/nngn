@@ -46,7 +46,7 @@ void DedicatedBuffer::fill(
 }
 
 void DedicatedBuffer::memcpy(
-    VkDevice dev,std::size_t off, std::span<const std::byte> s
+    VkDevice dev, VkDeviceSize off, std::span<const std::byte> s
 ) const {
     assert(off + s.size() <= this->capacity());
     void *p = {};
