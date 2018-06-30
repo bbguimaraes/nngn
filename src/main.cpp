@@ -22,6 +22,7 @@
  */
 #include "entity.h"
 
+#include "font/font.h"
 #include "graphics/graphics.h"
 #include "graphics/texture.h"
 #include "input/input.h"
@@ -65,6 +66,7 @@ struct NNGN {
     nngn::lua::state lua = {};
     nngn::lua::alloc_info lua_alloc = {};
     Input input = {};
+    nngn::Fonts fonts = {};
     nngn::Camera camera = {};
     nngn::Renderers renderers = {};
     nngn::Animations animations = {};
@@ -100,7 +102,9 @@ bool NNGN::init(int argc, const char *const *argv) {
     this->schedule.init(&this->timing);
     this->input.input.init(this->lua);
     this->input.mouse.init(this->lua);
-    this->renderers.init(&this->textures);
+    if(!this->fonts.init())
+        return false;
+    this->renderers.init(&this->textures, &this->fonts);
     this->animations.init(&this->math);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
@@ -137,12 +141,14 @@ bool NNGN::set_graphics(
         &this->input.mouse, [](void *p, nngn::dvec2 pos)
             { static_cast<nngn::MouseInput*>(p)->move_callback(pos); });
     bool ret = this->renderers.set_graphics(g.get());
+    this->fonts.graphics = g.get();
     this->textures.set_graphics(g.get());
     g->set_size_callback(
         &this->camera, [](void *p, auto s)
             { static_cast<nngn::Camera*>(p)->set_screen(s); });
     g->set_camera({
-        &this->camera.screen, &this->camera.proj, &this->camera.view});
+        &this->camera.screen, &this->camera.proj, &this->camera.hud_proj,
+        &this->camera.view});
     this->camera.set_screen(g->window_size());
     this->graphics = std::move(g);
     return ret;
@@ -195,6 +201,7 @@ NNGN_LUA_PROXY(NNGN,
     "lua", readonly(&NNGN::lua),
     "input", property([](const NNGN &nngn) { return &nngn.input.input; }),
     "mouse_input", property([](const NNGN &nngn) { return &nngn.input.mouse; }),
+    "fonts", readonly(&NNGN::fonts),
     "camera", readonly(&NNGN::camera),
     "renderers", readonly(&NNGN::renderers),
     "animations", readonly(&NNGN::animations),

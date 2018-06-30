@@ -26,6 +26,7 @@ CLEANFILES += \
 	%reldir%/*/*.moc.cpp
 
 include %reldir%/bench/Makefile.am
+include %reldir%/font/Makefile.am
 include %reldir%/graphics/Makefile.am
 include %reldir%/input/Makefile.am
 include %reldir%/lua/Makefile.am

@@ -35,11 +35,13 @@ std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void*) {
 
 #include <GLFW/glfw3.h>
 
+#include "font/font.h"
 #include "graphics/glfw.h"
 #include "graphics/shaders.h"
 #include "math/camera.h"
 #include "timing/profile.h"
 #include "utils/flags.h"
+#include "utils/literals.h"
 
 #include "cmd_pool.h"
 #include "descriptor.h"
@@ -54,6 +56,7 @@ std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void*) {
 using namespace std::string_literals;
 using namespace std::string_view_literals;
 
+using namespace nngn::literals;
 using nngn::u8, nngn::u32, nngn::u64;
 
 namespace {
@@ -159,6 +162,7 @@ public:
     bool init(VkDevice dev, VkDeviceSize min_ubo_align);
     VkDeviceSize size(std::size_t n_frames) const;
     u32 offset(std::size_t i) const;
+    u32 offset_hud(std::size_t i) const;
     void write(VkBuffer ubo, VkDeviceSize offset) const;
 private:
     static constexpr VkDeviceSize size();
@@ -166,7 +170,9 @@ private:
 
 struct TextureDescriptorSets : public nngn::DescriptorSets {
     bool init(VkDevice dev);
-    void write(VkSampler sampler, VkImageView tex_img_view) const;
+    void write(
+        VkSampler sampler,
+        VkImageView tex_img_view, VkImageView font_img_view) const;
 };
 
 class TexArray : public nngn::Image {
@@ -195,7 +201,7 @@ struct RenderList {
         std::vector<std::pair<u32, u32>> buffers = {};
         u32 conf = {};
     };
-    std::vector<Stage> normal = {}, overlay = {};
+    std::vector<Stage> normal = {}, overlay = {}, hud = {};
 };
 
 class VulkanBackend final : public nngn::GLFWBackend {
@@ -232,7 +238,8 @@ class VulkanBackend final : public nngn::GLFWBackend {
     std::vector<PipelineConfiguration> pipeline_conf = {{}};
     ::RenderList render_list = {};
     VkSampler sampler = {};
-    TexArray tex = {};
+    TexArray tex = {}, font_tex = {};
+    u32 font_size = {};
     static void error_callback(void *p)
         { static_cast<VulkanBackend*>(p)->flags.set(Flag::ERROR); };
     static bool begin_cmd(VkCommandBuffer cmd);
@@ -297,6 +304,10 @@ public:
     bool resize_textures(std::uint32_t s) final;
     bool load_textures(
         std::uint32_t i, std::uint32_t n, const std::byte *v) final;
+    bool resize_font(std::uint32_t s) final;
+    bool load_font(
+        unsigned char c, std::uint32_t n,
+        const nngn::uvec2 *size, const std::byte *v) final;
     void set_camera(const Camera &c) final;
     bool set_render_list(const RenderList &l) final;
     bool render() final;
@@ -438,8 +449,8 @@ bool UBODescriptorSets::init(
 }
 
 constexpr VkDeviceSize CameraDescriptorSets::size() {
-    constexpr std::size_t normal = 1;
-    return normal;
+    constexpr std::size_t normal = 1, hud = 1;
+    return normal + hud;
 }
 
 VkDeviceSize CameraDescriptorSets::size(std::size_t n_frames) const {
@@ -449,6 +460,10 @@ VkDeviceSize CameraDescriptorSets::size(std::size_t n_frames) const {
 u32 CameraDescriptorSets::offset(std::size_t i) const {
     return static_cast<u32>(
         CameraDescriptorSets::size() * this->alignment() * i);
+}
+
+u32 CameraDescriptorSets::offset_hud(std::size_t i) const {
+    return static_cast<u32>(this->offset(i) + this->alignment());
 }
 
 bool CameraDescriptorSets::init(VkDevice dev_, VkDeviceSize min_ubo_align) {
@@ -494,11 +509,11 @@ bool TextureDescriptorSets::init(VkDevice dev_) {
 }
 
 void TextureDescriptorSets::write(
-    VkSampler sampler, VkImageView tex_img_view
+    VkSampler sampler, VkImageView tex_img_view, VkImageView font_img_view
 ) const {
     NNGN_LOG_CONTEXT_CF(TextureDescriptorSets);
-    std::array<VkDescriptorImageInfo, 1> img_infos = {};
-    std::array<VkWriteDescriptorSet, 1> writes = {};
+    std::array<VkDescriptorImageInfo, 2> img_infos = {};
+    std::array<VkWriteDescriptorSet, 2> writes = {};
     std::uint32_t i = 0;
     const auto add_write = [&img_infos, &writes, &i](
         auto id, auto img_view, auto sampler_
@@ -521,6 +536,7 @@ void TextureDescriptorSets::write(
         ++i;
     };
     add_write(this->ids()[0], tex_img_view, sampler);
+    add_write(this->ids()[1], font_img_view, sampler);
     vkUpdateDescriptorSets(this->dev, i, writes.data(), 0, nullptr);
 }
 
@@ -582,6 +598,7 @@ VulkanBackend::~VulkanBackend() {
     vkDestroyRenderPass(this->dev.id(), this->render_pass, nullptr);
     vkDestroySampler(
         this->dev.id(), std::exchange(this->sampler, {}), nullptr);
+    this->font_tex.destroy(this->dev.id(), &this->dev_mem);
     this->tex.destroy(this->dev.id(), &this->dev_mem);
     this->ubo.destroy(this->dev.id(), &this->dev_mem);
 }
@@ -1061,6 +1078,7 @@ bool VulkanBackend::update_render_list() {
     }
     for(auto *l : {
         &this->render_list.normal, &this->render_list.overlay,
+        &this->render_list.hud,
     })
         for(auto &x : *l)
             x.pipeline = pipelines[x.conf - 1];
@@ -1156,6 +1174,11 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
         render(b, "normal", viewport, scissors, this->render_list.normal);
         push_alpha(b, this->pipeline_layout, .5);
         render(b, "overlay", viewport, scissors, this->render_list.overlay);
+        bind_descriptors(
+            b, this->pipeline_layout, "hud", 0,
+            std::array{camera_desc.ids()[0], tex_desc.ids()[1]},
+            std::array{camera_desc.offset_hud(i)});
+        render(b, "hud", viewport, scissors, this->render_list.hud);
         vkCmdEndRenderPass(b);
     };
     const auto extent = nngn::vk_vec_to_extent(this->m_surface_info.cur_extent);
@@ -1197,6 +1220,7 @@ bool VulkanBackend::set_render_list(const RenderList &l) {
     };
     f(&this->render_list.normal, l.normal);
     f(&this->render_list.overlay, l.overlay);
+    f(&this->render_list.hud, l.hud);
     return this->update_render_list();
 }
 
@@ -1284,7 +1308,7 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     const u32
         n_camera_desc = 1,
-        n_tex_desc = 1,
+        n_tex_desc = 2,
         n_desc = n_camera_desc + n_tex_desc;
     const VkDeviceSize
         ubo_camera_size = this->camera_descriptor_sets.size(this->n_frames),
@@ -1321,11 +1345,15 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
             "texture_descriptor_set_layout"sv)
         && this->instance.set_obj_name(
             this->dev.id(), this->texture_descriptor_sets.ids()[0],
-            "texture_descriptor_set"sv);
+            "texture_descriptor_set"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->texture_descriptor_sets.ids()[1],
+            "font_texture_descriptor_set"sv);
     if(!ok)
         return false;
     this->camera_descriptor_sets.write(this->ubo.id(), 0);
-    this->texture_descriptor_sets.write(this->sampler, this->tex.view());
+    this->texture_descriptor_sets.write(
+        this->sampler, this->tex.view(), this->font_tex.view());
     this->frame_fences.resize(this->n_frames);
     std::ranges::fill(this->frame_fences, VkFence{});
     this->stg_buffer.resize(this->n_frames);
@@ -1360,7 +1388,8 @@ bool VulkanBackend::resize_textures(std::uint32_t s) {
         && this->name_tex_array("tex"sv, this->tex);
     if(!ok)
         return false;
-    this->texture_descriptor_sets.write(this->sampler, this->tex.view());
+    this->texture_descriptor_sets.write(
+        this->sampler, this->tex.view(), this->font_tex.view());
     return true;
 }
 
@@ -1404,6 +1433,80 @@ bool VulkanBackend::load_textures(
         cmd, {ext, ext, 1}, Graphics::TEXTURE_MIP_LEVELS, i, n);
 }
 
+bool VulkanBackend::resize_font(std::uint32_t s) {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    this->font_tex.destroy(this->dev.id(), &this->dev_mem);
+    const bool ok = this->font_tex.init(
+            this->dev.id(), &this->dev_mem, this->cur_cmd_buffer(),
+            {}, VK_FORMAT_R8G8B8A8_UNORM, {s, s, 1},
+            nngn::Math::mip_levels(s), nngn::Font::N,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+            VK_IMAGE_ASPECT_COLOR_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+            VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0, VK_ACCESS_TRANSFER_WRITE_BIT)
+        && this->name_tex_array("font_tex"sv, this->font_tex);
+    if(!ok)
+        return false;
+    this->texture_descriptor_sets.write(
+        this->sampler, this->tex.view(), this->font_tex.view());
+    this->font_size = s;
+    return true;
+}
+
+bool VulkanBackend::load_font(
+    unsigned char c, std::uint32_t n,
+    const nngn::uvec2 *size, const std::byte *v
+) {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    if(!n)
+        return true;
+    const auto mip_levels = nngn::Math::mip_levels(this->font_size);
+    auto cmd = this->cur_cmd_buffer();
+    this->font_tex.transition_layout(
+        cmd, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .levelCount = mip_levels,
+            .baseArrayLayer = c,
+            .layerCount = n,
+        });
+    const auto id = this->font_tex.id();
+    const auto e = c + n;
+    for(auto i = c; i < e; ++i) {
+        const auto s = *size++;
+        const auto write = [i, &v, cmd, id, s](
+            auto src, void *p, auto off, auto iw, auto nw
+        ) {
+            const auto y = static_cast<std::int32_t>(iw);
+            const auto h = static_cast<std::uint32_t>(nw);
+            auto *b = std::exchange(v, v + 4 * iw * s.x);
+            std::memcpy(p, b, static_cast<std::size_t>(4 * nw * s.x));
+            VulkanBackend::copy_buffer(
+                cmd, id, src, {s.x, h, 1}, i, 1, {0, y, 0}, off);
+            return true;
+        };
+        if(!this->stg_buffer.write(this->cur_frame, s.y, 4_z * s.x, write))
+            return false;
+    }
+    this->font_tex.transition_layout(
+        cmd, VK_PIPELINE_STAGE_TRANSFER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .levelCount = mip_levels,
+            .baseArrayLayer = c,
+            .layerCount = n,
+        });
+    return true;
+}
+
 void VulkanBackend::set_camera(const Camera &c) {
     GLFWBackend::set_camera(c);
     this->camera_descriptor_sets.updated().set();
@@ -1421,6 +1524,11 @@ bool VulkanBackend::render() {
             this->camera_descriptor_sets.offset(this->cur_frame),
             nngn::as_byte_span(nngn::rptr(nngn::CameraUBO{
                 .proj = CLIP_PROJ * *this->camera.proj * *this->camera.view})));
+        this->ubo.memcpy(
+            this->dev.id(),
+            this->camera_descriptor_sets.offset_hud(this->cur_frame),
+            nngn::as_byte_span(nngn::rptr(nngn::CameraUBO{
+                .proj = CLIP_PROJ * *this->camera.hud_proj})));
     };
     const auto cmd = this->cur_cmd_buffer();
     const auto queue = this->dev.graphics_queue();

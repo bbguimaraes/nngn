@@ -1,10 +1,12 @@
 local camera = require "nngn.lib.camera"
 local entity = require "nngn.lib.entity"
+local font = require "nngn.lib.font"
 local player = require "nngn.lib.player"
 dofile "src/lua/input.lua"
 
 camera.reset()
 player.set("src/lson/crono.lua")
+font.load()
 entities = {
     entity.load(nil, "src/lson/old_man.lua", {pos = {-32, 0}}),
     entity.load(nil, nil, {

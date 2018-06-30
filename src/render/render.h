@@ -15,6 +15,7 @@
 namespace nngn {
 
 struct Graphics;
+class Fonts;
 class Textures;
 
 /**
@@ -36,7 +37,7 @@ public:
     };
     // Initialization
     /** Partially initializes this system.  \see set_graphics */
-    void init(Textures *t);
+    void init(Textures *t, const Fonts *f);
     // Configuration
     auto debug(void) const { return this->m_debug.t; }
     bool perspective(void) const;
@@ -56,6 +57,7 @@ public:
     bool set_max_sprites(std::size_t n);
     bool set_max_cubes(std::size_t n);
     bool set_max_voxels(std::size_t n);
+    bool set_max_text(std::size_t n);
     /**
      * Associates this system with a graphics back end.
      * Must be called before \c update.  It is assumed that the current
@@ -86,6 +88,7 @@ private:
     Flags<Debug> m_debug = {};
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
+    const Fonts *fonts = nullptr;
     std::vector<SpriteRenderer> sprites = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
@@ -95,7 +98,8 @@ private:
         cube_debug_vbo = {}, cube_debug_ebo = {},
         voxel_vbo = {}, voxel_ebo = {},
         voxel_debug_vbo = {}, voxel_debug_ebo = {},
-        box_vbo = {}, box_ebo = {};
+        box_vbo = {}, box_ebo = {},
+        text_vbo = {}, text_ebo = {};
 };
 
 inline bool Renderers::perspective(void) const {

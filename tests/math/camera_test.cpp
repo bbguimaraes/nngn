@@ -164,6 +164,24 @@ void CameraTest::proj_perspective() {
     }
 }
 
+void CameraTest::proj_hud() {
+    constexpr float w = 800, h = 600;
+    nngn::Camera c;
+    c.screen = static_cast<nngn::uvec2>(nngn::vec2{w, h});
+    const auto proj = c.gen_hud_proj();
+    const auto m = nngn::Math::transpose(nngn::mat4({
+        {2/w,   0,  0, -1},
+        {  0, 2/h,  0, -1},
+        {  0,   0, -1,  0},
+        {  0,   0,  0,  1},
+    }));
+    for(int i = 0; i < 16; ++i) {
+        const auto x = i % 4, y = i / 4;
+        if(!qFuzzyCompare(proj[y][x] + 1, m[y][x] + 1))
+            QCOMPARE(c.hud_proj, m);
+    }
+}
+
 void CameraTest::perspective() {
     nngn::Camera c;
     c.screen = {800, 600};

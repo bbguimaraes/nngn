@@ -55,6 +55,16 @@ AS_IF([test "x$with_libpng" == xyes],
     [])
 AM_CONDITIONAL([ENABLE_LIBPNG], [test "x$with_libpng" == xyes])
 
+AC_ARG_WITH([freetype2],
+    [AS_HELP_STRING([--with-freetype2], [enable fonts])],
+    [], [])
+AS_IF([test "x$with_freetype2" == xyes],
+    [DEPS="$DEPS freetype2"
+     AC_DEFINE(
+        [NNGN_PLATFORM_HAS_FREETYPE2], [1], [Define if you have freetype2])],
+    [])
+AM_CONDITIONAL([ENABLE_FREETYPE2], [test "x$with_freetype2" == xyes])
+
 # Non-essential configuration options.
 ENABLE_TESTS=no
 AC_ARG_ENABLE([tests],

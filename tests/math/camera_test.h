@@ -15,6 +15,7 @@ private slots:
     void damp();
     void proj();
     void proj_perspective();
+    void proj_hud();
     void perspective();
     void perspective_zoom();
     void eye();

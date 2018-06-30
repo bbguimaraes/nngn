@@ -56,6 +56,10 @@ struct Pseudograph : Graphics {
         void f(void*, void*, u64, u64)) override;
     bool resize_textures(u32) override { return true; }
     bool load_textures(u32, u32, const std::byte*) override { return true; }
+    bool resize_font(u32) override { return true; }
+    bool load_font(
+            unsigned char, u32, const nngn::uvec2*, const std::byte*) override
+        { return true; }
     void poll_events() const override {}
     bool set_render_list(const RenderList&) override { return true; }
     bool render() override { return true; }

@@ -36,6 +36,7 @@ dist_check_DATA += \
 	%reldir%/camera.lua \
 	%reldir%/common.lua \
 	%reldir%/entity.lua \
+	%reldir%/font.lua \
 	%reldir%/input.lua \
 	%reldir%/math.lua \
 	%reldir%/player.lua \

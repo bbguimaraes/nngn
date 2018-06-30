@@ -5,6 +5,7 @@ pkgs.mkShell {
     pkgs.pkg-config
   ];
   buildInputs = [
+    pkgs.freetype
     pkgs.gcc11
     pkgs.glew
     pkgs.glfw
