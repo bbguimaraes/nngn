@@ -1,5 +1,6 @@
 camera = require "nngn.lib.camera"
 entity = require "nngn.lib.entity"
+font = require "nngn.lib.font"
 input = require "nngn.lib.input"
 inspect = require "nngn.inspect"
 math = require "nngn.lib.math"

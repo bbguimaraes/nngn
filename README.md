@@ -81,6 +81,12 @@ Enables loading images.  Requires:
 
 - `libpng` (1.6.37): PNG loading library
 
+#### `--with-freetype2`
+
+Enables loading fonts.  Requires:
+
+- `freetype2` (2.10.1): font library
+
 #### tests
 
 Building the tests requires `Qt5Core` and `Qt5Test` (5.14.0) and can be enabled

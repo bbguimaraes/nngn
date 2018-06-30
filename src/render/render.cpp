@@ -6,6 +6,8 @@
 
 #include "entity.h"
 
+#include "font/font.h"
+#include "font/text.h"
 #include "graphics/texture.h"
 #include "timing/profile.h"
 #include "utils/log.h"
@@ -21,6 +23,21 @@ template<std::size_t per_obj>
 void update_indices(void*, void *p, u64 i, u64 n) {
     nngn::Renderers::gen_quad_idxs(
         i * per_obj / 6, n * per_obj / 6, static_cast<u32*>(p));
+}
+
+template<std::size_t per_obj>
+void update_indices_with_base(const std::tuple<u64> *bi, u32 *p, u64 i, u64 n)
+    { return update_indices<per_obj>({}, p, std::get<0>(*bi) + i, n); }
+
+template<auto gen, typename VT, typename T>
+bool write_to_buffer(
+    nngn::Graphics *g, u32 b, u64 off, u64 n, u64 size, T *data
+) {
+    return g->write_to_buffer(
+        b, off, n, size, data,
+        [](void *data_, void *p, u64 i, u64 nw) {
+            gen(static_cast<T*>(data_), static_cast<VT*>(p), i, nw);
+        });
 }
 
 template<auto vgen, auto egen, typename T>
@@ -43,6 +60,21 @@ bool update_span(
             })
                 vgen(&p, &x);
         }, egen);
+}
+
+template<auto vgen, auto egen, typename T>
+bool update_with_state(
+    nngn::Graphics *g, u32 vbo, u32 ebo, u64 voff, u64 eoff,
+    u64 vn, u64 vsize, u64 en, u64 esize, T *data
+) {
+    const bool ok= write_to_buffer<vgen, nngn::Vertex>(
+            g, vbo, voff, vn, vsize, data)
+        && g->write_to_buffer(ebo, eoff, en, esize, {}, egen);
+    if(!ok)
+        return false;
+    g->set_buffer_size(vbo, voff + vn * vsize);
+    g->set_buffer_size(ebo, eoff + en * esize);
+    return true;
 }
 
 void update_sprites_ortho(nngn::Vertex **p, nngn::SpriteRenderer *x) {
@@ -109,12 +141,41 @@ void update_voxel_dbg(nngn::Vertex **p, nngn::VoxelRenderer *x) {
     nngn::Renderers::gen_cube_verts(p, x->pos, nngn::vec3{x->size}, {1, 1, 1});
 }
 
+using UpdateTextData = std::tuple<
+    const nngn::Font&, const nngn::Text&, float, nngn::vec2*, u64*>;
+
+void update_text(const UpdateTextData *data, nngn::Vertex *p, u64, u64 n) {
+    auto &[font, txt, left, pos_p, i_p] = *data;
+    auto pos = *pos_p;
+    auto i = *i_p;
+    const auto font_size = static_cast<float>(font.size);
+    while(n--) {
+        const auto c = static_cast<unsigned char>(
+            txt.str[static_cast<std::size_t>(i++)]);
+        switch(c) {
+        case '\n': pos = {left, pos.y - font_size - txt.spacing}; continue;
+        }
+        const auto fc = font.chars[static_cast<std::size_t>(c)];
+        const auto size = static_cast<nngn::vec2>(fc.size);
+        const auto cpos = pos
+            + nngn::vec2(font_size / 2, txt.size.y - font_size / 2)
+            + static_cast<nngn::vec2>(fc.bearing);
+        nngn::Renderers::gen_quad_verts(
+            &p, cpos, cpos + size, 0, static_cast<u32>(c),
+            {0, size.y / font_size}, {size.x / font_size, 0});
+        pos.x += fc.advance;
+    }
+    *pos_p = pos;
+    *i_p = i;
+}
+
 }
 
 namespace nngn {
 
-void Renderers::init(Textures *t) {
+void Renderers::init(Textures *t, const Fonts *f) {
     this->textures = t;
+    this->fonts = f;
 }
 
 std::size_t Renderers::n() const {
@@ -151,6 +212,13 @@ bool Renderers::set_max_voxels(std::size_t n) {
         && this->graphics->set_buffer_capacity(this->voxel_ebo, esize)
         && this->graphics->set_buffer_capacity(this->voxel_debug_vbo, vsize)
         && this->graphics->set_buffer_capacity(this->voxel_debug_ebo, esize);
+}
+
+bool Renderers::set_max_text(std::size_t n) {
+    return this->graphics->set_buffer_capacity(
+            this->text_vbo, 4 * n * sizeof(Vertex))
+        && this->graphics->set_buffer_capacity(
+            this->text_ebo, 6 * n * sizeof(u32));
 }
 
 void Renderers::set_debug(std::underlying_type_t<Debug> d) {
@@ -262,6 +330,14 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "voxel_debug_ebo",
             .type = index,
         }))
+        && (this->text_vbo = g->create_buffer({
+            .name = "text_vbo",
+            .type = vertex,
+        }))
+        && (this->text_ebo = g->create_buffer({
+            .name = "text_ebo",
+            .type = index,
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -300,6 +376,12 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->box_vbo, this->box_ebo},
                     {this->cube_debug_vbo, this->cube_debug_ebo},
                     {this->voxel_debug_vbo, this->voxel_debug_ebo},
+                }),
+            }}),
+            .hud = std::to_array<Stage>({{
+                .pipeline = sprite_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->text_vbo, this->text_ebo},
                 }),
             }}),
         });
@@ -415,6 +497,46 @@ bool Renderers::update() {
             this->graphics, std::span{this->voxels},
             this->voxel_debug_vbo, this->voxel_debug_ebo, 6 * 4, 6 * 6);
     };
+    const auto update_text = [this] {
+        NNGN_LOG_CONTEXT("text");
+        const auto vbo = this->text_vbo;
+        const auto ebo = this->text_ebo;
+        const auto n_fonts = this->fonts->n();
+        if(n_fonts < 2) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        constexpr std::string_view text = "test";
+        const auto render = [this, vbo, ebo](
+            const auto &f, const auto &txt,
+            auto pos, auto *voff, auto *eoff, auto *ei
+        ) {
+            if(!txt.cur)
+                return true;
+            constexpr auto vsize = 4 * sizeof(Vertex);
+            constexpr auto esize = 6 * sizeof(u32);
+            const auto vbytes = vsize * txt.cur;
+            const auto ebytes = esize * txt.cur;
+            const auto vo = std::exchange(*voff, *voff + vbytes);
+            const auto eo = std::exchange(*eoff, *eoff + ebytes);
+            const auto cur_ei = std::exchange(*ei, *ei + txt.cur);
+            return write_to_buffer<::update_text, Vertex>(
+                    this->graphics, vbo, vo, txt.cur, vsize,
+                    rptr(UpdateTextData{
+                        std::ref(f), std::ref(txt), pos.x, &pos, rptr(u64{})}))
+                && write_to_buffer<update_indices_with_base<6>, u32>(
+                    this->graphics, ebo, eo, txt.cur, esize,
+                    rptr(std::tuple{cur_ei}));
+        };
+        const auto &f = this->fonts->fonts()[n_fonts - 1];
+        u64 ei = {};
+        u64 voff = {}, eoff = {};
+        if(!render(f, Text(f, text), vec2{}, &voff, &eoff, &ei))
+            return false;
+        this->graphics->set_buffer_size(vbo, voff);
+        this->graphics->set_buffer_size(ebo, eoff);
+        return true;
+    };
     const auto updated = [&flags = this->flags](auto f, const auto &v) {
         return flags.is_set(f)
             ? (flags.clear(f), true)
@@ -444,7 +566,7 @@ bool Renderers::update() {
             this->graphics->set_buffer_size(this->voxel_debug_ebo, 0);
         }
     }
-    return true;
+    return update_text();
 }
 
 }

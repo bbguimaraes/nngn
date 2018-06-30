@@ -35,6 +35,7 @@ template<> std::unique_ptr<Graphics> graphics_create_backend
 #endif
 #include <GLFW/glfw3.h>
 
+#include "font/font.h"
 #include "graphics/shaders.h"
 #include "math/camera.h"
 #include "math/math.h"
@@ -53,6 +54,7 @@ namespace {
 enum : u32 {
     CAMERA_UBO_BINDING,
     MAIN_TEX_BINDING = 0,
+    FONT_TEX_BINDING,
 };
 
 #ifdef GL_VERSION_4_3
@@ -138,7 +140,7 @@ struct RenderList {
         u32 pipeline = {};
         std::vector<Buffer> buffers = {};
     };
-    std::vector<Stage> normal = {}, overlay = {};
+    std::vector<Stage> normal = {}, overlay = {}, hud = {};
 };
 
 class OpenGLBackend final : public nngn::GLFWBackend {
@@ -148,14 +150,14 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     };
     nngn::Flags<Flag> flags = {};
     int maj = 0, min = 0;
-    GLBuffer camera_ubo = {};
+    GLBuffer camera_ubo = {}, camera_hud_ubo = {};
     std::list<GLBuffer> stg_buffers = {};
     std::vector<GLBuffer> buffers = std::vector<GLBuffer>(1);
     std::vector<Pipeline> pipelines = {{}};
     std::array<GLProgram, N_PROGRAMS> programs = {};
     GLint triangle_prog_alpha_loc = -1;
     ::RenderList render_list = {};
-    GLTexArray tex = {};
+    GLTexArray tex = {}, font_tex = {};
     void resize(int, int) final
         { this->flags |= Flag::RESIZED | Flag::CAMERA_UPDATED; }
     static bool set_obj_name(GLenum type, GLuint obj, std::string_view name);
@@ -211,6 +213,10 @@ public:
         void *data, void f(void*, void*, u64, u64)) final;
     bool resize_textures(u32 s) final;
     bool load_textures(u32 i, u32 n, const std::byte *v) final;
+    bool resize_font(u32 s) final;
+    bool load_font(
+        unsigned char c, u32 n,
+        const nngn::uvec2 *size, const std::byte *v) final;
     bool set_render_list(const RenderList&) final;
     bool render() final;
     bool vsync() final;
@@ -547,6 +553,9 @@ bool OpenGLBackend::init_instance() {
     if(!OpenGLBackend::create_uniform_buffer("camera_ubo"sv,
             sizeof(nngn::CameraUBO), &this->camera_ubo))
         return false;
+    if(!OpenGLBackend::create_uniform_buffer("camera_hud_ubo"sv,
+            sizeof(nngn::CameraUBO), &this->camera_hud_ubo))
+        return false;
 #define P(x) static_cast<std::size_t>(PipelineConfiguration::Type::x)
     GLProgram
         &triangle_prog = this->programs[P(TRIANGLE)],
@@ -564,9 +573,6 @@ bool OpenGLBackend::init_instance() {
     if(!triangle_prog.get_uniform_location("alpha", &triangle_prog_alpha_loc))
         return false;
     CHECK_RESULT(glUniform1f, triangle_prog_alpha_loc, 1);
-    CHECK_RESULT(
-        glBindBufferRange, GL_UNIFORM_BUFFER,
-        CAMERA_UBO_BINDING, this->camera_ubo.id(), 0, sizeof(nngn::CameraUBO));
     if(!triangle_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
     if(!OpenGLBackend::create_prog(
@@ -669,6 +675,7 @@ bool OpenGLBackend::set_render_list(const RenderList &l) {
     };
     f(&this->render_list.normal, l.normal);
     f(&this->render_list.overlay, l.overlay);
+    f(&this->render_list.hud, l.hud);
     return true;
 }
 
@@ -782,6 +789,33 @@ bool OpenGLBackend::load_textures(u32 i, u32 n, const std::byte *v) {
     return true;
 }
 
+bool OpenGLBackend::resize_font(uint32_t s) {
+    this->font_tex.destroy();
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE0 + FONT_TEX_BINDING);
+    CHECK_RESULT(glGenTextures, 1, &this->font_tex.id());
+    const auto si = static_cast<int32_t>(s);
+    return this->create_tex_array("font_tex"sv,
+        GL_TEXTURE_2D_ARRAY, GL_RGBA8, GL_REPEAT, {si, si, nngn::Font::N},
+        static_cast<GLsizei>(nngn::Math::mip_levels(s)),
+        &this->font_tex);
+}
+
+bool OpenGLBackend::load_font(
+    unsigned char c, u32 n, const nngn::uvec2 *size, const std::byte *v
+) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    constexpr auto type = GL_TEXTURE_2D_ARRAY;
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE0 + FONT_TEX_BINDING);
+    CHECK_RESULT(glBindTexture, type, this->font_tex.id());
+    for(size_t i = 0; i < n; ++i, v += 4 * size[c].x * size[c].y)
+        CHECK_RESULT(
+            glTexSubImage3D, type, 0, 0, 0, static_cast<GLint>(c + i),
+            static_cast<GLsizei>(size[i].x), static_cast<GLsizei>(size[i].y),
+            1, GL_RGBA, GL_UNSIGNED_BYTE, v);
+    CHECK_RESULT(glGenerateMipmap, type);
+    return true;
+}
+
 bool OpenGLBackend::render() {
     NNGN_LOG_CONTEXT_CF(OpenGLBackend);
     auto prof = nngn::Profile::context<nngn::Profile>(
@@ -798,6 +832,10 @@ bool OpenGLBackend::render() {
         this->flags.clear(Flag::CAMERA_UPDATED);
         nngn::CameraUBO c = {.proj = *this->camera.proj * *this->camera.view};
         CHECK_RESULT(glBindBuffer, GL_UNIFORM_BUFFER, this->camera_ubo.id());
+        CHECK_RESULT(glBufferSubData, GL_UNIFORM_BUFFER, 0, sizeof(c), &c);
+        c = {*this->camera.hud_proj, nngn::mat4(1)};
+        CHECK_RESULT(glBindBuffer,
+            GL_UNIFORM_BUFFER, this->camera_hud_ubo.id());
         CHECK_RESULT(glBufferSubData, GL_UNIFORM_BUFFER, 0, sizeof(c), &c);
         return true;
     };
@@ -838,6 +876,9 @@ bool OpenGLBackend::render() {
     };
     if(!update_camera())
         return false;
+    CHECK_RESULT(
+        glBindBufferRange, GL_UNIFORM_BUFFER,
+        CAMERA_UBO_BINDING, this->camera_ubo.id(), 0, sizeof(nngn::CameraUBO));
     CHECK_RESULT(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     const auto &triangle_prog = this->programs[
         static_cast<std::size_t>(PipelineConfiguration::Type::TRIANGLE)];
@@ -849,6 +890,15 @@ bool OpenGLBackend::render() {
     CHECK_RESULT(glUniform1f, triangle_prog_alpha_loc, .5);
     if(!render(&render_list.overlay))
         return false;
+    CHECK_RESULT(
+        glBindBufferRange, GL_UNIFORM_BUFFER,
+        CAMERA_UBO_BINDING, this->camera_hud_ubo.id(), 0,
+        sizeof(nngn::CameraUBO));
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE0 + MAIN_TEX_BINDING);
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D_ARRAY, this->font_tex.id());
+    if(!render(&render_list.hud))
+        return false;
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D_ARRAY, this->tex.id());
     CHECK_RESULT(glBindVertexArray, 0);
     prof.end();
     return true;

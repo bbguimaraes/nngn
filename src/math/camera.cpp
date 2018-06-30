@@ -35,6 +35,11 @@ mat4 Camera::gen_proj() const {
     return Math::ortho(-s.x, s.x, -s.y, s.y, NEAR, FAR);
 }
 
+mat4 Camera::gen_hud_proj() const {
+    const auto s = static_cast<vec2>(this->screen);
+    return Math::ortho(0.0f, s.x, 0.0f, s.y);
+}
+
 mat4 Camera::gen_view() const {
     auto ret = mat4(1);
     ret = Math::scale(ret, {this->zoom, this->zoom, 1});
@@ -74,6 +79,7 @@ void Camera::set_perspective(bool b) {
 void Camera::set_screen(const uvec2 &s) {
     this->screen = s;
     this->proj = this->gen_proj();
+    this->hud_proj = this->gen_hud_proj();
     this->flags |= Flag::SCREEN_UPDATED;
 }
 

@@ -15,6 +15,8 @@ pkgs=(
     # vk
     shaderc vulkan-headers vulkan-icd-loader vulkan-intel
     vulkan-validation-layers xxd
+    # font
+    ttf-dejavu
 )
 root=build/root
 pacstrap -cd "$root/" --needed "${pkgs[@]}"

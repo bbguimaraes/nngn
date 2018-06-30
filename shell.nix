@@ -2,6 +2,7 @@
 
 pkgs.mkShell {
   buildInputs = [
+    pkgs.freetype
     pkgs.gcc10
     pkgs.glew
     pkgs.glfw

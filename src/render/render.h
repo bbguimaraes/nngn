@@ -2,6 +2,7 @@
 #define NNGN_RENDER_RENDER_H
 
 #include <bit>
+#include <string>
 #include <vector>
 
 #include <sol/forward.hpp>
@@ -18,6 +19,7 @@ struct Entity;
 
 namespace nngn {
 
+class Fonts;
 class Textures;
 
 class Renderers {
@@ -30,6 +32,7 @@ class Renderers {
     };
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
+    const Fonts *fonts = nullptr;
     Flags<Flag> flags = {};
     std::vector<SpriteRenderer> sprites = {};
     std::vector<CubeRenderer> cubes = {};
@@ -40,7 +43,8 @@ class Renderers {
         cube_debug_vbo = {}, cube_debug_ebo = {},
         voxel_vbo = {}, voxel_ebo = {},
         voxel_debug_vbo = {}, voxel_debug_ebo = {},
-        box_vbo = {}, box_ebo = {};
+        box_vbo = {}, box_ebo = {},
+        text_vbo = {}, text_ebo = {};
 public:
     enum Debug : u8 {
         RECT = 1u << 0, N_DEBUG = 1,
@@ -60,7 +64,7 @@ public:
     static void gen_cube_verts(
         Vertex **p, vec3 pos, vec3 size,
         u32 tex, const std::array<vec4, 6> &uv);
-    void init(Textures *t);
+    void init(Textures *t, const Fonts *f);
     auto max_sprites() const { return this->sprites.capacity(); }
     auto max_cubes() const { return this->cubes.capacity(); }
     auto max_voxels() const { return this->voxels.capacity(); }
@@ -73,6 +77,7 @@ public:
     bool set_max_sprites(std::size_t n);
     bool set_max_cubes(std::size_t n);
     bool set_max_voxels(std::size_t n);
+    bool set_max_text(std::size_t n);
     void set_debug(std::underlying_type_t<Debug> d);
     void set_perspective(bool p);
     bool set_graphics(Graphics *g);

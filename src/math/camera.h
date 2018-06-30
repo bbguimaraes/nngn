@@ -31,7 +31,7 @@ struct Camera {
     vec3 r = {}, rv = {}, ra = {};
     float zoom = 1, zoom_v = {}, zoom_a = {};
     uvec2 screen = {};
-    mat4 proj = mat4(1), view = mat4(1);
+    mat4 proj = mat4(1), hud_proj = mat4(1), view = mat4(1);
     float max_v = std::numeric_limits<float>::infinity();
     float max_rv = std::numeric_limits<float>::infinity();
     float max_zv = std::numeric_limits<float>::infinity();
@@ -42,6 +42,7 @@ struct Camera {
     vec3 pos() const;
     vec3 eye() const;
     mat4 gen_proj() const;
+    mat4 gen_hud_proj() const;
     mat4 gen_view() const;
     float fov_z() const;
     void set_perspective(bool b);
