@@ -1,6 +1,8 @@
 #ifndef NNGN_RENDER_GEN_H
 #define NNGN_RENDER_GEN_H
 
+#include "font/font.h"
+#include "font/text.h"
 #include "graphics/graphics.h"
 
 #include "renderers.h"
@@ -33,6 +35,10 @@ struct Gen {
     static void sprite_debug(Vertex **p, SpriteRenderer *x);
     static void cube_debug(Vertex **p, CubeRenderer *x);
     static void voxel_debug(Vertex **p, VoxelRenderer *x);
+    static void text(
+        Vertex **p, u64 n,
+        const Font &font, const Text &txt, float left,
+        vec2 *pos_p, u64 *i_p);
 };
 
 inline void Gen::quad_indices(u64 i_64, u64 n, u32 *p) {
@@ -222,6 +228,33 @@ inline void Gen::cube_debug(Vertex **p, CubeRenderer *x) {
 
 inline void Gen::voxel_debug(Vertex **p, VoxelRenderer *x) {
     Gen::cube_vertices(p, x->pos, vec3{x->size}, {1, 1, 1});
+}
+
+inline void Gen::text(
+    Vertex **p, u64 n,
+    const Font &font, const Text &txt, float left,
+    vec2 *pos_p, u64 *i_p
+) {
+    auto pos = *pos_p;
+    auto i = static_cast<std::size_t>(*i_p);
+    const auto font_size = static_cast<float>(font.size);
+    while(n--) {
+        const auto c = static_cast<unsigned char>(txt.str[i++]);
+        switch(c) {
+        case '\n': pos = {left, pos.y - font_size - txt.spacing}; continue;
+        }
+        const auto fc = font.chars[static_cast<std::size_t>(c)];
+        const auto size = static_cast<vec2>(fc.size);
+        const auto cpos = pos
+            + vec2(font_size / 2, txt.size.y - font_size / 2)
+            + static_cast<vec2>(fc.bearing);
+        Gen::quad_vertices(
+            p, cpos, cpos + size, 0, static_cast<u32>(c),
+            {0, size.y / font_size}, {size.x / font_size, 0});
+        pos.x += fc.advance;
+    }
+    *pos_p = pos;
+    *i_p = static_cast<u64>(i);
 }
 
 }

@@ -12,6 +12,7 @@ EXTRA_DIST += \
 	%reldir%/glsl \
 	%reldir%/lson
 
+include %reldir%/font/Makefile.am
 include %reldir%/glsl/Makefile.am
 include %reldir%/graphics/Makefile.am
 include %reldir%/input/Makefile.am

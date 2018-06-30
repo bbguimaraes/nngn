@@ -53,6 +53,7 @@ void register_renderers(nngn::lua::table_view t) {
     t["set_max_screen_sprites"] = set<&Renderers::set_max_screen_sprites>;
     t["set_max_cubes"] = set<&Renderers::set_max_cubes>;
     t["set_max_voxels"] = set<&Renderers::set_max_voxels>;
+    t["set_max_text"] = set<&Renderers::set_max_text>;
     t["set_debug"] = &Renderers::set_debug;
     t["set_perspective"] = &Renderers::set_perspective;
     t["load"] = &Renderers::load;

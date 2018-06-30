@@ -169,7 +169,7 @@ struct Graphics {
             CULL_BACK_FACES = 1u << 1,
         };
         enum class Type : u8 {
-            TRIANGLE, SPRITE, VOXEL, MAX,
+            TRIANGLE, SPRITE, VOXEL, FONT, MAX,
         };
         const char *name = {};
         Type type = {};
@@ -281,6 +281,11 @@ struct Graphics {
     virtual bool resize_textures(std::uint32_t s) = 0;
     virtual bool load_textures(
         std::uint32_t i, std::uint32_t n, const std::byte *v) = 0;
+    // Fonts
+    virtual bool resize_font(std::uint32_t s) = 0;
+    virtual bool load_font(
+        unsigned char c, std::uint32_t n,
+        const nngn::uvec2 *size, const std::byte *v) = 0;
     // Rendering
     virtual bool set_render_list(const RenderList &l) = 0;
     virtual void poll_events() const = 0;

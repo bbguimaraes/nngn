@@ -24,6 +24,7 @@
 
 #include "entity.h"
 
+#include "font/font.h"
 #include "graphics/graphics.h"
 #include "graphics/texture.h"
 #include "input/input.h"
@@ -58,6 +59,7 @@ NNGN_LUA_DECLARE_USER_TYPE(nngn::FPS, "FPS")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Socket, "Socket")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::lua::state, "state")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Input, "Input")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Fonts, "Fonts")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Camera, "Camera")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::MouseInput, "MouseInput")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderers, "Renderers")
@@ -87,6 +89,7 @@ struct NNGN {
     nngn::lua::state lua = {};
     nngn::lua::alloc_info lua_alloc = {};
     Input input = {};
+    nngn::Fonts fonts = {};
     nngn::Camera camera = {};
     nngn::Renderers renderers = {};
     nngn::Animations animations = {};
@@ -130,7 +133,9 @@ bool NNGN::init(int argc, const char *const *argv) {
     this->schedule.init(&this->timing);
     this->input.input.init(this->lua);
     this->input.mouse.init(this->lua);
-    this->renderers.init(&this->textures);
+    if(!this->fonts.init())
+        return false;
+    this->renderers.init(&this->textures, &this->fonts);
     this->animations.init(&this->math);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
@@ -168,6 +173,7 @@ bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
             static_cast<nngn::MouseInput*>(p)->move_callback(pos);
         });
     const bool ret = this->renderers.set_graphics(g.get());
+    this->fonts.graphics = g.get();
     this->textures.set_graphics(g.get());
     g->set_size_callback(
         &this->camera, [](void *p, auto s)
@@ -226,6 +232,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["lua"] = accessor<&NNGN::lua>;
     t["input"] = [](NNGN &nngn) { return &nngn.input.input; };
     t["mouse_input"] = [](NNGN &nngn) { return &nngn.input.mouse; };
+    t["fonts"] = accessor<&NNGN::fonts>;
     t["camera"] = accessor<&NNGN::camera>;
     t["renderers"] = accessor<&NNGN::renderers>;
     t["animations"] = accessor<&NNGN::animations>;

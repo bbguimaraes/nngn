@@ -43,6 +43,9 @@ local FS = {
         int(
             "voxels", 8, 65536, 65536,
             "nngn:renderers():set_max_voxels(%1)"),
+        int(
+            "text", 8, 65536, 65536,
+            "nngn:renderers():set_max_text(%1)"),
     },
     camera = {
         bool("ortho./persp.", false, "nngn:camera():set_perspective(%1)"),

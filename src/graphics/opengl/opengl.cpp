@@ -38,6 +38,7 @@ std::unique_ptr<Graphics> graphics_create_backend<backend_es>(const void*) {
 #include <string_view>
 #include <vector>
 
+#include "font/font.h"
 #include "graphics/glfw.h"
 #include "graphics/shaders.h"
 #include "math/camera.h"
@@ -63,6 +64,7 @@ namespace {
 enum : u32 {
     CAMERA_UBO_BINDING,
     MAIN_TEX_BINDING = 0,
+    FONT_TEX_BINDING,
 };
 
 constexpr auto N_PROGRAMS =
@@ -101,7 +103,7 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     std::array<nngn::GLProgram, N_PROGRAMS> programs = {};
     GLint triangle_prog_alpha_loc = -1;
     ::RenderList render_list = {};
-    nngn::GLTexArray tex = {};
+    nngn::GLTexArray tex = {}, font_tex = {};
     void resize(int, int) final
         { this->flags |= Flag::RESIZED | Flag::CAMERA_UPDATED; }
     static bool create_uniform_buffer(
@@ -148,6 +150,10 @@ public:
         void *data, void f(void*, void*, u64, u64)) final;
     bool resize_textures(u32 s) final;
     bool load_textures(u32 i, u32 n, const std::byte *v) final;
+    bool resize_font(u32 s) final;
+    bool load_font(
+        unsigned char c, u32 n,
+        const nngn::uvec2 *size, const std::byte *v) final;
     bool set_render_list(const RenderList&) final;
     bool render() final;
     bool vsync() final;
@@ -371,16 +377,19 @@ bool OpenGLBackend::create_vao(
         {{{"position", 3}, {"color", 3}}},
         {{{"position", 3}, {"tex_coord", 3}}},
         {{{"position", 3}, {"tex_coord", 3}}},
+        {{{"position", 3}, {"tex_coord", 3}}},
     }};
     static constexpr std::array names = {
-        "triangle", "sprite", "voxel",
+        "triangle", "sprite", "voxel", "font",
     };
     assert(vbo_idx < this->buffers.size());
     assert(ebo_idx < this->buffers.size());
     auto &vbo = this->buffers[vbo_idx], &ebo = this->buffers[ebo_idx];
     if(!vbo.id() || !ebo.id())
         return true;
-    const auto prog_idx = static_cast<std::size_t>(type);
+    const auto prog_idx = static_cast<std::size_t>(
+        type == PipelineConfiguration::Type::FONT
+            ? PipelineConfiguration::Type::SPRITE : type);
     const auto &prog = this->programs[prog_idx];
     CHECK_RESULT(glUseProgram, prog.id());
     const auto &attr = attrs[prog_idx];
@@ -436,6 +445,37 @@ bool OpenGLBackend::load_textures(u32 i, u32 n, const std::byte *v) {
     return true;
 }
 
+bool OpenGLBackend::resize_font(u32 s) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    if(!this->font_tex.destroy())
+        return false;
+    const auto si = static_cast<i32>(s);
+    return this->font_tex.destroy()
+        && LOG_RESULT(glActiveTexture, GL_TEXTURE0 + FONT_TEX_BINDING)
+        && LOG_RESULT(glGenTextures, 1, &this->font_tex.id())
+        && this->font_tex.create(
+            GL_TEXTURE_2D_ARRAY, GL_RGBA8, GL_NEAREST, GL_NEAREST, GL_REPEAT,
+            {si, si, nngn::Font::N},
+            static_cast<GLsizei>(nngn::Math::mip_levels(s)))
+        && nngn::gl_set_obj_name(GL_TEXTURE, this->font_tex.id(), "font_tex"sv);
+}
+
+bool OpenGLBackend::load_font(
+    unsigned char c, u32 n, const nngn::uvec2 *size, const std::byte *v
+) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    constexpr auto type = GL_TEXTURE_2D_ARRAY;
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE0 + FONT_TEX_BINDING);
+    CHECK_RESULT(glBindTexture, type, this->font_tex.id());
+    for(size_t i = 0; i < n; ++i, ++c, v += 4_z * size->x * size->y, ++size)
+        CHECK_RESULT(
+            glTexSubImage3D, type, 0, 0, 0, static_cast<GLint>(c),
+            static_cast<GLsizei>(size->x), static_cast<GLsizei>(size->y),
+            1, GL_RGBA, GL_UNSIGNED_BYTE, v);
+    CHECK_RESULT(glGenerateMipmap, type);
+    return true;
+}
+
 bool OpenGLBackend::render() {
     NNGN_LOG_CONTEXT_CF(OpenGLBackend);
     if(this->flags.check_and_clear(Flag::RESIZED)) {
@@ -455,7 +495,9 @@ bool OpenGLBackend::render() {
         CHECK_RESULT(glBufferSubData, GL_UNIFORM_BUFFER, 0, sizeof(c), &c);
         return true;
     };
-    const auto render = [this](auto *l) {
+    auto render = [this, cur_tex = UINT32_MAX](
+        auto *l, u32 tex_i = UINT32_MAX) mutable
+    {
         using PFlag = PipelineConfiguration::Flag;
         for(auto &x : *l) {
             assert(x.pipeline < this->pipelines.size());
@@ -469,7 +511,9 @@ bool OpenGLBackend::render() {
             else
                 CHECK_RESULT(glDisable, GL_CULL_FACE);
             const auto type = pipeline.conf.type;
-            const auto &prog = this->programs[static_cast<std::size_t>(type)];
+            const auto &prog = this->programs[static_cast<std::size_t>(
+                type == PipelineConfiguration::Type::FONT
+                    ? PipelineConfiguration::Type::SPRITE : type)];
             CHECK_RESULT(glUseProgram, prog.id());
             for(auto &[vbo_idx, ebo_idx, vao] : x.buffers) {
                 if(!vao.id() && !this->create_vao(vbo_idx, ebo_idx, type, &vao))
@@ -481,6 +525,16 @@ bool OpenGLBackend::render() {
                 if(!ebo.size)
                     continue;
                 CHECK_RESULT(glBindVertexArray, vao.id());
+                const auto next_tex = tex_i == UINT32_MAX
+                    ? (type == PipelineConfiguration::Type::FONT
+                        ? this->font_tex.id() : this->tex.id())
+                    : tex_i;
+                if(next_tex != cur_tex) {
+                    CHECK_RESULT(glActiveTexture,
+                        GL_TEXTURE0 + MAIN_TEX_BINDING);
+                    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D_ARRAY, next_tex);
+                    cur_tex = next_tex;
+                }
                 CHECK_RESULT(glDrawElements,
                     GL_TRIANGLES,
                     static_cast<GLsizei>(
@@ -494,6 +548,7 @@ bool OpenGLBackend::render() {
         return false;
     const auto render_pass = [this, &render] {
         NNGN_ANON_DECL(nngn::GLDebugGroup{"color"sv});
+        CHECK_RESULT(glBindTexture, GL_TEXTURE_2D_ARRAY, this->tex.id());
         CHECK_RESULT(glBindBufferRange,
             GL_UNIFORM_BUFFER, CAMERA_UBO_BINDING,
             this->camera_ubo.id(), 0, sizeof(nngn::CameraUBO));

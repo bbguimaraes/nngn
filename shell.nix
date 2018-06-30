@@ -7,6 +7,7 @@ pkgs.mkShell {
   buildInputs = [
     pkgs.ccache
     pkgs.clang_12
+    pkgs.freetype
     pkgs.gcc11
     pkgs.glew
     pkgs.glfw

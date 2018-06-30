@@ -1,0 +1,3 @@
+Name: freetype2
+Description: freetype2
+Version: 0
