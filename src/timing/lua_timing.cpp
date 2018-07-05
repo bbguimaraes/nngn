@@ -23,6 +23,14 @@ auto frame(const Timing &t) {
     return nngn::narrow<lua_Integer>(t.frame);
 }
 
+void set_now_ns(Timing &t, Timing::time_point::rep r) {
+    t.now = Timing::time_point(Timing::duration(r));
+}
+
+void set_dt_ns(Timing &t, Timing::duration::rep r) {
+    t.dt = Timing::duration(r);
+}
+
 void register_timing(nngn::lua::table_view t) {
     t["frame"] = frame;
     t["time_s"] = [](function_view f) { return time<std::ratio<1>>(f); };
@@ -44,6 +52,8 @@ void register_timing(nngn::lua::table_view t) {
     t["fdt_us"] = get<&Timing::fdt_us>;
     t["fdt_ms"] = get<&Timing::fdt_ms>;
     t["fdt_s"] = get<&Timing::fdt_s>;
+    t["set_now_ns"] = set_now_ns;
+    t["set_dt_ns"] = set_dt_ns;
 }
 
 }

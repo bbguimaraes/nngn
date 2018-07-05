@@ -1,3 +1,4 @@
+local camera = require "nngn.lib.camera"
 local utils = require "nngn.lib.utils"
 
 local input <const> = BindingGroup.new()
@@ -55,11 +56,58 @@ register({
 }, paused_input)
 
 register({
+    {"C", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+        if mods & Input.MOD_ALT == 0 then
+            camera.reset()
+        else
+            camera.toggle_perspective()
+        end
+    end},
+    {"O", Input.SEL_PRESS | Input.SEL_CTRL, function()
+        local c <const> = camera:get()
+        c:set_ignore_limits(not c:ignore_limits())
+    end},
     {"P", Input.SEL_PRESS, pause},
+    {Input.KEY_LEFT, 0, camera.move},
+    {Input.KEY_RIGHT, 0, camera.move},
+    {Input.KEY_DOWN, 0, camera.move},
+    {Input.KEY_UP, 0, camera.move},
+    {Input.KEY_PAGE_DOWN, 0, camera.move},
+    {Input.KEY_PAGE_UP, 0, camera.move},
 }, input)
+
+local function register_mouse()
+    local pressed_button
+    local pos_x, pos_y = 0, 0
+    local ignore = false
+    nngn:mouse_input():register_button_callback(function(button, press)
+        if button ~= 1 then return end
+        local m
+        if press then
+            m = Graphics.CURSOR_MODE_DISABLED
+            pressed_button = button
+        else
+            m = Graphics.CURSOR_MODE_NORMAL
+            ignore = true
+            pressed_button = nil
+        end
+        nngn:graphics():set_cursor_mode(m)
+    end)
+    nngn:mouse_input():register_move_callback(function(x, y)
+        if ignore then
+            ignore = false
+        elseif pressed_button == 1 then
+            local c <const> = camera:get()
+            local sx <const>, sy <const> = c:screen()
+            camera.rotate((pos_x - x) / sx, (pos_y - y) / sy, 0)
+        end
+        pos_x, pos_y = x, y
+    end)
+end
 
 local function install()
     nngn:input():set_binding_group(input)
+    register_mouse()
 end
 
 return {

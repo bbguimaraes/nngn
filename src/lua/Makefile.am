@@ -6,6 +6,7 @@ LUA_FILES += \
 	%reldir%/input.lua \
 	%reldir%/inspect.lua \
 	%reldir%/lib/all.lua \
+	%reldir%/lib/camera.lua \
 	%reldir%/lib/configure.lua \
 	%reldir%/lib/debug.lua \
 	%reldir%/lib/entity.lua \

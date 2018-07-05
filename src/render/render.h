@@ -39,12 +39,14 @@ public:
     void init(Textures *t);
     // Configuration
     auto debug(void) const { return *this->m_debug; }
+    bool perspective(void) const;
     auto max_sprites(void) const { return this->sprites.capacity(); }
     /** Total number of active renderers. */
     std::size_t n(void) const;
     /** Number of active sprite renderers. */
     std::size_t n_sprites(void) const { return this->sprites.size(); }
     void set_debug(Debug d);
+    void set_perspective(bool p);
     bool set_max_sprites(std::size_t n);
     /**
      * Associates this system with a graphics back end.
@@ -66,6 +68,7 @@ private:
     enum Flag : u8 {
         SPRITES_UPDATED = 1u << 0,
         DEBUG_UPDATED = 1u << 1,
+        PERSPECTIVE = 1u << 2,
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
@@ -76,6 +79,10 @@ private:
         sprite_vbo = {}, sprite_ebo = {},
         sprite_debug_vbo = {}, sprite_debug_ebo = {};
 };
+
+inline bool Renderers::perspective(void) const {
+    return this->flags.is_set(Flag::PERSPECTIVE);
+}
 
 }
 

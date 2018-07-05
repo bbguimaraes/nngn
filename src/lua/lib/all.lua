@@ -1,3 +1,4 @@
+camera = require "nngn.lib.camera"
 entity = require "nngn.lib.entity"
 input = require "nngn.lib.input"
 inspect = require "nngn.inspect"

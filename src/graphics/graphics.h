@@ -97,6 +97,7 @@ struct CameraUBO { mat4 proj, view; };
 struct Vertex { vec3 pos, color; };
 
 struct Graphics {
+    using size_callback_f = void (*)(void*, uvec2);
     using key_callback_f = void (*)(void*, int, int, int, int);
     using mouse_button_callback_f = void (*)(void*, int, int, int);
     using mouse_move_callback_f = void (*)(void*, dvec2);
@@ -188,6 +189,10 @@ struct Graphics {
         std::span<const Stage> normal = {}, overlay = {};
     };
     enum class CursorMode { NORMAL, HIDDEN, DISABLED };
+    struct Camera {
+        const uvec2 *screen = nullptr;
+        const mat4 *proj = nullptr, *view = nullptr;
+    };
     static constexpr u32
         TEXTURE_EXTENT = NNGN_TEXTURE_EXTENT,
         TEXTURE_EXTENT_LOG2 = std::countr_zero(TEXTURE_EXTENT),
@@ -239,18 +244,24 @@ struct Graphics {
     virtual Version version() const = 0;
     virtual bool window_closed() const = 0;
     virtual int swap_interval() const = 0;
+    virtual uvec2 window_size() const = 0;
     virtual GraphicsStats stats() = 0;
+    virtual void get_keys(size_t n, int32_t *keys) const = 0;
+    virtual ivec2 mouse_pos(void) const = 0;
     virtual bool set_n_frames(std::size_t n) = 0;
     virtual bool set_n_swap_chain_images(std::size_t n) = 0;
     virtual void set_swap_interval(int i) = 0;
     virtual void set_window_title(const char *t) = 0;
     virtual void set_cursor_mode(CursorMode m) = 0;
+    virtual void set_size_callback(void *data, size_callback_f f) = 0;
     virtual void set_key_callback(void *data, key_callback_f f) = 0;
     virtual void set_mouse_button_callback(
         void *data, mouse_button_callback_f f) = 0;
     virtual void set_mouse_move_callback(
         void *data, mouse_move_callback_f f) = 0;
     virtual void resize(int w, int h) = 0;
+    virtual void set_camera(const Camera &c) = 0;
+    virtual void set_camera_updated() = 0;
     // Pipelines
     virtual u32 create_pipeline(const PipelineConfiguration &conf) = 0;
     // Buffers

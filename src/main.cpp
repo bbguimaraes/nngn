@@ -33,6 +33,7 @@
 #include "lua/iter.h"
 #include "lua/register.h"
 #include "lua/table.h"
+#include "math/camera.h"
 #include "math/math.h"
 #include "os/platform.h"
 #include "os/socket.h"
@@ -56,6 +57,7 @@ NNGN_LUA_DECLARE_USER_TYPE(nngn::FPS, "FPS")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Socket, "Socket")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::lua::state, "state")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Input, "Input")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Camera, "Camera")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::MouseInput, "MouseInput")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderers, "Renderers")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Textures, "Textures")
@@ -83,6 +85,7 @@ struct NNGN {
     nngn::lua::state lua = {};
     nngn::lua::alloc_info lua_alloc = {};
     Input input = {};
+    nngn::Camera camera = {};
     nngn::Renderers renderers = {};
     Entities entities = {};
     nngn::Textures textures = {};
@@ -162,6 +165,12 @@ bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
         });
     const bool ret = this->renderers.set_graphics(g.get());
     this->textures.set_graphics(g.get());
+    g->set_size_callback(
+        &this->camera, [](void *p, auto s)
+            { static_cast<nngn::Camera*>(p)->set_screen(s); });
+    g->set_camera({
+        &this->camera.screen, &this->camera.proj, &this->camera.view});
+    this->camera.set_screen(g->window_size());
     this->graphics = std::move(g);
     return ret;
 }
@@ -174,9 +183,12 @@ int NNGN::loop(void) {
     this->timing.update();
     const bool ok = this->input.input.update()
         && this->schedule.update()
-        && this->socket.process([&l = this->lua](auto s) { l.dostring(s); })
-        && this->renderers.update();
+        && this->socket.process([&l = this->lua](auto s) { l.dostring(s); });
     if(!ok)
+        return 1;
+    if(this->camera.update(this->timing))
+        this->graphics->set_camera_updated();
+    if(!this->renderers.update())
         return 1;
     this->entities.clear_flags();
     if(!this->graphics->render() || !this->graphics->vsync())
@@ -205,6 +217,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["lua"] = accessor<&NNGN::lua>;
     t["input"] = [](NNGN &nngn) { return &nngn.input.input; };
     t["mouse_input"] = [](NNGN &nngn) { return &nngn.input.mouse; };
+    t["camera"] = accessor<&NNGN::camera>;
     t["renderers"] = accessor<&NNGN::renderers>;
     t["entities"] = accessor<&NNGN::entities>;
     t["textures"] = accessor<&NNGN::textures>;

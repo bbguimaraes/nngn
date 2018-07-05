@@ -1,3 +1,4 @@
+local camera <const> = require "nngn.lib.camera"
 local tools <const> = require "nngn.lib.tools"
 
 local ps = {}
@@ -57,6 +58,32 @@ local FS = {
         function(f)
             local r <const> = nngn:renderers()
             write_data(f, r:n_sprites())
+        end,
+    },
+    camera = {
+        function(f)
+            f:write("s 3\n")
+            write_names(f,
+                "pos_x", "vel_x", "acc_x",
+                "pos_y", "vel_y", "acc_y",
+                "pos_z", "vel_z", "acc_z",
+                "rot_x", "rot_vel_x", "rot_acc_x",
+                "rot_y", "rot_vel_y", "rot_acc_y",
+                "rot_z", "rot_vel_z", "rot_acc_z",
+                "zoom", "zoom_vel", "zoom_acc")
+        end,
+        function(f)
+            local c <const> = camera.get()
+            local p, v, a <const> = {c:pos()}, {c:vel()}, {c:acc()}
+            local r, rv, ra <const> = {c:rot()}, {c:rot_vel()}, {c:rot_acc()}
+            write_data(f,
+                p[1], v[1], a[1],
+                p[2], v[2], a[2],
+                p[3], v[3], a[3],
+                r[1], rv[1], ra[1],
+                r[2], rv[2], ra[2],
+                r[3], rv[3], ra[3],
+                c:zoom(), c:zoom_vel(), c:zoom_acc())
         end,
     },
     graphics = {

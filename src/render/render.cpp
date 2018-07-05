@@ -87,6 +87,13 @@ void Renderers::set_debug(Debug d) {
         this->flags.set(Flag::DEBUG_UPDATED);
 }
 
+void Renderers::set_perspective(bool p) {
+    constexpr auto f =
+        Flag::SPRITES_UPDATED;
+    this->flags.set(Flag::PERSPECTIVE, p);
+    this->flags.set(f);
+}
+
 bool Renderers::set_graphics(Graphics *g) {
     constexpr u32
         TRIANGLE_MAX = 3,
@@ -246,8 +253,11 @@ bool Renderers::update_renderers(bool sprites_updated) {
         NNGN_LOG_CONTEXT("sprites");
         const auto vbo = this->sprite_vbo;
         const auto ebo = this->sprite_ebo;
-        return update_span<Gen::sprite, update_quad_indices<6>>(
-            this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
+        return this->flags.is_set(Flag::PERSPECTIVE)
+            ? update_span<Gen::sprite_persp, update_quad_indices<6>>(
+                this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6)
+            : update_span<Gen::sprite_ortho, update_quad_indices<6>>(
+                this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
     };
     return !sprites_updated || update_sprites();
 }

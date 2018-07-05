@@ -1,6 +1,8 @@
 dofile "src/lua/path.lua"
+local camera = require "nngn.lib.camera"
 local common = require "tests/lua/common"
 local input = require "nngn.lib.input"
+local utils = require "nngn.lib.utils"
 
 local function test_get_keys()
     local i <const> = nngn:input()
@@ -37,6 +39,18 @@ local function test_input_b()
     common.assert_eq(nngn:renderers():debug(), 0)
 end
 
+local function test_input_c()
+    local key <const>, ctrl <const> = string.byte("C"), Input.MOD_CTRL
+    local c = nngn:camera()
+    c:set_pos(1, 2, 3)
+    nngn:input():key_callback(key, Input.KEY_PRESS, ctrl)
+    common.assert_eq({c:pos()}, {0, 0, c:z_for_fov()}, common.deep_cmp)
+    nngn:input():key_callback(key, Input.KEY_PRESS, ctrl | Input.MOD_ALT)
+    assert(c:perspective())
+    nngn:input():key_callback(key, Input.KEY_PRESS, ctrl | Input.MOD_ALT)
+    assert(not c:perspective())
+end
+
 local function test_input_p()
     local function group() return deref(nngn:input():binding_group()) end
     local key = string.byte("P")
@@ -56,5 +70,6 @@ common.setup_hook(1)
 test_get_keys()
 if opengl then test_input_i() end
 test_input_b()
+test_input_c()
 test_input_p()
 nngn:exit()

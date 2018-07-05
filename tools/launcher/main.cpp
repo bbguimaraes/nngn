@@ -38,6 +38,12 @@ do
     local p = require("nngn.lib.plot")
     p.plot(p.FS.render)
 end)"sv;
+constexpr auto PLOT_CAMERA = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.plot")
+    p.plot(p.FS.camera)
+end)"sv;
 constexpr auto PLOT_GRAPHICS = R"(
 do
     require("nngn.lib.tools").add_to_path()
@@ -65,6 +71,18 @@ do
     require("nngn.lib.tools").add_to_path()
     local p = require("nngn.lib.configure")
     p.configure(p.FS.limits)
+end)"sv;
+constexpr auto CONFIGURE_CAMERA = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.configure")
+    p.configure(p.FS.camera)
+end)"sv;
+constexpr auto CONFIGURE_RENDER = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.configure")
+    p.configure(p.FS.render)
 end)"sv;
 constexpr auto CONFIGURE_GRAPHICS = R"(
 do
@@ -132,10 +150,13 @@ int main(int argc, char **argv) {
     add(plot_section, "fps", PLOT_FPS);
     add(plot_section, "lua", PLOT_LUA);
     add(plot_section, "render", PLOT_RENDER);
+    add(plot_section, "camera", PLOT_CAMERA);
     add(plot_section, "graphics", PLOT_GRAPHICS);
     add(timeline_section, "prof", TIMELINE_PROF);
     add(timeline_section, "lua", TIMELINE_LUA);
     add(configure_section, "limits", CONFIGURE_LIMITS);
+    add(configure_section, "camera", CONFIGURE_CAMERA);
+    add(configure_section, "render", CONFIGURE_RENDER);
     add(configure_section, "graphics", CONFIGURE_GRAPHICS);
     QObject::connect(
         &launcher.socket(), &QLocalSocket::errorOccurred,

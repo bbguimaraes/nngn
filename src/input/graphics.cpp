@@ -10,6 +10,8 @@
 #include <GLFW/glfw3.h>
 #endif
 
+using nngn::i32;
+
 namespace {
 
 class GraphicsSource : public nngn::Input::Source {
@@ -22,6 +24,7 @@ public:
     GraphicsSource(nngn::Graphics *g);
     ~GraphicsSource(void) override = default;
     bool update(nngn::Input*) override;
+    void get_keys(std::span<i32> keys) const override;
 };
 
 GraphicsSource::GraphicsSource(nngn::Graphics *g) : graphics(g) {
@@ -41,6 +44,10 @@ bool GraphicsSource::update(nngn::Input *input) {
     }
     this->events.clear();
     return true;
+}
+
+void GraphicsSource::get_keys(std::span<i32> keys) const {
+    this->graphics->get_keys(keys.size(), keys.data());
 }
 
 }

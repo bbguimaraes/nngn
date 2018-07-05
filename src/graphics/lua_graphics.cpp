@@ -230,6 +230,11 @@ auto memory_types(
             nngn::narrow<std::size_t>(ih));
 }
 
+auto window_size(const Graphics &g) {
+    const auto s = g.window_size();
+    return std::tuple{s.x, s.y};
+}
+
 auto stats(Graphics *g, nngn::lua::state_view lua) {
     constexpr auto cast = [](auto x) { return nngn::narrow<lua_Integer>(x); };
     const auto s = g->stats();
@@ -245,6 +250,11 @@ auto stats(Graphics *g, nngn::lua::state_view lua) {
         "n_writes", cast(s.buffers.n_writes),
         "total_writes_bytes", cast(s.buffers.total_writes_bytes));
     return ret.release();
+}
+
+auto mouse_pos(const Graphics &g) {
+    const auto v = g.mouse_pos();
+    return std::tuple{v.x, v.y};
 }
 
 void set_n_frames(Graphics &g, lua_Integer n) {
@@ -287,7 +297,9 @@ void register_graphics(nngn::lua::table_view t) {
     t["memory_types"] = memory_types;
     t["error"] = &Graphics::error;
     t["swap_interval"] = &Graphics::swap_interval;
+    t["window_size"] = window_size;
     t["stats"] = stats;
+    t["mouse_pos"] = mouse_pos;
     t["set_n_frames"] = set_n_frames;
     t["set_n_swap_chain_images"] = set_n_swap_chain_images;
     t["set_swap_interval"] = &Graphics::set_swap_interval;

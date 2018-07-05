@@ -114,6 +114,28 @@ local function shift(i, n, inc, base)
     return i
 end
 
+local DOUBLE_TAP = {}
+local DOUBLE_TAP_INTERVAL = 200
+
+local function get_double_tap_interval() return DOUBLE_TAP_INTERVAL end
+local function set_double_tap_interval(i) DOUBLE_TAP_INTERVAL = i end
+
+local function check_double_tap(t, key, shift)
+    if shift then key = key + 128 end
+    local last = DOUBLE_TAP[key] or 0
+    DOUBLE_TAP[key] = t
+    return t - last <= DOUBLE_TAP_INTERVAL
+end
+
+local function reset_double_tap(key, shift)
+    local t = DOUBLE_TAP
+    if key then
+        if shift then key = key + 128 end
+        t = {key = true}
+    end
+    for k in pairs(t) do DOUBLE_TAP[k] = nil end
+end
+
 return {
     class = Class,
     pprint = pprint,
@@ -125,4 +147,8 @@ return {
     fmt_time = fmt_time,
     fmt_size = fmt_size,
     shift = shift,
+    get_double_tap_interval = get_double_tap_interval,
+    set_double_tap_interval = set_double_tap_interval,
+    check_double_tap = check_double_tap,
+    reset_double_tap = reset_double_tap,
 }

@@ -35,10 +35,12 @@ void register_renderers(nngn::lua::table_view t) {
     t["DEBUG_ALL"] = Renderers::Debug::DEBUG_ALL;
     t["max_sprites"] = get<&Renderers::max_sprites>;
     t["debug"] = &Renderers::debug;
+    t["perspective"] = &Renderers::perspective;
     t["n"] = get<&Renderers::n>;
     t["n_sprites"] = get<&Renderers::n_sprites>;
     t["set_max_sprites"] = set<&Renderers::set_max_sprites>;
     t["set_debug"] = &Renderers::set_debug;
+    t["set_perspective"] = &Renderers::set_perspective;
     t["load"] = &Renderers::load;
     t["remove"] = &Renderers::remove;
 }

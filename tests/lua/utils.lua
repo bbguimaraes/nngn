@@ -61,9 +61,26 @@ local function test_shift()
     common.assert_eq(utils.shift(4, 3, true, 2), 2)
 end
 
+local function test_double_tap()
+    local key = string.byte(" ")
+    local interval = utils.get_double_tap_interval()
+    utils.set_double_tap_interval(5)
+    utils.reset_double_tap(key)
+    assert(not utils.check_double_tap(10, key))
+    assert(utils.check_double_tap(15, key))
+    assert(utils.check_double_tap(15, key))
+    assert(not utils.check_double_tap(15, key, true))
+    assert(not utils.check_double_tap(30, key, true))
+    assert(not utils.check_double_tap(30, key))
+    utils.reset_double_tap(key)
+    utils.reset_double_tap(key, true)
+    utils.set_double_tap_interval(interval)
+end
+
 return {
     test_pprint,
     test_fmt_time,
     test_fmt_size,
     test_shift,
+    test_double_tap,
 }
