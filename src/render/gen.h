@@ -15,14 +15,20 @@ struct Gen {
         u32 tex, vec2 uv0, vec2 uv1);
     static void quad_vertices(
         Vertex **p, vec2 bl, vec2 tr, float z, vec3 color);
+    static void quad_vertices_persp(
+        Vertex **p, vec2 bl, vec2 tr, float y,
+        u32 tex, vec2 uv0, vec2 uv1);
     static void cube_vertices(Vertex **p, vec3 pos, vec3 size, vec3 color);
     static void cube_vertices(
         Vertex **p, vec3 pos, vec3 size,
         u32 tex, const std::array<vec4, 6> &uv);
     // Renderers
-    static void sprite(Vertex **p, SpriteRenderer *x);
-    static void cube(Vertex **p, CubeRenderer *x);
-    static void voxel(Vertex **p, VoxelRenderer *x);
+    static void sprite_ortho(Vertex **p, SpriteRenderer *x);
+    static void sprite_persp(Vertex **p, SpriteRenderer *x);
+    static void cube_ortho(Vertex **p, CubeRenderer *x);
+    static void cube_persp(Vertex **p, CubeRenderer *x);
+    static void voxel_ortho(Vertex **p, VoxelRenderer *x);
+    static void voxel_persp(Vertex **p, VoxelRenderer *x);
     static void sprite_debug(Vertex **p, SpriteRenderer *x);
     static void cube_debug(Vertex **p, CubeRenderer *x);
     static void voxel_debug(Vertex **p, VoxelRenderer *x);
@@ -58,6 +64,19 @@ inline void Gen::quad_vertices(
     *p++ = {{tr.x, bl.y, z}, {uv1.x, uv0.y, tex_f}};
     *p++ = {{bl.x, tr.y, z}, {uv0.x, uv1.y, tex_f}};
     *p++ = {{tr,         z}, {uv1.x, uv1.y, tex_f}};
+    *pp = p;
+}
+
+inline void Gen::quad_vertices_persp(
+    Vertex **pp, vec2 bl, vec2 tr, float y,
+    u32 tex, vec2 uv0, vec2 uv1
+) {
+    const auto tex_f = static_cast<float>(tex);
+    auto *p = *pp;
+    *p++ = {{bl.x, y, bl.y}, {uv0.x, uv0.y, tex_f}};
+    *p++ = {{tr.x, y, bl.y}, {uv1.x, uv0.y, tex_f}};
+    *p++ = {{bl.x, y, tr.y}, {uv0.x, uv1.y, tex_f}};
+    *p++ = {{tr.x, y, tr.y}, {uv1.x, uv1.y, tex_f}};
     *pp = p;
 }
 
@@ -131,7 +150,7 @@ inline void Gen::cube_vertices(
     *((*p)++) = { tr               , {uv_.zw(), ftex}};
 }
 
-inline void Gen::sprite(Vertex **p, SpriteRenderer *x) {
+inline void Gen::sprite_ortho(Vertex **p, SpriteRenderer *x) {
     x->flags.clear(Renderer::Flag::UPDATED);
     const auto pos = x->pos.xy();
     const auto s = x->size / 2.0f;
@@ -140,18 +159,37 @@ inline void Gen::sprite(Vertex **p, SpriteRenderer *x) {
         x->tex, x->uv0, x->uv1);
 }
 
-inline void Gen::cube(Vertex **p, CubeRenderer *x) {
+inline void Gen::sprite_persp(Vertex **p, SpriteRenderer *x) {
+    x->flags.clear(Renderer::Flag::UPDATED);
+    const auto s = x->size / 2.0f;
+    const vec2 bl = {x->pos.x - s.x, -s.y - x->z_off};
+    Gen::quad_vertices_persp(
+        p, bl, {x->pos.x + s.x, bl.y + x->size.y},
+        x->pos.y + x->z_off, x->tex, x->uv0, x->uv1);
+}
+
+inline void Gen::cube_ortho(Vertex **p, CubeRenderer *x) {
     x->flags.clear(Renderer::Flag::UPDATED);
     Gen::cube_vertices(
         p, {x->pos.x, x->pos.y, x->pos.z - x->pos.y},
         vec3{x->size}, x->color);
 }
 
-inline void Gen::voxel(Vertex **p, VoxelRenderer *x) {
+inline void Gen::cube_persp(Vertex **p, CubeRenderer *x) {
+    x->flags.clear(Renderer::Flag::UPDATED);
+    Gen::cube_vertices(p, x->pos, vec3{x->size}, x->color);
+}
+
+inline void Gen::voxel_ortho(Vertex **p, VoxelRenderer *x) {
     x->flags.clear(Renderer::Flag::UPDATED);
     Gen::cube_vertices(
         p, {x->pos.x, x->pos.y, x->pos.z - x->pos.y},
         x->size, x->tex, x->uv);
+}
+
+inline void Gen::voxel_persp(Vertex **p, VoxelRenderer *x) {
+    x->flags.clear(Renderer::Flag::UPDATED);
+    Gen::cube_vertices(p, x->pos, x->size, x->tex, x->uv);
 }
 
 inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {

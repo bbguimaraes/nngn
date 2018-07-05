@@ -12,6 +12,11 @@ template<typename P> auto time(const time_f &f) {
     return std::chrono::duration_cast<D>(Timing::time(f)).count();
 }
 
+void set_now_ns(Timing &t, Timing::time_point::rep r)
+    { t.now = Timing::time_point(Timing::duration(r)); }
+void set_dt_ns(Timing &t, Timing::duration::rep r)
+    { t.dt = Timing::duration(r); }
+
 }
 
 NNGN_LUA_PROXY(Timing,
@@ -34,4 +39,6 @@ NNGN_LUA_PROXY(Timing,
     "fdt_ns", &Timing::fdt_ns,
     "fdt_us", &Timing::fdt_us,
     "fdt_ms", &Timing::fdt_ms,
-    "fdt_s", &Timing::fdt_s)
+    "fdt_s", &Timing::fdt_s,
+    "set_now_ns", set_now_ns,
+    "set_dt_ns", set_dt_ns)

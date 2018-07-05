@@ -48,6 +48,16 @@ void DedicatedBuffer::fill(
     vkUnmapMemory(dev, this->hm);
 }
 
+void DedicatedBuffer::memcpy(
+    VkDevice dev,std::size_t off, std::span<const std::byte> s
+) const {
+    assert(off + s.size() <= this->capacity());
+    void *p = {};
+    vkMapMemory(dev, this->hm, off, s.size(), 0, &p);
+    std::memcpy(p, s.data(), s.size());
+    vkUnmapMemory(dev, this->hm);
+}
+
 void DedicatedBuffer::destroy(
     VkDevice dev, nngn::DeviceMemory *dev_mem
 ) {

@@ -224,6 +224,11 @@ auto memory_types(
         &Graphics::memory_types>(static_cast<lua_State*>(lua), g, i, ih);
 }
 
+auto window_size(const Graphics &g) {
+    const auto s = g.window_size();
+    return std::tuple(s.x, s.y);
+}
+
 auto stats(Graphics *g, nngn::lua::state_arg lua_) {
     const auto s = g->stats();
     const auto lua = nngn::lua::state_view{lua_};
@@ -275,6 +280,7 @@ NNGN_LUA_PROXY(Graphics,
     "memory_types", memory_types,
     "error", &Graphics::error,
     "swap_interval", &Graphics::swap_interval,
+    "window_size", window_size,
     "stats", stats,
     "set_n_frames", &Graphics::set_n_frames,
     "set_swap_interval", &Graphics::set_swap_interval,

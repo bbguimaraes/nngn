@@ -98,6 +98,14 @@ void Renderers::set_debug(Debug d) {
         this->flags.set(Flag::DEBUG_UPDATED);
 }
 
+void Renderers::set_perspective(bool p) {
+    constexpr auto f =
+        Flag::SPRITES_UPDATED
+        | Flag::CUBES_UPDATED;
+    this->flags.set(Flag::PERSPECTIVE, p);
+    this->flags.set(f);
+}
+
 bool Renderers::set_graphics(Graphics *g) {
     constexpr u32
         TRIANGLE_MAX = 3,
@@ -316,24 +324,35 @@ bool Renderers::update_renderers(
         NNGN_LOG_CONTEXT("sprites");
         const auto vbo = this->sprite_vbo;
         const auto ebo = this->sprite_ebo;
-        return update_span<Gen::sprite, update_quad_indices<6>>(
-            this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
+        return this->flags.is_set(Flag::PERSPECTIVE)
+            ? update_span<Gen::sprite_persp, update_quad_indices<6>>(
+                this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6)
+            : update_span<Gen::sprite_ortho, update_quad_indices<6>>(
+                this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
     };
     const auto update_cubes = [this] {
         NNGN_LOG_CONTEXT("cube");
         const auto vbo = this->cube_vbo;
         const auto ebo = this->cube_ebo;
-        return update_span<Gen::cube, update_quad_indices<6 * 6>>(
-            this->graphics, std::span{this->cubes}, vbo, ebo,
-            6_z * 4_z, 6_z * 6_z);
+        return this->flags.is_set(Flag::PERSPECTIVE)
+            ? update_span<Gen::cube_persp, update_quad_indices<6 * 6>>(
+                this->graphics, std::span{this->cubes}, vbo, ebo,
+                6_z * 4_z, 6_z * 6_z)
+            : update_span<Gen::cube_ortho, update_quad_indices<6 * 6>>(
+                this->graphics, std::span{this->cubes}, vbo, ebo,
+                6_z * 4_z, 6_z * 6_z);
     };
     const auto update_voxels = [this] {
         NNGN_LOG_CONTEXT("voxel");
         const auto vbo = this->voxel_vbo;
         const auto ebo = this->voxel_ebo;
-        return update_span<Gen::voxel, update_quad_indices<6 * 6>>(
-            this->graphics, std::span{this->voxels},
-            vbo, ebo, 6_z * 4_z, 6_z * 6_z);
+        return this->flags.is_set(Flag::PERSPECTIVE)
+            ? update_span<Gen::voxel_persp, update_quad_indices<6 * 6>>(
+                this->graphics, std::span{this->voxels},
+                vbo, ebo, 6_z * 4_z, 6_z * 6_z)
+            : update_span<Gen::voxel_ortho, update_quad_indices<6 * 6>>(
+                this->graphics, std::span{this->voxels},
+                vbo, ebo, 6_z * 4_z, 6_z * 6_z);
     };
     return (!sprites_updated || update_sprites())
         && (!cubes_updated || update_cubes())

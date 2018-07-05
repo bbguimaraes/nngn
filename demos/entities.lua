@@ -1,9 +1,11 @@
 dofile "src/lua/path.lua"
+local camera = require "nngn.lib.camera"
 local entity = require "nngn.lib.entity"
 local texture = require "nngn.lib.texture"
 require "src/lua/input"
 
 require("nngn.lib.graphics").init()
+camera.reset()
 
 local N = 2 ^ 10
 nngn.entities:set_max(N + 1)

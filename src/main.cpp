@@ -28,6 +28,7 @@
 #include "input/mouse.h"
 #include "lua/alloc.h"
 #include "lua/state.h"
+#include "math/camera.h"
 #include "math/math.h"
 #include "os/platform.h"
 #include "os/socket.h"
@@ -63,6 +64,7 @@ struct NNGN {
     nngn::lua::state lua = {};
     nngn::lua::alloc_info lua_alloc = {};
     Input input = {};
+    nngn::Camera camera = {};
     nngn::Renderers renderers = {};
     Entities entities = {};
     nngn::Textures textures = {};
@@ -133,6 +135,12 @@ bool NNGN::set_graphics(
             { static_cast<nngn::MouseInput*>(p)->move_callback(pos); });
     bool ret = this->renderers.set_graphics(g.get());
     this->textures.set_graphics(g.get());
+    g->set_size_callback(
+        &this->camera, [](void *p, auto s)
+            { static_cast<nngn::Camera*>(p)->set_screen(s); });
+    g->set_camera({
+        &this->camera.screen, &this->camera.proj, &this->camera.view});
+    this->camera.set_screen(g->window_size());
     this->graphics = std::move(g);
     return ret;
 }
@@ -145,9 +153,12 @@ int NNGN::loop(void) {
     this->timing.update();
     const bool ok = this->input.input.update()
         && this->schedule.update()
-        && this->socket.process([&l = this->lua](auto s) { l.dostring(s); })
-        && this->renderers.update();
+        && this->socket.process([&l = this->lua](auto s) { l.dostring(s); });
     if(!ok)
+        return 1;
+    if(this->camera.update(this->timing))
+        this->graphics->set_camera_updated();
+    if(!this->renderers.update())
         return 1;
     this->entities.clear_flags();
     if(!this->graphics->render() || !this->graphics->vsync())
@@ -177,6 +188,7 @@ NNGN_LUA_PROXY(NNGN,
     "lua", readonly(&NNGN::lua),
     "input", property([](const NNGN &nngn) { return &nngn.input.input; }),
     "mouse_input", property([](const NNGN &nngn) { return &nngn.input.mouse; }),
+    "camera", readonly(&NNGN::camera),
     "renderers", readonly(&NNGN::renderers),
     "entities", readonly(&NNGN::entities),
     "textures", readonly(&NNGN::textures),

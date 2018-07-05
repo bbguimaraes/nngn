@@ -21,6 +21,7 @@ std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void*) {
 
 #include <algorithm>
 #include <array>
+#include <bitset>
 #include <cassert>
 #include <cstdint>
 #include <limits>
@@ -36,6 +37,7 @@ std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void*) {
 
 #include "graphics/glfw.h"
 #include "graphics/shaders.h"
+#include "math/camera.h"
 #include "timing/profile.h"
 #include "utils/flags.h"
 
@@ -244,7 +246,7 @@ class VulkanBackend final : public nngn::GLFWBackend {
     std::size_t last_frame() const
         { return (this->cur_frame + this->n_frames - 1) % this->n_frames; }
     VkCommandBuffer cur_cmd_buffer() const;
-    void resize(int, int) final { this->flags.set(Flag::RECREATE_SWAPCHAIN); }
+    void resize(int, int) final;
     std::tuple<VkPhysicalDevice, u32, u32> choose_device(std::size_t i) const;
     bool create_render_pass(VkFormat format);
     bool create_pipelines();
@@ -283,6 +285,8 @@ public:
     nngn::GraphicsStats stats() override;
     bool set_n_frames(std::size_t n) final;
     void set_swap_interval(int i) final;
+    void set_camera_updated() final
+        { this->camera_descriptor_sets.updated().set(); }
     u32 create_pipeline(const PipelineConfiguration &conf) final;
     u32 create_buffer(const BufferConfiguration &conf) final;
     bool set_buffer_capacity(u32 b, u64 size) final;
@@ -293,6 +297,7 @@ public:
     bool resize_textures(std::uint32_t s) final;
     bool load_textures(
         std::uint32_t i, std::uint32_t n, const std::byte *v) final;
+    void set_camera(const Camera &c) final;
     bool set_render_list(const RenderList &l) final;
     bool render() final;
     bool vsync() final;
@@ -719,6 +724,11 @@ VkCommandBuffer VulkanBackend::cur_cmd_buffer() const {
     return p.buffers()[0];
 }
 
+void VulkanBackend::resize(int, int) {
+    this->flags |= Flag::RECREATE_SWAPCHAIN;
+    this->set_camera_updated();
+}
+
 std::tuple<VkPhysicalDevice, u32, u32> VulkanBackend::choose_device(
     std::size_t i
 ) const {
@@ -910,6 +920,7 @@ bool VulkanBackend::create_render_pass(VkFormat format) {
 bool VulkanBackend::recreate_swapchain() {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
     this->flags.clear(Flag::RECREATE_SWAPCHAIN);
+    this->set_camera_updated();
     vkDeviceWaitIdle(this->dev.id());
     auto &info = this->m_surface_info;
     info.init(this->swap_chain.surface(), this->dev.physical_dev());
@@ -1393,24 +1404,23 @@ bool VulkanBackend::load_textures(
         cmd, {ext, ext, 1}, Graphics::TEXTURE_MIP_LEVELS, i, n);
 }
 
+void VulkanBackend::set_camera(const Camera &c) {
+    GLFWBackend::set_camera(c);
+    this->camera_descriptor_sets.updated().set();
+}
+
 bool VulkanBackend::render() {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
     NNGN_PROFILE_CONTEXT(render);
     const auto update_camera = [this] {
-        constexpr auto far = 2048.0f;
-        const auto extent =
-            static_cast<nngn::vec2>(this->m_surface_info.cur_extent) / 2.0f;
-        this->ubo.fill(
-            this->dev.id(), 0, this->n_frames,
-            this->camera_descriptor_sets.alignment(),
+        if(!this->camera_descriptor_sets.updated()[this->cur_frame])
+            return;
+        this->camera_descriptor_sets.updated().reset(this->cur_frame);
+        this->ubo.memcpy(
+            this->dev.id(),
+            this->camera_descriptor_sets.offset(this->cur_frame),
             nngn::as_byte_span(nngn::rptr(nngn::CameraUBO{
-                .proj =
-                    CLIP_PROJ
-                    * nngn::Math::ortho(
-                        -extent.x, extent.x, -extent.y, extent.y, 0.0f, far)
-                    * nngn::Math::look_at<float>(
-                        {0, 0, far / 2}, {}, {0, 1, 0}),
-            })));
+                .proj = CLIP_PROJ * *this->camera.proj * *this->camera.view})));
     };
     const auto cmd = this->cur_cmd_buffer();
     const auto queue = this->dev.graphics_queue();

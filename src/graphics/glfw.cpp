@@ -43,16 +43,25 @@ bool GLFWBackend::create_window() {
         return Log::l() << "failed to initialize GLFW window\n", false;
     this->callback_data.p = this;
     glfwSetWindowUserPointer(this->w, &this->callback_data);
-    glfwSetFramebufferSizeCallback(
-        this->w, [](GLFWwindow *cw, int width, int height) {
-            static_cast<const CallbackData*>(glfwGetWindowUserPointer(cw))
-                ->p->resize(width, height);
-    });
+    this->set_size_callback(nullptr, nullptr);
     return true;
 }
 
 bool GLFWBackend::window_closed() const
     { return glfwWindowShouldClose(this->w); }
+
+uvec2 GLFWBackend::window_size() const {
+    ivec2 ret;
+    glfwGetWindowSize(this->w, &ret.x, &ret.y);
+    return static_cast<uvec2>(ret);
+}
+
+void GLFWBackend::get_keys(size_t n, int32_t *keys) const {
+    std::transform(
+        keys, keys + n, keys,
+        [w = this->w](auto x) { return static_cast<char>(glfwGetKey(w, x)); });
+}
+
 void GLFWBackend::set_swap_interval(int i)
     { glfwSwapInterval(this->m_swap_interval = i); }
 void GLFWBackend::set_window_title(const char *t)
@@ -61,6 +70,19 @@ void GLFWBackend::set_cursor_mode(CursorMode m) {
     glfwSetInputMode(
         this->w, GLFW_CURSOR,
         GLFW_CURSOR_NORMAL + static_cast<int>(m));
+}
+
+void GLFWBackend::set_size_callback(void *data, size_callback_f f) {
+    this->callback_data.size_cb_data = data;
+    this->callback_data.size_cb = f;
+    glfwSetFramebufferSizeCallback(
+        this->w, [](GLFWwindow *cw, int width, int height) {
+            const auto *d = static_cast<const CallbackData*>(
+                glfwGetWindowUserPointer(cw));
+            if(const auto c = d->size_cb)
+                c(d->size_cb_data, static_cast<uvec2>(ivec2{width, height}));
+            d->p->resize(width, height);
+    });
 }
 
 void GLFWBackend::set_key_callback(void *data, key_callback_f f) {

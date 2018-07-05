@@ -40,6 +40,7 @@ std::unique_ptr<Graphics> graphics_create_backend<backend_es>(const void*) {
 
 #include "graphics/glfw.h"
 #include "graphics/shaders.h"
+#include "math/camera.h"
 #include "math/math.h"
 #include "timing/profile.h"
 #include "utils/flags.h"
@@ -89,6 +90,7 @@ class OpenGLBackend final : public nngn::GLFWBackend {
         ES = 1u << 0,
         CALLBACK_ERROR = 1u << 1,
         RESIZED = 1u << 2,
+        CAMERA_UPDATED = 1u << 3,
     };
     nngn::Flags<Flag> flags = {};
     int maj = 0, min = 0;
@@ -100,7 +102,8 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     GLint triangle_prog_alpha_loc = -1;
     ::RenderList render_list = {};
     nngn::GLTexArray tex = {};
-    void resize(int, int) final { this->flags |= Flag::RESIZED; }
+    void resize(int, int) final
+        { this->flags |= Flag::RESIZED | Flag::CAMERA_UPDATED; }
     static bool create_uniform_buffer(
         std::string_view name, u64 size, nngn::GLBuffer *b);
     bool create_vao(
@@ -133,6 +136,7 @@ public:
     void memory_types(std::size_t, std::size_t, MemoryType*) const final {}
     bool error() final { return this->flags.is_set(Flag::CALLBACK_ERROR); }
     nngn::GraphicsStats stats() override { return {}; }
+    void set_camera_updated() final { this->flags |= Flag::CAMERA_UPDATED; }
     bool set_n_frames(std::size_t) override { return true; }
     u32 create_pipeline(const PipelineConfiguration &conf) final;
     u32 create_buffer(const BufferConfiguration &conf) final;
@@ -433,22 +437,18 @@ bool OpenGLBackend::load_textures(u32 i, u32 n, const std::byte *v) {
 bool OpenGLBackend::render() {
     NNGN_LOG_CONTEXT_CF(OpenGLBackend);
     if(this->flags.check_and_clear(Flag::RESIZED)) {
-        int width = {}, height = {};
-        glfwGetFramebufferSize(this->w, &width, &height);
-        glViewport(0, 0, width, height);
-        constexpr auto far = 2048.0f;
-        const auto width_f = static_cast<float>(width) / 2.0f;
-        const auto height_f = static_cast<float>(height) / 2.0f;
-        const nngn::CameraUBO c = {
-            .proj =
-                nngn::Math::ortho(
-                    -width_f, width_f, -height_f, height_f, 0.0f, far)
-                * nngn::Math::look_at<float>(
-                    {0, 0, far / 2}, {}, {0, 1, 0}),
-        };
+        const auto s = static_cast<nngn::ivec2>(*this->camera.screen);
+        glViewport(0, 0, s.x, s.y);
+    }
+    const auto update_camera = [this]() {
+        if(~this->flags & Flag::CAMERA_UPDATED)
+            return true;
+        this->flags.clear(Flag::CAMERA_UPDATED);
+        nngn::CameraUBO c = {.proj = *this->camera.proj * *this->camera.view};
         CHECK_RESULT(glBindBuffer, GL_UNIFORM_BUFFER, this->camera_ubo.id());
         CHECK_RESULT(glBufferSubData, GL_UNIFORM_BUFFER, 0, sizeof(c), &c);
-    }
+        return true;
+    };
     const auto render = [this](auto *l) {
         using PFlag = PipelineConfiguration::Flag;
         for(auto &x : *l) {
@@ -484,6 +484,8 @@ bool OpenGLBackend::render() {
         }
         return true;
     };
+    if(!update_camera())
+        return false;
     const auto render_pass = [this, render] {
         nngn::GLDebugGroup group = {"color"sv};
         CHECK_RESULT(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);

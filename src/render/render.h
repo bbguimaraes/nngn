@@ -39,6 +39,7 @@ public:
     void init(Textures *t);
     // Configuration
     auto debug(void) const { return this->m_debug.t; }
+    bool perspective(void) const;
     auto max_sprites(void) const { return this->sprites.capacity(); }
     auto max_cubes(void) const { return this->cubes.capacity(); }
     auto max_voxels(void) const { return this->voxels.capacity(); }
@@ -51,6 +52,7 @@ public:
     /** Number of active voxel renderers. */
     std::size_t n_voxels(void) const { return this->voxels.size(); }
     void set_debug(Debug d);
+    void set_perspective(bool p);
     bool set_max_sprites(std::size_t n);
     bool set_max_cubes(std::size_t n);
     bool set_max_voxels(std::size_t n);
@@ -78,6 +80,7 @@ private:
         CUBES_UPDATED = 1u << 1,
         VOXELS_UPDATED = 1u << 2,
         DEBUG_UPDATED = 1u << 3,
+        PERSPECTIVE = 1u << 4,
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
@@ -94,6 +97,10 @@ private:
         voxel_debug_vbo = {}, voxel_debug_ebo = {},
         box_vbo = {}, box_ebo = {};
 };
+
+inline bool Renderers::perspective(void) const {
+    return this->flags.is_set(Flag::PERSPECTIVE);
+}
 
 }
 

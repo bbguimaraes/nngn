@@ -38,6 +38,88 @@ local FS = {
             "voxels", 8, 65536, 65536,
             "nngn.renderers:set_max_voxels(%1)"),
     },
+    camera = {
+        bool("ortho./persp.", false, "nngn.camera:set_perspective(%1)"),
+        bool("dash", false, "nngn.camera:set_dash(%1)"),
+        float("dampening", 0, 2000, 500, 100, "nngn.camera:set_damp(%1)"),
+        float("FOV Y", 0, 6283185, 1047198, 1e6, "nngn.camera:set_fov_y(%1)"),
+        int("max vel.", 0, 1024, 64, "nngn.camera:set_max_vel(%1)"),
+        float(
+            "max rot vel.", 0, 16 * 6283185, 8 * 1e6, 1e6,
+            "nngn.camera:set_max_rot_vel(%1)"),
+        float(
+            "max zoom vel.", 0, 10000, 1, 100,
+            "nngn.camera:set_max_zoom_vel(%1)"),
+        int(
+            "eye x", -1024, 1024, 1,
+            "do"
+                .. " c = nngn.camera"
+                .. " v = {c:eye()};"
+                .. " c:set_pos(%1, v[2], v[3])"
+            .. " end"),
+        int(
+            "eye y", -1024, 1024, 1,
+            "do"
+                .. " c = nngn.camera"
+                .. " v = {c:eye()}"
+                .. " c:set_pos(v[1], %1, v[3])"
+            .. " end"),
+        int(
+            "eye z", -1024, 1024, 1,
+            "do"
+                .. " c = nngn.camera"
+                .. " v = {c:eye()}"
+                .. " c:set_pos(v[1], v[2], %1)"
+            .. " end"),
+        int(
+            "x acc", -1024, 1024, 1,
+            "do"
+                .. " c = nngn.camera"
+                .. " v = {c:acc()}"
+                .. " c:set_acc(%1, v[2], v[3])"
+            .. " end"),
+        int(
+            "y acc", -1024, 1024, 1,
+            "do"
+                .. " c = nngn.camera"
+                .. " v = {c:acc()}"
+                .. " c:set_acc(v[1], %1, v[3])"
+            .. " end"),
+        int(
+            "z acc", -1024, 1024, 1,
+            "do"
+                .. " c = nngn.camera"
+                .. " v = {c:acc()}"
+                .. " c:set_acc(v[1], v[2], %1)"
+            .. " end"),
+        float(
+            "x rot", 0, 6283185, 0, 1e6,
+            "do"
+                .. " c = nngn.camera"
+                .. " v = {c:rot()}"
+                .. " c:set_rot(%1, v[2], v[3])"
+            .. " end"),
+        float(
+            "y rot", 0, 6283185, 0, 1e6,
+            "do"
+                .. " c = nngn.camera"
+                .. " v = {c:rot()}"
+                .. " c:set_rot(v[1], %1, v[3])"
+            .. " end"),
+        float(
+            "z rot", 0, 6283185, 0, 1e6,
+            "do"
+                .. " c = nngn.camera"
+                .. " v = {c:rot()}"
+                .. " c:set_rot(v[1], v[2], %1)"
+            .. " end"),
+        float(
+            "zoom (log₂)", -1000, 1000, 0, 100,
+            "nngn.camera:set_zoom(2 ^ %1)"),
+    },
+    render = {
+        bool("perspective", false, "nngn.renderers:set_perspective(%1)"),
+    },
     graphics = {
         bool(
             "cursor", true,

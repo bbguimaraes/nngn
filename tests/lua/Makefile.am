@@ -33,6 +33,7 @@ check_HEADERS += \
 	%reldir%/table_test.moc.cpp
 
 dist_check_DATA += \
+	%reldir%/camera.lua \
 	%reldir%/common.lua \
 	%reldir%/entity.lua \
 	%reldir%/input.lua \

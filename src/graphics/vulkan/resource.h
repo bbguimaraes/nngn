@@ -46,6 +46,8 @@ public:
         VkDevice dev, DeviceMemory *dev_mem,
         VkDeviceSize size, VkBufferUsageFlags usage);
     void destroy(VkDevice dev, DeviceMemory *dev_mem);
+    void memcpy(
+        VkDevice dev, std::size_t off, std::span<const std::byte> s) const;
     void fill(
         VkDevice dev, VkDeviceSize off, VkDeviceSize n, VkDeviceSize stride,
         std::span<const std::byte> s) const;
