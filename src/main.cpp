@@ -23,6 +23,7 @@
 #include "entity.h"
 
 #include "font/font.h"
+#include "font/textbox.h"
 #include "graphics/graphics.h"
 #include "graphics/texture.h"
 #include "input/input.h"
@@ -67,6 +68,7 @@ struct NNGN {
     nngn::lua::alloc_info lua_alloc = {};
     Input input = {};
     nngn::Fonts fonts = {};
+    nngn::Textbox textbox = {};
     nngn::Camera camera = {};
     nngn::Renderers renderers = {};
     nngn::Animations animations = {};
@@ -104,8 +106,9 @@ bool NNGN::init(int argc, const char *const *argv) {
     this->input.mouse.init(this->lua);
     if(!this->fonts.init())
         return false;
-    this->renderers.init(&this->textures, &this->fonts);
+    this->renderers.init(&this->textures, &this->fonts, &this->textbox);
     this->animations.init(&this->math);
+    this->textbox.init(&this->fonts);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::ranges::all_of(
@@ -167,11 +170,16 @@ int NNGN::loop(void) {
         return 1;
     this->entities.update(this->timing);
     this->animations.update(this->timing);
+    if(this->camera.flags & nngn::Camera::Flag::SCREEN_UPDATED)
+        this->textbox.set_screen_updated();
     if(this->camera.update(this->timing))
         this->graphics->set_camera_updated();
+    if(this->textbox.update(this->timing))
+        this->textbox.update_size(this->camera.screen);
     if(!this->renderers.update())
         return 1;
     this->entities.clear_flags();
+    this->textbox.clear_updated();
     if(!this->graphics->render() || !this->graphics->vsync())
         return 1;
     nngn::Profile::swap();
@@ -202,6 +210,7 @@ NNGN_LUA_PROXY(NNGN,
     "input", property([](const NNGN &nngn) { return &nngn.input.input; }),
     "mouse_input", property([](const NNGN &nngn) { return &nngn.input.mouse; }),
     "fonts", readonly(&NNGN::fonts),
+    "textbox", readonly(&NNGN::textbox),
     "camera", readonly(&NNGN::camera),
     "renderers", readonly(&NNGN::renderers),
     "animations", readonly(&NNGN::animations),

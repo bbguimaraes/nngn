@@ -1,6 +1,7 @@
 local camera = require "nngn.lib.camera"
 local nngn_math = require "nngn.lib.math"
 local player = require "nngn.lib.player"
+local textbox = require "nngn.lib.textbox"
 local timing = require "nngn.lib.timing"
 local utils = require "nngn.lib.utils"
 
@@ -48,6 +49,11 @@ register({
             nngn.timing:scale(), timing.scales(), 1,
             mods & Input.MOD_SHIFT == 0, nngn_math.float_eq))
     end},
+    {" ", 0, function(_, press)
+        if not press then textbox.set_speed_normal()
+        elseif not nngn.textbox:finished() then textbox.set_speed_fast()
+        else textbox.clear() end
+    end},
 }, input, paused_input)
 
 register({
@@ -75,6 +81,9 @@ register({
         else
             player.remove()
         end
+    end},
+    {"T", Input.SEL_PRESS, function()
+        textbox.update("test", "test")
     end},
     {Input.KEY_TAB, Input.SEL_PRESS, function(_, _, mods)
         if mods & Input.MOD_SHIFT == 0 then player.next(1)

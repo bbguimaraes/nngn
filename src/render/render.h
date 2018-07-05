@@ -17,6 +17,7 @@ namespace nngn {
 struct Graphics;
 class Fonts;
 class Textures;
+class Textbox;
 
 /**
  * Rendering subsystem.  Renders to the screen via the graphics subsystem.
@@ -37,7 +38,7 @@ public:
     };
     // Initialization
     /** Partially initializes this system.  \see set_graphics */
-    void init(Textures *t, const Fonts *f);
+    void init(Textures *t, const Fonts *f, const Textbox *tb);
     // Configuration
     auto debug(void) const { return this->m_debug.t; }
     bool perspective(void) const;
@@ -89,6 +90,7 @@ private:
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
     const Fonts *fonts = nullptr;
+    const Textbox *textbox = nullptr;
     std::vector<SpriteRenderer> sprites = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
@@ -99,7 +101,8 @@ private:
         voxel_vbo = {}, voxel_ebo = {},
         voxel_debug_vbo = {}, voxel_debug_ebo = {},
         box_vbo = {}, box_ebo = {},
-        text_vbo = {}, text_ebo = {};
+        text_vbo = {}, text_ebo = {},
+        textbox_vbo = {}, textbox_ebo = {};
 };
 
 inline bool Renderers::perspective(void) const {

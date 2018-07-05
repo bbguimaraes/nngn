@@ -41,5 +41,6 @@ dist_check_DATA += \
 	%reldir%/math.lua \
 	%reldir%/player.lua \
 	%reldir%/run.sh \
+	%reldir%/textbox.lua \
 	%reldir%/unit.lua \
 	%reldir%/utils.lua

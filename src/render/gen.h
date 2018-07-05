@@ -3,6 +3,7 @@
 
 #include "font/font.h"
 #include "font/text.h"
+#include "font/textbox.h"
 #include "graphics/graphics.h"
 
 #include "renderers.h"
@@ -36,8 +37,9 @@ struct Gen {
     static void voxel_debug(Vertex **p, VoxelRenderer *x);
     static void text(
         Vertex **p, u64 n,
-        const Font &font, const Text &txt, float left,
+        const Font &font, const Text &txt, bool mono, float left,
         vec2 *pos_p, u64 *i_p);
+    static void textbox(Vertex **p, const Textbox &x);
 };
 
 inline void Gen::quad_indices(u64 i_64, u64 n, u32 *p) {
@@ -222,7 +224,7 @@ inline void Gen::voxel_debug(Vertex **p, VoxelRenderer *x) {
 
 inline void Gen::text(
     Vertex **p, u64 n,
-    const Font &font, const Text &txt, float left,
+    const Font &font, const Text &txt, bool mono, float left,
     vec2 *pos_p, u64 *i_p
 ) {
     auto pos = *pos_p;
@@ -241,10 +243,17 @@ inline void Gen::text(
         Gen::quad_vertices(
             p, cpos, cpos + size, 0, static_cast<u32>(c),
             {0, size.y / font_size}, {size.x / font_size, 0});
-        pos.x += fc.advance;
+        pos.x += mono ? font_size : fc.advance;
     }
     *pos_p = pos;
     *i_p = static_cast<u64>(i);
+}
+
+inline void Gen::textbox(Vertex **p, const Textbox &x) {
+    constexpr vec3 title_color = {0, 0, 1};
+    constexpr vec3 box_color = {1, 1, 1};
+    Gen::quad_vertices(p, x.title_bl, x.title_tr, 0, title_color);
+    Gen::quad_vertices(p, x.str_bl, x.str_tr, 0, box_color);
 }
 
 }
