@@ -45,7 +45,7 @@ bool update_span(
         }, egen);
 }
 
-void update_sprites(nngn::Vertex **p, nngn::SpriteRenderer *x) {
+void update_sprites_ortho(nngn::Vertex **p, nngn::SpriteRenderer *x) {
     x->flags.clear(nngn::Renderer::Flag::UPDATED);
     const auto pos = x->pos.xy();
     const auto s = x->size / 2.0f;
@@ -54,18 +54,37 @@ void update_sprites(nngn::Vertex **p, nngn::SpriteRenderer *x) {
         x->tex, x->uv0, x->uv1);
 }
 
-void update_cubes(nngn::Vertex **p, nngn::CubeRenderer *x) {
+void update_sprites_persp(nngn::Vertex **p, nngn::SpriteRenderer *x) {
+    x->flags.clear(nngn::Renderer::Flag::UPDATED);
+    const auto s = x->size / 2.0f;
+    const nngn::vec2 bl = {x->pos.x - s.x, -s.y - x->z_off};
+    nngn::Renderers::gen_quad_verts_persp(
+        p, bl, {x->pos.x + s.x, bl.y + x->size.y},
+        x->pos.y + x->z_off, x->tex, x->uv0, x->uv1);
+}
+
+void update_cubes_ortho(nngn::Vertex **p, nngn::CubeRenderer *x) {
     x->flags.clear(nngn::Renderer::Flag::UPDATED);
     nngn::Renderers::gen_cube_verts(
         p, {x->pos.x, x->pos.y, x->pos.z - x->pos.y},
         nngn::vec3{x->size}, x->color);
 }
 
-void update_voxels(nngn::Vertex **p, nngn::VoxelRenderer *x) {
+void update_cubes_persp(nngn::Vertex **p, nngn::CubeRenderer *x) {
+    x->flags.clear(nngn::Renderer::Flag::UPDATED);
+    nngn::Renderers::gen_cube_verts(p, x->pos, nngn::vec3{x->size}, x->color);
+}
+
+void update_voxels_ortho(nngn::Vertex **p, nngn::VoxelRenderer *x) {
     x->flags.clear(nngn::Renderer::Flag::UPDATED);
     nngn::Renderers::gen_cube_verts(
         p, {x->pos.x, x->pos.y, x->pos.z - x->pos.y},
         x->size, x->tex, x->uv);
+}
+
+void update_voxels_persp(nngn::Vertex **p, nngn::VoxelRenderer *x) {
+    x->flags.clear(nngn::Renderer::Flag::UPDATED);
+    nngn::Renderers::gen_cube_verts(p, x->pos, x->size, x->tex, x->uv);
 }
 
 void update_boxes(nngn::Vertex **p, nngn::SpriteRenderer *x) {
@@ -139,6 +158,14 @@ void Renderers::set_debug(std::underlying_type_t<Debug> d) {
     this->m_debug = {d};
     if((old ^ this->m_debug) & Debug::RECT)
         this->flags |= Flag::RECT_UPDATED;
+}
+
+void Renderers::set_perspective(bool p) {
+    constexpr auto f =
+        Flag::SPRITES_UPDATED
+        | Flag::CUBES_UPDATED;
+    this->flags.set(Flag::PERSPECTIVE, p);
+    this->flags.set(f);
 }
 
 bool Renderers::set_graphics(Graphics *g) {
@@ -342,15 +369,21 @@ bool Renderers::update() {
         NNGN_LOG_CONTEXT("sprites");
         const auto vbo = this->sprite_vbo;
         const auto ebo = this->sprite_ebo;
-        return update_span<::update_sprites, update_indices<6>>(
-            this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
+        return this->flags.is_set(Flag::PERSPECTIVE)
+            ? update_span<::update_sprites_persp, update_indices<6>>(
+                this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6)
+            : update_span<::update_sprites_ortho, update_indices<6>>(
+                this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
     };
     const auto update_cubes = [this] {
         NNGN_LOG_CONTEXT("cube");
         const auto vbo = this->cube_vbo;
         const auto ebo = this->cube_ebo;
-        return update_span<::update_cubes, update_indices<6 * 6>>(
-            this->graphics, std::span{this->cubes}, vbo, ebo, 6 * 4, 6 * 6);
+        return this->flags.is_set(Flag::PERSPECTIVE)
+            ? update_span<::update_cubes_persp, update_indices<6 * 6>>(
+                this->graphics, std::span{this->cubes}, vbo, ebo, 6 * 4, 6 * 6)
+            : update_span<::update_cubes_ortho, update_indices<6 * 6>>(
+                this->graphics, std::span{this->cubes}, vbo, ebo, 6 * 4, 6 * 6);
     };
     const auto update_rect = [this] {
         NNGN_LOG_CONTEXT("rect");
@@ -368,9 +401,13 @@ bool Renderers::update() {
         NNGN_LOG_CONTEXT("voxel");
         const auto vbo = this->voxel_vbo;
         const auto ebo = this->voxel_ebo;
-        return update_span<::update_voxels, update_indices<6 * 6>>(
-            this->graphics, std::span{this->voxels},
-            vbo, ebo, 6 * 4, 6 * 6);
+        return this->flags.is_set(Flag::PERSPECTIVE)
+            ? update_span<::update_voxels_persp, update_indices<6 * 6>>(
+                this->graphics, std::span{this->voxels},
+                vbo, ebo, 6 * 4, 6 * 6)
+            : update_span<::update_voxels_ortho, update_indices<6 * 6>>(
+                this->graphics, std::span{this->voxels},
+                vbo, ebo, 6 * 4, 6 * 6);
     };
     const auto update_voxel_dbg = [this] {
         NNGN_LOG_CONTEXT("voxels debug");

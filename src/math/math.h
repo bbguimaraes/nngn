@@ -56,6 +56,10 @@ public:
     static constexpr vector_type<T> dot(const T &u, const T &v);
     template<typename T> static constexpr vec3_base<T> cross(
         const vec3_base<T> &u, const vec3_base<T> &v);
+    template<typename T> static constexpr T angle(
+        const vec2_base<T> &u, const vec2_base<T> &v);
+    template<typename T> static constexpr T angle(
+        const vec3_base<T> &u, const vec3_base<T> &v, const vec3_base<T> &n);
     template<typename T> static constexpr vec3_base<T> reflect(
         const vec3_base<T> &v, const vec3_base<T> &n);
     // Matrix
@@ -183,6 +187,18 @@ inline constexpr vec3_base<T> Math::cross(
         u.y * v.z - u.z * v.y,
         u.z * v.x - u.x * v.z,
         u.x * v.y - u.y * v.x};
+}
+
+template<typename T> inline constexpr T Math::angle(
+        const vec2_base<T> &u, const vec2_base<T> &v)
+    { return Math::angle(vec3_base<T>(u), vec3_base<T>(v), {0, 0, 1}); }
+
+template<typename T>
+inline constexpr T Math::angle(
+        const vec3_base<T> &u, const vec3_base<T> &v, const vec3_base<T> &n) {
+    const auto cross = Math::cross(u, v);
+    const auto ret = std::acos(Math::dot(u, v));
+    return Math::dot(cross, n) < 0 ? Math::tau<T>() - ret : ret;
 }
 
 template<typename T> inline constexpr vec3_base<T> Math::reflect(

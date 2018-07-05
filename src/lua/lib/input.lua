@@ -1,3 +1,5 @@
+local camera = require "nngn.lib.camera"
+local nngn_math = require "nngn.lib.math"
 local utils = require "nngn.lib.utils"
 
 local input = BindingGroup.new()
@@ -46,8 +48,52 @@ register({
 }, paused_input)
 
 register({
+    {"C", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+        if mods & Input.MOD_ALT == 0 then return camera.reset() end
+        local p = not nngn.camera:perspective()
+        nngn.camera:set_perspective(p)
+        nngn.renderers:set_perspective(p)
+    end},
     {"P", Input.SEL_PRESS, pause},
+    {Input.KEY_LEFT, 0, camera.move},
+    {Input.KEY_RIGHT, 0, camera.move},
+    {Input.KEY_DOWN, 0, camera.move},
+    {Input.KEY_UP, 0, camera.move},
+    {Input.KEY_PAGE_DOWN, 0, camera.move},
+    {Input.KEY_PAGE_UP, 0, camera.move},
 }, input)
+
+local function register_mouse()
+    local pressed_button
+    local pos = nngn_math.vec2()
+    nngn.mouse_input:register_button_callback(function(button, press)
+        if button ~= 1 then return end
+        local m
+        if press then
+            m = Graphics.CURSOR_MODE_DISABLED
+            pressed_button = button
+        else
+            m = Graphics.CURSOR_MODE_NORMAL
+            pressed_button = nil
+        end
+        nngn.graphics:set_cursor_mode(m)
+    end)
+    nngn.mouse_input:register_move_callback(function(x, y)
+        if pressed_button == 1 then
+            local r = nngn_math.vec3(nngn.camera:rot())
+            local r2 = nngn_math.vec2(0x1p-7) * (nngn_math.vec2(x, y) - pos)
+            r[1] = r[1] - r2[2]
+            r[3] = r[3] - r2[1]
+            nngn.camera:set_rot(table.unpack(r))
+        end
+        pos[1], pos[2] = x, y
+    end)
+end
+
+local function install()
+    resume()
+    register_mouse()
+end
 
 return {
     input = input,
@@ -56,5 +102,5 @@ return {
     resume = resume,
     press = press,
     release = release,
-    install = resume,
+    install = install,
 }
