@@ -21,6 +21,7 @@ namespace nngn {
 
 class Fonts;
 class Textures;
+class Textbox;
 
 class Renderers {
     enum Flag : u8 {
@@ -33,6 +34,7 @@ class Renderers {
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
     const Fonts *fonts = nullptr;
+    const Textbox *textbox = nullptr;
     Flags<Flag> flags = {};
     std::vector<SpriteRenderer> sprites = {};
     std::vector<CubeRenderer> cubes = {};
@@ -44,7 +46,8 @@ class Renderers {
         voxel_vbo = {}, voxel_ebo = {},
         voxel_debug_vbo = {}, voxel_debug_ebo = {},
         box_vbo = {}, box_ebo = {},
-        text_vbo = {}, text_ebo = {};
+        text_vbo = {}, text_ebo = {},
+        textbox_vbo = {}, textbox_ebo = {};
 public:
     enum Debug : u8 {
         RECT = 1u << 0, N_DEBUG = 1,
@@ -64,7 +67,7 @@ public:
     static void gen_cube_verts(
         Vertex **p, vec3 pos, vec3 size,
         u32 tex, const std::array<vec4, 6> &uv);
-    void init(Textures *t, const Fonts *f);
+    void init(Textures *t, const Fonts *f, const Textbox *tb);
     auto max_sprites() const { return this->sprites.capacity(); }
     auto max_cubes() const { return this->cubes.capacity(); }
     auto max_voxels() const { return this->voxels.capacity(); }
