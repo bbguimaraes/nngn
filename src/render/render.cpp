@@ -6,6 +6,7 @@
 
 #include "font/font.h"
 #include "font/text.h"
+#include "font/textbox.h"
 #include "graphics/texture.h"
 #include "timing/profile.h"
 #include "utils/literals.h"
@@ -94,9 +95,10 @@ bool update_with_state(
 
 namespace nngn {
 
-void Renderers::init(Textures *t, const Fonts *f) {
+void Renderers::init(Textures *t, const Fonts *f, const Textbox *tb) {
     this->textures = t;
     this->fonts = f;
+    this->textbox = tb;
 }
 
 std::size_t Renderers::n() const {
@@ -167,7 +169,8 @@ bool Renderers::set_graphics(Graphics *g) {
     constexpr u32
         TRIANGLE_MAX = 3,
         TRIANGLE_VBO_SIZE = TRIANGLE_MAX * sizeof(Vertex),
-        TRIANGLE_EBO_SIZE = TRIANGLE_MAX * sizeof(u32);
+        TRIANGLE_EBO_SIZE = TRIANGLE_MAX * sizeof(u32),
+        TEXTBOX_MAX = 1;
     using Pipeline = Graphics::PipelineConfiguration;
     using Stage = Graphics::RenderList::Stage;
     using BufferPair = std::pair<u32, u32>;
@@ -291,6 +294,16 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "text_ebo",
             .type = index,
         }))
+        && (this->textbox_vbo = g->create_buffer({
+            .name = "textbox_vbo",
+            .type = vertex,
+            .size = 2_z * 4_z * TEXTBOX_MAX * sizeof(Vertex),
+        }))
+        && (this->textbox_ebo = g->create_buffer({
+            .name = "textbox_ebo",
+            .type = index,
+            .size = 2_z * 6_z * TEXTBOX_MAX * sizeof(u32),
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -341,6 +354,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .buffers = std::to_array<BufferPair>({
                     {this->screen_sprite_debug_vbo,
                         this->screen_sprite_debug_ebo},
+                    {this->textbox_vbo, this->textbox_ebo},
                 }),
             }, {
                 .pipeline = font_pipeline,
@@ -484,14 +498,16 @@ bool Renderers::update_renderers(
     const auto update_text = [this] {
         NNGN_LOG_CONTEXT("text");
         const auto n_fonts = this->fonts->n();
-        if(n_fonts < 2)
+        if(!this->textbox->updated() || n_fonts < 2)
             return true;
         const auto vbo = this->text_vbo;
         const auto ebo = this->text_ebo;
-        constexpr std::string_view text = "test";
+        const auto n = this->textbox->text_length();
+        if(!n)
+            return this->graphics->set_buffer_size(ebo, 0);
         const auto render = [this, vbo, ebo](
             const auto &f, const auto &txt,
-            auto pos, auto *voff, auto *eoff, auto *ei
+            bool mono, auto pos, auto *voff, auto *eoff, auto *ei
         ) {
             if(!txt.cur)
                 return true;
@@ -505,7 +521,7 @@ bool Renderers::update_renderers(
                     std::exchange(*voff, *voff + vsize * txt.cur),
                     txt.cur, vsize,
                     rptr(std::tuple{
-                        std::ref(f), std::ref(txt), pos.x, &pos,
+                        std::ref(f), std::ref(txt), mono, pos.x, &pos,
                         rptr(u64{}),
                     }))
                 && write_to_buffer<update_quad_indices_base<6>, u32>(
@@ -516,15 +532,40 @@ bool Renderers::update_renderers(
         };
         const auto &f = this->fonts->fonts()[n_fonts - 1];
         u64 ei = {}, voff = {}, eoff = {};
-        return render(f, Text(f, text), vec2{}, &voff, &eoff, &ei)
+        return render(
+                f, this->textbox->title, this->textbox->monospaced(),
+                this->textbox->title_bl, &voff, &eoff, &ei)
+            && render(
+                f, this->textbox->str, this->textbox->monospaced(),
+                this->textbox->str_bl, &voff, &eoff, &ei)
             && this->graphics->set_buffer_size(vbo, voff)
             && this->graphics->set_buffer_size(ebo, eoff);
+    };
+    const auto update_textbox = [this] {
+        NNGN_LOG_CONTEXT("textbox");
+        if(!this->textbox->updated())
+            return true;
+        const auto vbo = this->textbox_vbo;
+        const auto ebo = this->textbox_ebo;
+        if(this->fonts->n() < 2 || this->textbox->str.str.empty())
+            return this->graphics->set_buffer_size(ebo, 0);
+        return this->graphics->update_buffers(
+            vbo, ebo, 0, 0,
+            1, 2_z * 4_z * sizeof(Vertex), 1, 2_z * 6_z * sizeof(u32),
+            const_cast<void*>(static_cast<const void*>(this->textbox)),
+            [](void *d, void *vp, auto...) {
+                auto *p = static_cast<Vertex*>(vp);
+                Gen::textbox(&p, *static_cast<const Textbox*>(d));
+            },
+            [](void *d, void *p, auto...) {
+                update_quad_indices<6>(d, p, 0, 2);
+            });
     };
     return (!sprites_updated || update_sprites())
         && (!screen_sprites_updated || update_screen_sprites())
         && (!cubes_updated || update_cubes())
         && (!voxels_updated || update_voxels())
-        && update_text();
+        && update_text() && update_textbox();
 }
 
 bool Renderers::update_debug(

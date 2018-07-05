@@ -4,6 +4,7 @@ local common = require "tests/lua/common"
 local input = require "nngn.lib.input"
 local math = require "nngn.lib.math"
 local player = require "nngn.lib.player"
+local textbox = require "nngn.lib.textbox"
 local timing = require "nngn.lib.timing"
 local utils = require "nngn.lib.utils"
 
@@ -122,6 +123,20 @@ local function test_input_v()
     nngn:timing():set_scale(scale)
 end
 
+local function test_input_space()
+    local key = string.byte(" ")
+    textbox.set("title", "text")
+    common.assert_eq(nngn:textbox():speed(), textbox.SPEED_NORMAL)
+    nngn:input():key_callback(key, Input.KEY_PRESS, 0)
+    common.assert_eq(nngn:textbox():speed(), textbox.SPEED_FAST)
+    nngn:input():key_callback(key, Input.KEY_RELEASE, 0)
+    common.assert_eq(nngn:textbox():speed(), textbox.SPEED_NORMAL)
+    nngn:textbox():set_cur(4)
+    nngn:input():key_callback(key, Input.KEY_PRESS, 0)
+    common.assert_eq(nngn:textbox():title(), "")
+    common.assert_eq(nngn:textbox():text(), "")
+end
+
 local opengl = nngn:set_graphics(
     Graphics.OPENGL_ES_BACKEND,
     Graphics.opengl_params{maj = 3, min = 1, hidden = true})
@@ -142,4 +157,5 @@ test_input_c_follow()
 test_input_p()
 test_input_p_tab()
 test_input_v()
+test_input_space()
 nngn:exit()

@@ -15,3 +15,4 @@ run tests/lua/entity.lua
 run tests/lua/camera.lua
 run tests/lua/player.lua
 run tests/lua/font.lua
+run tests/lua/textbox.lua

@@ -128,6 +128,8 @@ local FS = {
     },
     render = {
         bool("perspective", false, "nngn:renderers():set_perspective(%1)"),
+        bool("textbox monospaced", false, "nngn:textbox():set_monospaced(%1)"),
+        int("textbox speed", 0, 600, 16, "nngn:textbox():set_speed(%1)"),
     },
     graphics = {
         bool(
