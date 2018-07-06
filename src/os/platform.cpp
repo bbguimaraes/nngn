@@ -1,7 +1,11 @@
+#include "platform.h"
+
+#ifdef NNGN_PLATFORM_EMSCRIPTEN
+#include <emscripten.h>
+#else
 #include <csignal>
 #include <cstring>
-
-#include "platform.h"
+#endif
 
 #include "utils/log.h"
 
@@ -21,7 +25,7 @@ std::filesystem::path Platform::src_dir = {};
 bool Platform::init(int argc_, const char *const *argv_) {
     NNGN_LOG_CONTEXT_CF(Platform);
     init_common(argc_, argv_);
-#ifdef HAVE_SIGNAL
+#if defined(HAVE_SIGNAL) && !defined(NNGN_PLATFORM_EMSCRIPTEN)
     if constexpr(constexpr int s = Platform::sig_pipe; s != 0) {
         const auto ign = SIG_IGN, err = SIG_ERR;
         using sig_t = void(*)(int);
@@ -35,9 +39,19 @@ bool Platform::init(int argc_, const char *const *argv_) {
 }
 
 int Platform::loop(int (*loop)(void)) {
+#ifdef NNGN_PLATFORM_EMSCRIPTEN
+    struct FP { int (*p)(); } fp{loop};
+    emscripten_set_main_loop_arg(
+        [](void *p) {
+            if(static_cast<FP*>(p)->p() != -1)
+                emscripten_cancel_main_loop();
+        }, &fp, 0, 1);
+    return 0;
+#else
     int ret = {};
     while((ret = loop()) == -1);
     return ret;
+#endif
 }
 
 }

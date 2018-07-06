@@ -11,6 +11,11 @@ AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 
+# Main program name (native vs. WASM).
+NNGN_BIN=nngn${EXEEXT}
+case "$CXX" in *em++*) NNGN_BIN=${NNGN_BIN}.js;; esac
+AC_SUBST([NNGN_BIN])
+
 # Library support.
 AC_ARG_WITH([glfw],
   [AS_HELP_STRING([--with-glfw], [enable the GLFW graphics backend])],

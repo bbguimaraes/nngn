@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en-us">
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+        <title>nngn</title>
+        <style>
+body {
+    background-color: black;
+    color: #a0a0a0;
+}
+.emscripten {
+    background-color: black;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+}
+#error {
+    font-size: 16pt;
+    padding: 0.5em;
+    text-align: center;
+}
+        </style>
+    </head>
+    <body>
+        <canvas
+            id="canvas" class="emscripten"
+            oncontextmenu="event.preventDefault()"></canvas>
+        <div id="error"></div>
+        <script type="text/javascript">
+            if(canvas.getContext("webgl2") === null) {
+                canvas.style.display = "none";
+                error.innerHTML =
+                    "WebGL2 is required, check your browser configuration.";
+            } else {
+                let ok = true;
+                let argv = new URLSearchParams(window.location.search)
+                    .get("argv");
+                if(argv !== null)
+                    argv = argv.split();
+                var Module = {
+                    arguments: argv,
+                    canvas: canvas,
+                    printErr: x => { ok = false; return console.error(x); },
+                    postRun: _ => {
+                        if(!ok)
+                            return;
+                        error.innerHTML =
+                            "Error messages were emitted, check the console.";
+                    },
+                };
+                canvas.addEventListener(
+                    "keydown", e => { if(e.ctrlKey) e.preventDefault(); });
+                canvas.setAttribute("tabindex", "0");
+                canvas.focus();
+            }
+        </script>
+        <script async type="text/javascript" src="nngn.js"></script>
+    </body>
+</html>
