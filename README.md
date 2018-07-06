@@ -38,6 +38,7 @@ The following build environments are regularly tested and known to work:
 - Linux with GCC/Clang
 - [FreeBSD with GCC/Clang](#freebsd)
 - [Windows with `mingw`](#mingw)
+- [WebAssembly with `emscripten`](#emscripten)
 
 ### MinGW
 
@@ -46,6 +47,23 @@ Cross-compiling with `mingw` is supported with the usual `configure` arguments:
 ```sh
 ./configure --build=x86_64-pc-linux-gnu --host=x86_64-w64-mingw32 # …
 ```
+
+### Emscripten
+
+A WebAssembly application can be built using `emscripten`.  Follow the
+`autotools` process, prefixing `configure` with `emconfigure`.  `pkg-config`
+doesn't currently work with it, but the
+[scripts/emscripten/pkgconfig](./scripts/emscripten/pkgconfig) directory has
+dummy files that can be used:
+
+```sh
+EM_PKG_CONFIG_LIBDIR=scripts/emscripten/pkgconfig emconfigure ./configure #…
+make nngn.js
+```
+
+The following `configure` options are relevant when targeting WebAssembly:
+
+- `--disable-tests`
 
 ### Dependencies
 
