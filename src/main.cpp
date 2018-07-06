@@ -32,6 +32,7 @@
 #include "math/math.h"
 #include "os/platform.h"
 #include "os/socket.h"
+#include "render/render.h"
 #include "timing/fps.h"
 #include "timing/profile.h"
 #include "timing/schedule.h"
@@ -50,6 +51,7 @@ NNGN_LUA_DECLARE_USER_TYPE(nngn::Socket, "Socket")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::lua::state, "state")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Input, "Input")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::MouseInput, "MouseInput")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderers, "Renderers")
 
 namespace {
 
@@ -74,6 +76,7 @@ struct NNGN {
     nngn::lua::state lua = {};
     nngn::lua::alloc_info lua_alloc = {};
     Input input = {};
+    nngn::Renderers renderers = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(nngn::Graphics::Backend b, const void *params);
     int loop(void);
@@ -146,8 +149,9 @@ bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
         &this->input.mouse, [](void *p, nngn::dvec2 pos) {
             static_cast<nngn::MouseInput*>(p)->move_callback(pos);
         });
+    bool ret = this->renderers.set_graphics(g.get());
     this->graphics = std::move(g);
-    return true;
+    return ret;
 }
 
 int NNGN::loop(void) {
@@ -159,6 +163,7 @@ int NNGN::loop(void) {
     const bool ok = this->input.input.update()
         && this->schedule.update()
         && this->socket.process([&l = this->lua](auto s) { l.dostring(s); })
+        && this->renderers.update()
         && this->graphics->render()
         && this->graphics->vsync();
     if(!ok)
@@ -180,6 +185,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["lua"] = accessor<&NNGN::lua>;
     t["input"] = [](NNGN &nngn) { return &nngn.input.input; };
     t["mouse_input"] = [](NNGN &nngn) { return &nngn.input.mouse; };
+    t["renderers"] = accessor<&NNGN::renderers>;
     t["set_graphics"] = &NNGN::set_graphics;
     t["exit"] = &NNGN::exit;
     t["die"] = &NNGN::die;

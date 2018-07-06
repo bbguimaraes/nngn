@@ -2,14 +2,19 @@
 #define NNGN_UTILS_RANGES_H
 
 #include <algorithm>
+#include <cstring>
 #include <iterator>
 #include <numeric>
 #include <ranges>
+#include <span>
 #include <utility>
 
 #include "utils.h"
 
 namespace nngn {
+
+template<typename T>
+using const_iterator = decltype(std::ranges::cbegin(std::declval<T&>()));
 
 template<typename T>
 class owning_view {
@@ -82,6 +87,20 @@ consteval auto to_array(V &&v) {
     return ret;
 }
 
+constexpr bool contains(
+    const std::ranges::contiguous_range auto &r, const auto &x)
+{
+    return std::ranges::less_equal{}(&*std::ranges::cbegin(r), &x)
+        && std::ranges::less{}(&x, &*std::ranges::cend(r));
+}
+
+constexpr bool in_range(
+    const std::ranges::contiguous_range auto &r, const auto &x)
+{
+    return std::ranges::less_equal{}(&*std::ranges::cbegin(r), &x)
+        && std::ranges::less_equal{}(&x, &*std::ranges::cend(r));
+}
+
 template<std::ranges::forward_range R, typename Proj = std::identity>
 constexpr bool is_sequence(R &&r, Proj proj = {}) {
     return std::adjacent_find(
@@ -109,6 +128,13 @@ constexpr auto reduce(
         FWD(init), FWD(op));
 }
 
+void const_time_erase(auto *v, auto *p) {
+    assert(contains(*v, *p));
+    auto last = v->end() - 1;
+    *p = std::move(*last);
+    v->erase(last);
+}
+
 template<
     std::input_iterator I,
     std::output_iterator<std::iter_value_t<I>> O>
@@ -118,6 +144,20 @@ constexpr void fill_with_pattern(I f, I l, O df, O dl) {
             i = f;
         return *i++;
     });
+}
+
+template<typename T>
+constexpr T *memcpy(T *dst, std::ranges::contiguous_range auto &&r) {
+    const auto n = std::span{FWD(r)}.size_bytes();
+    std::memcpy(dst, std::data(FWD(r)), n);
+    return cast<char*>(dst) + n;
+}
+
+template<typename T>
+constexpr T *memmove(T *dst, std::ranges::contiguous_range auto &&r) {
+    const auto n = std::span{r}.size_bytes();
+    std::memmove(dst, std::data(FWD(r)), n);
+    return cast<char*>(dst) + n;
 }
 
 }

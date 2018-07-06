@@ -21,6 +21,7 @@ std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void*) {
 
 #include <algorithm>
 #include <array>
+#include <cassert>
 #include <cstdint>
 #include <limits>
 #include <ranges>
@@ -40,12 +41,15 @@ std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void*) {
 #include "device.h"
 #include "instance.h"
 #include "memory.h"
+#include "resource.h"
+#include "staging.h"
 #include "swapchain.h"
 #include "utils.h"
 
+using namespace std::string_literals;
 using namespace std::string_view_literals;
 
-using nngn::u8, nngn::u32;
+using nngn::u8, nngn::u32, nngn::u64;
 
 namespace {
 
@@ -89,12 +93,46 @@ private:
     std::array<std::pair<VkShaderModule, VkShaderModule>, N> v = {};
 };
 
+class Buffers {
+public:
+    using Type = nngn::Graphics::BufferConfiguration::Type;
+    struct Configuration {
+        std::string name = {};
+        Type type = {};
+    };
+    NNGN_MOVE_ONLY(Buffers)
+    Buffers(void) = default;
+    ~Buffers(void);
+    void init(VkDevice dev_, nngn::DeviceMemory *dev_mem_)
+        { this->dev = dev_; this->dev_mem = dev_mem_; }
+    nngn::Buffer &buffer(u32 b) { return this->buffers[b]; }
+    std::tuple<VkBuffer, VkDeviceSize> vbo(std::size_t i, u32 b);
+    std::tuple<VkBuffer, VkDeviceSize, VkDeviceSize> ebo(std::size_t i, u32 b);
+    u32 create(
+        const nngn::Instance &inst,
+        const nngn::Graphics::BufferConfiguration &conf);
+    bool resize(const nngn::Instance &inst, std::size_t n_frames);
+    bool set_capacity(const nngn::Instance &inst, u32 b, VkDeviceSize n);
+    void set_size(u32 b, u64 size);
+    void copy(
+        VkCommandBuffer cmd, u32 dst, VkBuffer src,
+        VkDeviceSize dst_off, VkDeviceSize src_off, VkDeviceSize n);
+private:
+    VkDevice dev = {};
+    nngn::DeviceMemory *dev_mem = {};
+    std::vector<nngn::Buffer> buffers = {{}};
+    std::vector<Configuration> conf = {{}};
+    std::size_t n_frames = {};
+};
+
 struct RenderList {
     struct Stage {
         NNGN_MOVE_ONLY(Stage)
         Stage(void) = default;
         ~Stage(void) = default;
+        explicit Stage(const nngn::Graphics::RenderList::Stage &s);
         VkPipeline pipeline = {};
+        std::vector<std::pair<u32, u32>> buffers = {};
         u32 conf = {};
     };
     std::vector<Stage> normal = {};
@@ -114,8 +152,12 @@ class VulkanBackend final : public nngn::GLFWBackend {
     nngn::SurfaceInfo m_surface_info = {};
     nngn::Instance instance = {};
     nngn::Device dev = {};
+    nngn::DeviceMemory dev_mem = {};
+    nngn::GraphicsStats m_stats = {};
     std::vector<VkFence> frame_fences = {};
     std::size_t n_swap_chain = {}, cur_frame = {}, n_frames = {};
+    nngn::StagingBuffer stg_buffer = {};
+    Buffers buffers = {};
     Shaders shaders = {};
     VkRenderPass render_pass = {};
     VkPipelineCache pipeline_cache = {};
@@ -124,13 +166,15 @@ class VulkanBackend final : public nngn::GLFWBackend {
     nngn::SwapChain swap_chain = {};
     std::vector<nngn::CommandPool> cmd_pools = {};
     std::vector<PipelineConfiguration> pipeline_conf = {{}};
-    RenderList render_list = {};
+    ::RenderList render_list = {};
     static void error_callback(void *p)
         { static_cast<VulkanBackend*>(p)->flags.set(Flag::ERROR); };
     static bool begin_cmd(VkCommandBuffer cmd);
     static bool submit(
         VkQueue queue, VkCommandBuffer cmd, VkPipelineStageFlags dst_mask = {},
         VkSemaphore wait = {}, VkSemaphore signal = {}, VkFence fence = {});
+    std::size_t last_frame() const
+        { return (this->cur_frame + this->n_frames - 1) % this->n_frames; }
     VkCommandBuffer cur_cmd_buffer() const;
     void resize(int, int) final { this->flags.set(Flag::RECREATE_SWAPCHAIN); }
     std::tuple<VkPhysicalDevice, u32, u32> choose_device(std::size_t i) const;
@@ -167,9 +211,18 @@ public:
     void heaps(std::size_t i, MemoryHeap *p) const final;
     void memory_types(std::size_t, std::size_t, MemoryType*) const final;
     bool error() final { return this->flags.is_set(Flag::ERROR); }
+    nngn::GraphicsStats stats() override;
     bool set_n_frames(std::size_t n) final;
     bool set_n_swap_chain_images(std::size_t n) final;
     void set_swap_interval(int i) final;
+    u32 create_pipeline(const PipelineConfiguration &conf) final;
+    u32 create_buffer(const BufferConfiguration &conf) final;
+    bool set_buffer_capacity(u32 b, u64 size) final;
+    bool set_buffer_size(u32, u64 size) final;
+    bool write_to_buffer(
+        u32 b, u64 offset, u64 n, u64 size,
+        void *data, void f(void*, void*, u64, u64)) final;
+    bool set_render_list(const RenderList &l) final;
     bool render() final;
     bool vsync() final;
 };
@@ -220,6 +273,91 @@ std::pair<VkShaderModule, VkShaderModule> Shaders::idx(
     nngn::Graphics::PipelineConfiguration::Type type
 ) {
     return this->v[static_cast<std::size_t>(type)];
+}
+
+Buffers::~Buffers() {
+    NNGN_LOG_CONTEXT_CF(Buffers);
+    if(!this->dev)
+        return;
+    for(auto &x : this->buffers)
+        x.destroy(this->dev, this->dev_mem);
+}
+
+std::tuple<VkBuffer, VkDeviceSize> Buffers::vbo(std::size_t i, u32 b) {
+    const auto ret = this->buffers[b];
+    return {ret.id(), i * ret.capacity() / this->n_frames};
+}
+
+std::tuple<VkBuffer, VkDeviceSize, VkDeviceSize>
+Buffers::ebo(std::size_t i, u32 b) {
+    const auto ret = this->buffers[b];
+    return {ret.id(), i * ret.capacity() / this->n_frames, ret.size()};
+}
+
+u32 Buffers::create(
+    const nngn::Instance &inst,
+    const nngn::Graphics::BufferConfiguration &c
+) {
+    const auto ret = static_cast<u32>(this->buffers.size());
+    this->conf.push_back({c.name ? c.name : std::string{}, c.type});
+    this->buffers.emplace_back();
+    if(c.size && !this->set_capacity(inst, ret, c.size))
+        return {};
+    return ret;
+}
+
+bool Buffers::resize(const nngn::Instance &inst, std::size_t n) {
+    NNGN_LOG_CONTEXT_CF(Buffers);
+    const auto old = std::exchange(this->n_frames, n);
+    for(std::size_t i = 0, vn = this->buffers.size(); i < vn; ++i) {
+        auto &x = this->buffers[i];
+        if(!x.id() || !x.capacity())
+            continue;
+        const auto size = x.capacity() / old;
+        x.destroy(this->dev, this->dev_mem);
+        if(!this->set_capacity(inst, static_cast<u32>(i), size))
+            return false;
+    }
+    return true;
+}
+
+bool Buffers::set_capacity(const nngn::Instance &inst, u32 i, VkDeviceSize n) {
+    NNGN_LOG_CONTEXT_CF(Buffers);
+    const auto &c = this->conf[i];
+    auto &b = this->buffers[i];
+    constexpr auto dst = VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+    return b.init<VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT>(
+            this->dev, this->dev_mem, n * this->n_frames,
+            c.type == Type::VERTEX
+                ? dst | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT
+                : dst | VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
+        && inst.set_obj_name(this->dev, b.id(), c.name);
+}
+
+void Buffers::set_size(u32 b, u64 size) {
+    if(this->buffers[b].size() != size)
+        this->buffers[b].set_size(size);
+}
+
+void Buffers::copy(
+    VkCommandBuffer cmd, u32 dst, VkBuffer src,
+    VkDeviceSize dst_off, VkDeviceSize src_off, VkDeviceSize n
+) {
+    NNGN_LOG_CONTEXT_CF(Buffers);
+    auto &dst_b = this->buffers[dst];
+    const auto off_inc = dst_b.capacity() / this->n_frames;
+    VkBufferCopy copy = {.srcOffset = src_off, .dstOffset = dst_off, .size = n};
+    for(std::size_t i = 0; i < this->n_frames; ++i, copy.dstOffset += off_inc)
+        vkCmdCopyBuffer(cmd, src, dst_b.id(), 1, &copy);
+}
+
+
+RenderList::Stage::Stage(const nngn::Graphics::RenderList::Stage &s) :
+    conf{s.pipeline}
+{
+    this->buffers.reserve(s.buffers.size());
+    for(const auto &x : s.buffers)
+        this->buffers.emplace_back(x);
 }
 
 VulkanBackend::VulkanBackend(const VulkanParameters &p) :
@@ -426,12 +564,18 @@ bool VulkanBackend::init_device(std::size_t i) {
             ret = {};
         return ret;
     }();
-    if(!this->dev.init(
+    bool ok = this->dev.init(
             this->instance, physical_dev, graphics_family, present_family,
-            DEVICE_EXTENSIONS, layers, {}))
+            DEVICE_EXTENSIONS, layers, {})
+        && this->dev_mem.init(
+            this->instance.id(), this->dev.physical_dev(), this->dev.id());
+    if(!ok)
         return false;
+    this->stg_buffer.init(
+        this->instance, this->dev.id(), &this->dev_mem, 1u << 20);
+    this->buffers.init(this->dev.id(), &this->dev_mem);
     this->shaders.init(&this->dev);
-    const bool ok = this->shaders.init(
+    ok = this->shaders.init(
             this->instance, PipelineConfiguration::Type::TRIANGLE,
             "src/glsl/vk/triangle.vert.spv"sv,
             "src/glsl/vk/triangle.frag.spv"sv,
@@ -521,7 +665,7 @@ bool VulkanBackend::recreate_swapchain() {
 }
 
 bool VulkanBackend::update_render_list() {
-    if(this->pipeline_conf.size() != 1)
+    if(this->pipelines.size() == this->pipeline_conf.size() - 1)
         return true;
     std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages = {{{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -532,9 +676,13 @@ bool VulkanBackend::update_render_list() {
         .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
         .pName = "main",
     }}};
-    constexpr VkPipelineVertexInputStateCreateInfo vertex_vinput = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
-    };
+    using V = nngn::Vertex;
+    constexpr auto bindings = std::to_array<VkVertexInputBindingDescription>({{
+        .binding = 0,
+        .stride = sizeof(V),
+        .inputRate = VK_VERTEX_INPUT_RATE_VERTEX}});
+    const auto vertex_vattrs = nngn::vk_vertex_attrs<V, &V::pos, &V::color>();
+    const auto vertex_vinput = nngn::vk_vertex_input(bindings, vertex_vattrs);
     constexpr VkPipelineInputAssemblyStateCreateInfo triangle_asm = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
@@ -601,10 +749,6 @@ bool VulkanBackend::update_render_list() {
         .subpass = 0,
         .basePipelineIndex = -1,
     };
-    this->pipeline_conf.emplace_back() = {
-        .name = "triangle_pipeline",
-        .type = PipelineConfiguration::Type::TRIANGLE,
-    };
     this->pipelines.resize(this->pipeline_conf.size() - 1);
     for(std::size_t i = 1, n = this->pipeline_conf.size(); i < n; ++i) {
         auto &pipeline = this->pipelines[i - 1];
@@ -633,7 +777,7 @@ bool VulkanBackend::update_render_list() {
 bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
     const auto i = this->cur_frame;
-    constexpr auto render = [](
+    const auto render = [this, i](
         auto b, const char *name,
         const VkViewport &viewport, VkRect2D scissors,
         const auto &l
@@ -643,6 +787,17 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
             vkCmdBindPipeline(b, VK_PIPELINE_BIND_POINT_GRAPHICS, x.pipeline);
             vkCmdSetViewport(b, 0, 1, &viewport);
             vkCmdSetScissor(b, 0, 1, &scissors);
+            for(auto &[vi, ei] : x.buffers) {
+                const auto &[ebo, eoff, esize] = this->buffers.ebo(i, ei);
+                if(!esize)
+                    continue;
+                const auto &[vbo, voff] = this->buffers.vbo(i, vi);
+                vkCmdBindVertexBuffers(
+                    b, 0, 1, nngn::rptr(vbo), nngn::rptr(voff));
+                vkCmdBindIndexBuffer(b, ebo, eoff, VK_INDEX_TYPE_UINT32);
+                vkCmdDrawIndexed(
+                    b, static_cast<u32>(esize / sizeof(u32)), 1, 0, 0, 0);
+            }
         }
     };
     const auto record_render_pass = [this, render, img_idx](
@@ -678,6 +833,70 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
     return LOG_RESULT(vkEndCommandBuffer, b);
 }
 
+u32 VulkanBackend::create_pipeline(const PipelineConfiguration &conf) {
+    const auto ret = static_cast<u32>(this->pipeline_conf.size());
+    this->pipeline_conf.emplace_back(conf);
+    return ret;
+}
+
+bool VulkanBackend::set_render_list(const RenderList &l) {
+    constexpr auto f = [](auto *dst, const auto &src) {
+        dst->reserve(src.size());
+        for(const auto &s : src)
+            dst->emplace_back(s);
+    };
+    f(&this->render_list.normal, l.normal);
+    return this->update_render_list();
+}
+
+u32 VulkanBackend::create_buffer(const BufferConfiguration &conf) {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    BufferConfiguration conf_ = conf;
+    if(!this->flags.is_set(Parameters::Flag::DEBUG))
+        conf_.name = nullptr;
+    return this->buffers.create(this->instance, conf_);
+}
+
+bool VulkanBackend::write_to_buffer(
+    u32 i, std::uint64_t dst_off,
+    std::uint64_t n, std::uint64_t size,
+    void *data, void f(void*, void*, std::uint64_t, std::uint64_t)
+) {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    const auto cmd = this->cur_cmd_buffer();
+    ++this->m_stats.buffers.n_writes;
+    this->m_stats.buffers.total_writes_bytes += n * size;
+    return this->stg_buffer.write(
+        this->cur_frame, n, size,
+        [this, i, dst_off, f, data, size, cmd](
+            VkBuffer src, void *p, auto src_off, auto iw, auto nw
+        ) mutable {
+            f(data, p, iw, nw);
+            const auto wsize = nw * size;
+            this->buffers.copy(
+                cmd, i, src, std::exchange(dst_off, dst_off + wsize), src_off,
+                wsize);
+            return true;
+        });
+}
+
+bool VulkanBackend::set_buffer_capacity(u32 b, u64 size) {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    return this->buffers.set_capacity(this->instance, b, size);
+}
+
+bool VulkanBackend::set_buffer_size(u32 b, u64 size) {
+    this->buffers.set_size(b, size);
+    return true;
+}
+
+nngn::GraphicsStats VulkanBackend::stats() {
+    // TODO ring buffer
+    auto ret = std::exchange(this->m_stats, {});
+    ret.staging = this->stg_buffer.stats(this->last_frame());
+    return ret;
+}
+
 bool VulkanBackend::set_n_frames(std::size_t n) {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
     if(!this->cmd_pools.empty()) {
@@ -710,7 +929,9 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
         return false;
     this->frame_fences.resize(this->n_frames);
     std::ranges::fill(this->frame_fences, VkFence{});
-    return this->update_render_list();
+    this->stg_buffer.resize(this->n_frames);
+    return this->buffers.resize(this->instance, this->n_frames)
+        && this->update_render_list();
 }
 
 bool VulkanBackend::set_n_swap_chain_images(std::size_t n) {
@@ -784,6 +1005,7 @@ bool VulkanBackend::vsync() {
     assert(f < this->frame_fences.size());
     if(const auto fence = std::exchange(this->frame_fences[f], {}))
         vkWaitForFences(this->dev.id(), 1, &fence, VK_TRUE, UINT64_MAX);
+    this->stg_buffer.destroy(f);
     auto &pool = this->cmd_pools[f];
     pool.reset();
     return VulkanBackend::begin_cmd(pool.buffers()[0]);

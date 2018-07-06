@@ -25,6 +25,11 @@ local function float(title, min, max, init, div, text)
 end
 
 local FS = {
+    limits = {
+        int(
+            "sprites", 8, 65536, 65536,
+            "nngn:renderers():set_max_sprites(%1)"),
+    },
     graphics = {
         bool(
             "cursor", true,
@@ -34,6 +39,7 @@ local FS = {
         int(
             "swap_interval", 0, 32, 1,
             "nngn:graphics():set_swap_interval(%1)"),
+        int("swap chain length", 1, 16, 4, "nngn:graphics():set_n_frames(%1)"),
     },
 }
 

@@ -230,6 +230,23 @@ auto memory_types(
             nngn::narrow<std::size_t>(ih));
 }
 
+auto stats(Graphics *g, nngn::lua::state_view lua) {
+    constexpr auto cast = [](auto x) { return nngn::narrow<lua_Integer>(x); };
+    const auto s = g->stats();
+    auto ret = lua.create_table(0, 2);
+    ret["staging"] = nngn::lua::table_map(lua,
+        "req_n_allocations", cast(s.staging.req.n_allocations),
+        "req_total_memory", cast(s.staging.req.total_memory),
+        "n_allocations", cast(s.staging.n_allocations),
+        "n_reused", cast(s.staging.n_reused),
+        "n_free", cast(s.staging.n_free),
+        "total_memory", cast(s.staging.total_memory));
+    ret["buffers"] = nngn::lua::table_map(lua,
+        "n_writes", cast(s.buffers.n_writes),
+        "total_writes_bytes", cast(s.buffers.total_writes_bytes));
+    return ret.release();
+}
+
 void set_n_frames(Graphics &g, lua_Integer n) {
     g.set_n_frames(nngn::narrow<std::size_t>(n));
 }
@@ -269,6 +286,7 @@ void register_graphics(nngn::lua::table_view t) {
     t["memory_types"] = memory_types;
     t["error"] = &Graphics::error;
     t["swap_interval"] = &Graphics::swap_interval;
+    t["stats"] = stats;
     t["set_n_frames"] = set_n_frames;
     t["set_n_swap_chain_images"] = set_n_swap_chain_images;
     t["set_swap_interval"] = &Graphics::set_swap_interval;

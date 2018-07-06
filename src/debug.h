@@ -6,6 +6,7 @@
 #include <utility>
 #include <vector>
 
+#include "graphics/graphics.h"
 #include "math/mat3.h"
 #include "math/mat4.h"
 
@@ -43,9 +44,12 @@ ostream &operator<<(ostream &o, const vector<T, A> &v) {
 
 namespace nngn {
 
+struct Vertex;
+
 template<template<typename> typename V, typename T, std::size_t N>
 std::ostream &operator <<(std::ostream &os, const vec<V, T, N> &v);
 std::ostream &operator <<(std::ostream &os, const mat4 &m);
+std::ostream &operator <<(std::ostream &os, const Vertex &v);
 
 template<template<typename> typename V, typename T, std::size_t N>
 inline std::ostream &operator <<(std::ostream &os, const vec<V, T, N> &v) {
@@ -65,6 +69,10 @@ inline std::ostream &operator <<(std::ostream &os, const mat4 &m) {
         << m[0] << ", " << m[1] << ", "
         << m[2] << ", " << m[3]
         << "}";
+}
+
+inline std::ostream &operator <<(std::ostream &os, const Vertex &v) {
+    return os << "{" << v.pos << ", " << v.color << "}";
 }
 
 }

@@ -4,6 +4,8 @@ noinst_HEADERS += \
 	%reldir%/handle.h \
 	%reldir%/instance.h \
 	%reldir%/memory.h \
+	%reldir%/resource.h \
+	%reldir%/staging.h \
 	%reldir%/swapchain.h \
 	%reldir%/utils.h \
 	%reldir%/types.h \
@@ -13,6 +15,8 @@ nngn_SOURCES += \
 	%reldir%/device.cpp \
 	%reldir%/instance.cpp \
 	%reldir%/memory.cpp \
+	%reldir%/resource.cpp \
+	%reldir%/staging.cpp \
 	%reldir%/swapchain.cpp \
 	%reldir%/utils.cpp \
 	%reldir%/types.cpp \

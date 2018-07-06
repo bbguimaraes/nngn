@@ -26,6 +26,18 @@ do
     local p = require("nngn.lib.plot")
     p.plot(p.FS.lua)
 end)"sv;
+constexpr auto PLOT_RENDER = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.plot")
+    p.plot(p.FS.render)
+end)"sv;
+constexpr auto PLOT_GRAPHICS = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.plot")
+    p.plot(p.FS.graphics)
+end)"sv;
 constexpr auto TIMELINE_PROF = R"(
 do
     require("nngn.lib.tools").add_to_path()
@@ -41,6 +53,12 @@ do
     if not p.active(Profile) then p.activate(Profile) end
     local t = require("nngn.lib.timeline")
     t.timeline(t.FS.lua)
+end)"sv;
+constexpr auto CONFIGURE_LIMITS = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.configure")
+    p.configure(p.FS.limits)
 end)"sv;
 constexpr auto CONFIGURE_GRAPHICS = R"(
 do
@@ -105,8 +123,11 @@ int main(int argc, char **argv) {
     };
     add(plot_section, "fps", PLOT_FPS);
     add(plot_section, "lua", PLOT_LUA);
+    add(plot_section, "render", PLOT_RENDER);
+    add(plot_section, "graphics", PLOT_GRAPHICS);
     add(timeline_section, "prof", TIMELINE_PROF);
     add(timeline_section, "lua", TIMELINE_LUA);
+    add(configure_section, "limits", CONFIGURE_LIMITS);
     add(configure_section, "graphics", CONFIGURE_GRAPHICS);
     QObject::connect(
         &launcher.socket(), &QLocalSocket::errorOccurred,

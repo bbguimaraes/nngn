@@ -1,3 +1,4 @@
+#include <cassert>
 #include <chrono>
 #include <thread>
 #include <vector>
@@ -9,6 +10,15 @@
 
 namespace nngn {
 
+bool Pseudograph::write_to_buffer(
+    u32, u64, u64 n, u64 size,
+    void *data, void f(void*, void*, u64, u64)
+) {
+    assert(n * size < SIZE_MAX);
+    const auto vsize = static_cast<std::size_t>(n * size);
+    f(data, std::vector<std::byte>(vsize).data(), 0, n);
+    return true;
+}
 
 bool Pseudograph::vsync() {
     constexpr auto t = std::chrono::milliseconds(1000) / 60.0f;
