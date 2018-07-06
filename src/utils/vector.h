@@ -2,9 +2,11 @@
 #define NNGN_UTILS_VECTOR_H
 
 #include <algorithm>
+#include <cstring>
 #include <iterator>
 #include <numeric>
 #include <ranges>
+#include <span>
 #include <utility>
 
 namespace nngn {
@@ -66,6 +68,13 @@ void fill_with_pattern(I f, I l, O df, O dl) {
             i = f;
         return *i++;
     });
+}
+
+constexpr void memcpy(void *dst, std::ranges::contiguous_range auto &&r) {
+    // TODO https://bugs.llvm.org/show_bug.cgi?id=39663
+    //std::memcpy(dst, data(r), std::span{r}.size_bytes());
+    auto s = std::span{r};
+    std::memcpy(dst, data(r), s.size_bytes());
 }
 
 }

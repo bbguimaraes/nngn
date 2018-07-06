@@ -6,6 +6,7 @@
 #include <cstring>
 #include <string>
 #include <string_view>
+#include <type_traits>
 
 #include "concepts.h"
 
@@ -49,12 +50,38 @@ constexpr decltype(auto) cast(U &&x) {
         return reinterpret_cast<T>(FWD(x));
 }
 
+template<typename T>
+requires std::is_enum_v<T>
+inline constexpr auto to_underlying_type(T t)
+    { return static_cast<std::underlying_type_t<T>>(t); }
+
+/** Similar to the stdlib's \c offsetof, but using member data pointers. */
+template<typename T>
+std::size_t offsetof_ptr(auto T::*p) {
+    T t = {};
+    return static_cast<std::size_t>(
+        static_cast<const char*>(static_cast<const void*>(&(t.*p)))
+            - static_cast<const char*>(static_cast<const void*>(&t)));
+}
+
 inline constexpr bool str_less(const char *lhs, const char *rhs) {
     if(!std::is_constant_evaluated())
         return std::strcmp(lhs, rhs) < 0;
     while(*lhs && *rhs && *lhs == *rhs)
         ++lhs, ++rhs;
     return *rhs && (!*lhs || *lhs < *rhs);
+}
+
+template<typename To, typename From>
+requires (
+    sizeof(To) == sizeof(From)
+    && std::is_trivially_copyable_v<To>
+    && std::is_trivially_copyable_v<From>)
+constexpr auto bit_cast(const From &from) {
+    static_assert(std::is_trivially_constructible_v<To>);
+    To ret = {};
+    std::memcpy(&ret, &from, sizeof(To));
+    return ret;
 }
 
 template<typename T>

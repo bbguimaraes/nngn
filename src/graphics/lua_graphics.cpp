@@ -211,6 +211,22 @@ auto memory_types(
         &Graphics::memory_types>(sol, g, i, ih);
 }
 
+auto stats(sol::this_state sol_, Graphics *g) {
+    const auto s = g->stats();
+    sol::state_view sol{sol_};
+    return sol.create_table_with(
+        "staging", sol.create_table_with(
+            "req_n_allocations", s.staging.req.n_allocations,
+            "req_total_memory", s.staging.req.total_memory,
+            "n_allocations", s.staging.n_allocations,
+            "n_reused", s.staging.n_reused,
+            "n_free", s.staging.n_free,
+            "total_memory", s.staging.total_memory),
+        "buffers", sol.create_table_with(
+            "n_writes", s.buffers.n_writes,
+            "total_writes_bytes", s.buffers.total_writes_bytes));
+}
+
 }
 
 NNGN_LUA_PROXY(Graphics,
@@ -245,5 +261,7 @@ NNGN_LUA_PROXY(Graphics,
     "memory_types", memory_types,
     "error", &Graphics::error,
     "swap_interval", &Graphics::swap_interval,
+    "stats", stats,
+    "set_n_frames", &Graphics::set_n_frames,
     "set_swap_interval", &Graphics::set_swap_interval,
     "set_cursor_mode", &Graphics::set_cursor_mode)

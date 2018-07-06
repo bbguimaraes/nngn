@@ -20,7 +20,13 @@ template<> std::unique_ptr<Graphics> graphics_create_backend
 
 #else
 
+#include <algorithm>
+#include <array>
 #include <cstring>
+#include <list>
+#include <string>
+#include <string_view>
+#include <vector>
 
 #ifdef NNGN_PLATFORM_EMSCRIPTEN
 #define GLFW_INCLUDE_ES3
@@ -29,21 +35,115 @@ template<> std::unique_ptr<Graphics> graphics_create_backend
 #endif
 #include <GLFW/glfw3.h>
 
+#include "graphics/shaders.h"
 #include "timing/profile.h"
 #include "utils/flags.h"
 
 #include "glfw.h"
 
-using nngn::u8, nngn::u32;
+using namespace std::string_literals;
+using namespace std::string_view_literals;
+
+using nngn::u8, nngn::i32, nngn::u32, nngn::u64;
 
 namespace {
 
+#ifdef GL_VERSION_4_3
+constexpr GLenum NNGN_GL_BUFFER = GL_BUFFER;
+constexpr GLenum NNGN_GL_PROGRAM = GL_PROGRAM;
+constexpr GLenum NNGN_GL_SHADER = GL_SHADER;
+constexpr GLenum NNGN_GL_VERTEX_ARRAY = GL_VERTEX_ARRAY;
+#else
+constexpr GLenum NNGN_GL_BUFFER = 0;
+constexpr GLenum NNGN_GL_PROGRAM = 0;
+constexpr GLenum NNGN_GL_SHADER = 0;
+constexpr GLenum NNGN_GL_VERTEX_ARRAY = 0;
+#endif
+
+constexpr auto N_PROGRAMS =
+    static_cast<std::size_t>(nngn::Graphics::PipelineConfiguration::Type::MAX);
+
+template<typename T> class OpenGLHandle {
+    u32 m_h = 0;
+public:
+    constexpr OpenGLHandle() = default;
+    explicit constexpr OpenGLHandle(u32 h) noexcept : m_h(h) {}
+    OpenGLHandle(const OpenGLHandle&) = delete;
+    OpenGLHandle(OpenGLHandle &&lhs) noexcept
+        { this->m_h = std::exchange(lhs.m_h, {}); }
+    OpenGLHandle &operator=(const OpenGLHandle&) = delete;
+    OpenGLHandle &operator=(OpenGLHandle &&lhs) noexcept
+        { this->m_h = std::exchange(lhs.m_h, {}); }
+    ~OpenGLHandle() { static_cast<T*>(this)->destroy(); }
+    u32 id() const { return this->m_h; }
+    u32 &id() { return this->m_h; }
+};
+
+struct GLShader final : OpenGLHandle<GLShader> {
+    bool create(
+        GLenum type, std::string_view name, std::span<const std::uint8_t> src);
+    bool destroy();
+};
+
+struct GLBuffer final : OpenGLHandle<GLBuffer> {
+    GLenum target = {}, usage = {};
+    GLsizeiptr size = 0, capacity = 0;
+    bool create(GLenum target, u64 size, GLenum usage);
+    bool create(const nngn::Graphics::BufferConfiguration &conf);
+    bool set_capacity(u64 n);
+    bool destroy();
+};
+
+struct GLProgram : OpenGLHandle<GLProgram> {
+    bool create(u32 vert, u32 frag);
+    bool destroy();
+};
+
+struct VAO final : OpenGLHandle<VAO> {
+    struct Attrib { std::string_view name; GLsizei size; };
+    u32 vbo = {}, ebo = {};
+    bool create(u32 vbo, u32 ebo);
+    bool destroy();
+    bool vertex_attrib_pointers(
+        const GLProgram &prog, std::size_t n, const Attrib *p);
+};
+
+struct Pipeline {
+    nngn::Graphics::PipelineConfiguration conf = {};
+};
+
+struct RenderList {
+    struct Stage {
+        struct Buffer {
+            u32 vbo = {}, ebo = {};
+            VAO vao = {};
+        };
+        explicit Stage(const nngn::Graphics::RenderList::Stage &s);
+        u32 pipeline = {};
+        std::vector<Buffer> buffers = {};
+    };
+    std::vector<Stage> normal = {};
+};
+
 class OpenGLBackend final : public nngn::GLFWBackend {
     enum Flag : u8 {
-        ES = 1u << 0, CALLBACK_ERROR = 1u << 1,
+        ES = 1u << 0, CALLBACK_ERROR = 1u << 1, RESIZED = 1u << 2,
     };
     nngn::Flags<Flag> flags = {};
     int maj = 0, min = 0;
+    std::list<GLBuffer> stg_buffers = {};
+    std::vector<GLBuffer> buffers = std::vector<GLBuffer>(1);
+    std::vector<Pipeline> pipelines = {{}};
+    std::array<GLProgram, N_PROGRAMS> programs = {};
+    ::RenderList render_list = {};
+    void resize(int, int) final { this->flags |= Flag::RESIZED; }
+    static bool set_obj_name(GLenum type, GLuint obj, std::string_view name);
+    static bool create_prog(
+        std::string_view vs_name, std::string_view fs_name,
+        std::span<const std::uint8_t> vs, std::span<const std::uint8_t> fs,
+        GLProgram *prog);
+    bool create_vao(
+        u32 vbo, u32 ebo, PipelineConfiguration::Type type, VAO *vao);
 public:
     OpenGLBackend(const OpenGLParameters &params, bool es);
     Version version() const final;
@@ -71,7 +171,16 @@ public:
     void heaps(std::size_t, MemoryHeap*) const final {}
     void memory_types(std::size_t, std::size_t, MemoryType*) const final {}
     bool error() final { return this->flags.is_set(Flag::CALLBACK_ERROR); }
+    nngn::GraphicsStats stats() override { return {}; }
     bool set_n_frames(std::size_t) override { return true; }
+    u32 create_pipeline(const PipelineConfiguration &conf) final;
+    u32 create_buffer(const BufferConfiguration &conf) final;
+    bool set_buffer_capacity(u32 b, u64 size) final;
+    void set_buffer_size(u32 b, u64 size) final;
+    bool write_to_buffer(
+        u32 b, u64 offset, u64 n, u64 size,
+        void *data, void f(void*, void*, u64, u64)) final;
+    bool set_render_list(const RenderList&) final;
     bool render() final;
     bool vsync() final;
 };
@@ -132,6 +241,172 @@ OpenGLBackend::OpenGLBackend(const OpenGLParameters &p, bool es)
     : GLFWBackend(p), maj(p.maj), min(p.min)
     { if(es) flags.set(Flag::ES); }
 
+bool GLShader::create(
+    GLenum type, std::string_view name, std::span<const std::uint8_t> src
+) {
+    NNGN_LOG_CONTEXT_CF(GLShader);
+    NNGN_LOG_CONTEXT(name.data());
+    if(!(this->id() = glCreateShader(type))) {
+        check_result("glCreateShader");
+        return false;
+    }
+    const auto *const data_p = static_cast<const GLchar*>(
+        static_cast<const void*>(src.data()));
+    const auto size_p = static_cast<GLint>(src.size());
+    CHECK_RESULT(glShaderSource, this->id(), 1, &data_p, &size_p);
+    CHECK_RESULT(glCompileShader, this->id());
+    i32 status = {};
+    CHECK_RESULT(glGetShaderiv, this->id(), GL_COMPILE_STATUS, &status);
+    if(!status) {
+        i32 size = {};
+        CHECK_RESULT(glGetShaderiv, this->id(), GL_INFO_LOG_LENGTH, &size);
+        std::vector<char> log(static_cast<size_t>(size));
+        CHECK_RESULT(glGetShaderInfoLog,
+            this->id(), size, nullptr, log.data());
+        nngn::Log::l() << "glCompileShader:\n" << log.data();
+        return false;
+    }
+    return true;
+}
+
+bool GLShader::destroy() {
+    NNGN_LOG_CONTEXT_CF(GLShader);
+    if(this->id())
+        CHECK_RESULT(glDeleteShader, this->id());
+    return true;
+}
+
+bool GLProgram::create(u32 vert, u32 frag) {
+    NNGN_LOG_CONTEXT_CF(GLProgram);
+    if(!(this->id() = glCreateProgram())) {
+        check_result("glCreateProgram");
+        return false;
+    }
+    CHECK_RESULT(glAttachShader, this->id(), vert);
+    CHECK_RESULT(glAttachShader, this->id(), frag);
+    CHECK_RESULT(glLinkProgram, this->id());
+    i32 status = {};
+    CHECK_RESULT(glGetProgramiv, this->id(), GL_LINK_STATUS, &status);
+    if(!status) {
+        i32 size = {};
+        CHECK_RESULT(glGetProgramiv, this->id(), GL_INFO_LOG_LENGTH, &size);
+        std::vector<char> log(static_cast<size_t>(size));
+        CHECK_RESULT(glGetProgramInfoLog,
+            this->id(), size, nullptr, log.data());
+        nngn::Log::l() << "glLinkProgram:\n" << log.data();
+        return false;
+    }
+    return true;
+}
+
+bool GLProgram::destroy() {
+    if(this->id())
+        CHECK_RESULT(glDeleteProgram, this->id());
+    return true;
+}
+
+bool VAO::create(u32 vbo_, u32 ebo_) {
+    NNGN_LOG_CONTEXT_CF(VAO);
+    CHECK_RESULT(glGenVertexArrays, 1, &this->id());
+    this->vbo = vbo_;
+    this->ebo = ebo_;
+    return true;
+}
+
+bool VAO::destroy() {
+    NNGN_LOG_CONTEXT_CF(VAO);
+    if(this->id())
+        CHECK_RESULT(glDeleteVertexArrays, 1, &this->id());
+    return true;
+}
+
+bool VAO::vertex_attrib_pointers(
+    const GLProgram &prog, size_t n, const Attrib *p
+) {
+    NNGN_LOG_CONTEXT_CF(VAO);
+    GLsizei stride = 0;
+    for(size_t i = 0; i < n; ++i)
+        stride += p[i].size;
+    CHECK_RESULT(glBindVertexArray, this->id());
+    CHECK_RESULT(glBindBuffer, GL_ARRAY_BUFFER, this->vbo);
+    CHECK_RESULT(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, this->ebo);
+    GLsizei offset = 0;
+    for(size_t i = 0; i < n; ++i) {
+        const auto &a = p[i];
+        GLint l = -1;
+        if(!a.name.empty()) {
+            if((l = glGetAttribLocation(prog.id(), a.name.data())) == -1) {
+                check_result("glGetAttribLocation");
+                nngn::Log::l() << "glGetAttribLocation: " << a.name << ": -1\n";
+                return false;
+            }
+            const auto ul = static_cast<GLuint>(l);
+            constexpr auto si = static_cast<GLsizei>(sizeof(float));
+            CHECK_RESULT(glVertexAttribPointer,
+                ul, a.size, GL_FLOAT, GL_FALSE,
+                stride * si, reinterpret_cast<void*>(offset * si));
+            CHECK_RESULT(glEnableVertexAttribArray, ul);
+        }
+        offset += a.size;
+    }
+    return true;
+}
+
+bool GLBuffer::create(GLenum target_, u64 size_, GLenum usage_) {
+    NNGN_LOG_CONTEXT_CF(GLBuffer);
+    CHECK_RESULT(glGenBuffers, 1, &this->id());
+    CHECK_RESULT(glBindBuffer, target_, this->id());
+    const auto cap = static_cast<GLsizeiptr>(size_);
+    this->target = target_;
+    this->capacity = cap;
+    this->usage = usage_;
+    return !size_ || this->set_capacity(size_);
+}
+
+bool GLBuffer::set_capacity(u64 n) {
+    NNGN_LOG_CONTEXT_CF(GLBuffer);
+    assert(this->id());
+    const auto cap = static_cast<GLsizeiptr>(n);
+    CHECK_RESULT(glBindBuffer, this->target, this->id());
+    CHECK_RESULT(glBufferData, this->target, cap, nullptr, this->usage);
+    this->capacity = cap;
+    return true;
+}
+
+bool GLBuffer::create(const nngn::Graphics::BufferConfiguration &conf) {
+    return this->create(
+        conf.type == nngn::Graphics::BufferConfiguration::Type::VERTEX
+            ? GL_ARRAY_BUFFER : GL_ELEMENT_ARRAY_BUFFER,
+        conf.size,
+        GL_DYNAMIC_DRAW);
+}
+
+bool GLBuffer::destroy() {
+    NNGN_LOG_CONTEXT_CF(GLBuffer);
+    if(this->id())
+        CHECK_RESULT(glDeleteBuffers, 1, &this->id());
+    return true;
+}
+
+RenderList::Stage::Stage(const nngn::Graphics::RenderList::Stage &s) {
+    this->pipeline = s.pipeline;
+    this->buffers.reserve(s.buffers.size());
+    for(const auto &x : s.buffers)
+        this->buffers.push_back({x.first, x.second, VAO{}});
+}
+
+#ifdef GL_VERSION_4_3
+bool OpenGLBackend::set_obj_name(
+        GLenum type, GLuint obj, std::string_view name) {
+    CHECK_RESULT(glObjectLabel,
+        type, obj, static_cast<GLsizei>(name.size()), name.data());
+    return true;
+}
+#else
+bool OpenGLBackend::set_obj_name(GLenum, GLuint, std::string_view)
+    { return true; }
+#endif
+
 auto OpenGLBackend::version() const -> Version {
     int mj = 0, mn = 0;
     if([&mj, &mn]() {
@@ -191,6 +466,18 @@ bool OpenGLBackend::init_instance() {
     }
 #endif
     CHECK_RESULT(glClearColor, 0, 0, 0, 0);
+    CHECK_RESULT(glEnable, GL_CULL_FACE);
+#define P(x) static_cast<std::size_t>(PipelineConfiguration::Type::x)
+    GLProgram
+        &triangle_prog = this->programs[P(TRIANGLE)];
+#undef P
+    if(!OpenGLBackend::create_prog(
+            "src/glsl/gl/triangle.vert"sv,
+            "src/glsl/gl/triangle.frag"sv,
+            nngn::GLSL_GL_TRIANGLE_VERT,
+            nngn::GLSL_GL_TRIANGLE_FRAG,
+            &triangle_prog))
+        return false;
     if(!this->params.flags.is_set(Parameters::Flag::HIDDEN))
         glfwShowWindow(this->w);
     return true;
@@ -220,11 +507,165 @@ void OpenGLBackend::device_infos(DeviceInfo *p) const {
     std::strncpy(p->name.data(), name, size);
 }
 
+bool OpenGLBackend::create_prog(
+    std::string_view vs_name, std::string_view fs_name,
+    std::span<const std::uint8_t> vs, std::span<const std::uint8_t> fs,
+    GLProgram *prog
+) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    NNGN_LOG_CONTEXT(vs_name.data());
+    NNGN_LOG_CONTEXT(fs_name.data());
+    GLShader v, f;
+    return v.create(GL_VERTEX_SHADER, vs_name, vs)
+        && OpenGLBackend::set_obj_name(NNGN_GL_SHADER, v.id(), vs_name)
+        && f.create(GL_FRAGMENT_SHADER, fs_name, fs)
+        && OpenGLBackend::set_obj_name(NNGN_GL_SHADER, f.id(), fs_name)
+        && prog->create(v.id(), f.id())
+        && OpenGLBackend::set_obj_name(
+            NNGN_GL_PROGRAM, prog->id(),
+            vs_name.data() + "+"s + fs_name.data());
+}
+
+u32 OpenGLBackend::create_pipeline(const PipelineConfiguration &conf) {
+    const auto ret = static_cast<u32>(this->pipelines.size());
+    this->pipelines.push_back({conf});
+    return ret;
+}
+
+bool OpenGLBackend::set_render_list(const RenderList &l) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    constexpr auto f = [](auto *dst, const auto &src) {
+        dst->reserve(src.size());
+        for(const auto &s : src)
+            dst->emplace_back(s);
+    };
+    f(&this->render_list.normal, l.normal);
+    return true;
+}
+
+u32 OpenGLBackend::create_buffer(const BufferConfiguration &conf) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    const auto ret = static_cast<u32>(this->buffers.size());
+    const char *name = this->flags.is_set(Parameters::Flag::DEBUG)
+        ? conf.name : nullptr;
+    auto &b = this->buffers.emplace_back();
+    return (
+        b.create(conf) && (!name || this->set_obj_name(GL_BUFFER, b.id(), name))
+    ) ? ret : u32{};
+}
+
+bool OpenGLBackend::write_to_buffer(
+    u32 i, u64 offset, u64 n, u64 size,
+    void *data, void f(void*, void*, u64, u64)
+) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    constexpr auto access = GL_MAP_WRITE_BIT
+        | (nngn::Platform::emscripten * GL_MAP_INVALIDATE_BUFFER_BIT);
+    assert(i);
+    assert(i < this->buffers.size());
+    const auto &b = this->buffers[i];
+    const GLenum type = b.target == GL_ARRAY_BUFFER
+        ? GL_COPY_READ_BUFFER
+        : GL_ELEMENT_ARRAY_BUFFER;
+    GLBuffer stg;
+    if(!stg.create(type, n * size, GL_STREAM_DRAW))
+        return false;
+    const auto isize = static_cast<GLsizeiptr>(n * size);
+    void *const p = glMapBufferRange(type, 0, isize, access);
+    if(!p)
+        return check_result("glMapBufferRange"), false;
+    f(data, p, 0, n);
+    CHECK_RESULT(glUnmapBuffer, type);
+    CHECK_RESULT(glBindBuffer, GL_COPY_WRITE_BUFFER, b.id());
+    CHECK_RESULT(glBindBuffer, GL_COPY_READ_BUFFER, stg.id());
+    CHECK_RESULT(glCopyBufferSubData,
+        GL_COPY_READ_BUFFER, GL_COPY_WRITE_BUFFER,
+        0, static_cast<GLintptr>(offset), static_cast<GLsizeiptr>(n * size));
+    return true;
+}
+
+bool OpenGLBackend::create_vao(
+    u32 vbo_idx, u32 ebo_idx, PipelineConfiguration::Type type, VAO *vao
+) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    using A = std::array<std::array<VAO::Attrib, 3>, N_PROGRAMS>;
+    static constexpr A attrs = {{
+        {{{"position", 3}, {"color", 3}}},
+    }};
+    static constexpr std::array names = {
+        "triangle",
+    };
+    assert(vbo_idx < this->buffers.size());
+    assert(ebo_idx < this->buffers.size());
+    auto &vbo = this->buffers[vbo_idx], &ebo = this->buffers[ebo_idx];
+    if(!vbo.id() || !ebo.id())
+        return true;
+    const auto prog_idx = static_cast<std::size_t>(type);
+    const auto &prog = this->programs[prog_idx];
+    CHECK_RESULT(glUseProgram, prog.id());
+    const auto &attr = attrs[prog_idx];
+    return vao->create(vbo.id(), ebo.id())
+        && vao->vertex_attrib_pointers(prog, attr.size(), attr.data())
+        && OpenGLBackend::set_obj_name(
+            NNGN_GL_VERTEX_ARRAY, vao->id(), names[prog_idx]);
+}
+
+bool OpenGLBackend::set_buffer_capacity(u32 i, u64 size) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    assert(i < this->buffers.size());
+    return this->buffers[i].set_capacity(size);
+}
+
+void OpenGLBackend::set_buffer_size(u32 i, u64 size) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    assert(i < this->buffers.size());
+    auto &b = this->buffers[i];
+    const auto isize = static_cast<GLsizeiptr>(size);
+    assert(isize <= b.capacity);
+    if(b.size != isize)
+        b.size = isize;
+}
+
 bool OpenGLBackend::render() {
     NNGN_LOG_CONTEXT_CF(OpenGLBackend);
     auto prof = nngn::Profile::context<nngn::Profile>(
         &nngn::Profile::stats.render);
+    if(this->flags & Flag::RESIZED) {
+        this->flags.clear(Flag::RESIZED);
+        int width = {}, height = {};
+        glfwGetFramebufferSize(this->w, &width, &height);
+        glViewport(0, 0, width, height);
+    }
+    const auto render = [this](auto *l) {
+        for(auto &x : *l) {
+            assert(x.pipeline < this->pipelines.size());
+            const auto &pipeline = this->pipelines[x.pipeline];
+            const auto type = pipeline.conf.type;
+            const auto &prog = this->programs[static_cast<std::size_t>(type)];
+            CHECK_RESULT(glUseProgram, prog.id());
+            for(auto &[vbo_idx, ebo_idx, vao] : x.buffers) {
+                if(!vao.id() && !this->create_vao(vbo_idx, ebo_idx, type, &vao))
+                    return false;
+                if(!vao.ebo)
+                    continue;
+                assert(ebo_idx < this->buffers.size());
+                const auto &ebo = this->buffers[ebo_idx];
+                if(!ebo.size)
+                    continue;
+                CHECK_RESULT(glBindVertexArray, vao.id());
+                CHECK_RESULT(glDrawElements,
+                    GL_TRIANGLES,
+                    static_cast<GLsizei>(
+                        ebo.size / static_cast<GLsizeiptr>(sizeof(u32))),
+                    GL_UNSIGNED_INT, nullptr);
+            }
+        }
+        return true;
+    };
     CHECK_RESULT(glClear, GL_COLOR_BUFFER_BIT);
+    if(!render(&render_list.normal))
+        return false;
+    CHECK_RESULT(glBindVertexArray, 0);
     prof.end();
     return true;
 }

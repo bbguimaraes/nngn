@@ -34,6 +34,14 @@ AS_IF([test "x$with_vulkan" == xyes],
      AC_DEFINE([NNGN_PLATFORM_HAS_VULKAN], [1], [Define if you have Vulkan])],
     [])
 
+AC_ARG_WITH([vma],
+    [AS_HELP_STRING([--with-vma], [use the Vulkan memory allocation library])],
+    [], [AC_CHECK_HEADER(
+        [vk_mem_alloc.h],
+        [AC_DEFINE([NNGN_PLATFORM_HAS_VMA], [1], [Define if you have VMA])])])
+AS_IF([test "x$with_vma" == xyes],
+    [AC_DEFINE([NNGN_PLATFORM_HAS_VMA], [1], [Define if you have VMA])])
+
 ENABLE_TESTS=no
 AC_ARG_ENABLE([tests],
     [AS_HELP_STRING(

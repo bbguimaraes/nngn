@@ -26,6 +26,12 @@ do
     local p = require("nngn.lib.plot")
     p.plot(p.FS.lua)
 end)"sv;
+constexpr auto PLOT_GRAPHICS = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.plot")
+    p.plot(p.FS.graphics)
+end)"sv;
 constexpr auto TIMELINE_PROF = R"(
 do
     require("nngn.lib.tools").add_to_path()
@@ -75,6 +81,7 @@ int main(int argc, char **argv) {
     const auto plot_section = w.add_section("plot");
     const auto *const plot_fps = w.add_button(plot_section, "fps");
     const auto *const plot_lua = w.add_button(plot_section, "lua");
+    const auto *const plot_graphics = w.add_button(plot_section, "graphics");
     const auto timeline_section = w.add_section("timeline");
     const auto *const timeline_prof = w.add_button(timeline_section, "prof");
     QObject::connect(
@@ -96,6 +103,9 @@ int main(int argc, char **argv) {
     QObject::connect(
         plot_lua, &QPushButton::pressed,
         [&l = launcher] { l.exec(PLOT_LUA); });
+    QObject::connect(
+        plot_graphics, &QPushButton::pressed,
+        [&l = launcher] { l.exec(PLOT_GRAPHICS); });
     QObject::connect(
         timeline_prof, &QPushButton::pressed,
         [&l = launcher] { l.exec(TIMELINE_PROF); });

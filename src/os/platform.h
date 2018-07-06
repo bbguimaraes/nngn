@@ -40,6 +40,11 @@ struct Platform {
 #else
     static constexpr bool has_sockets = false;
 #endif
+#ifdef NNGN_PLATFORM_HAS_VMA
+    static constexpr bool has_vma = true;
+#else
+    static constexpr bool has_vma = false;
+#endif
     static int argc;
     static const char *const *argv;
     static std::filesystem::path src_dir;

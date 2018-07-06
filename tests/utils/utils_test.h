@@ -6,9 +6,12 @@
 class UtilsTest : public QObject {
     Q_OBJECT
 private slots:
+    void offsetof_ptr();
     void read_file();
     void pointer_flag();
     void read_file_err();
+    void set_capacity();
+    void vector_linear_erase();
 };
 
 #endif

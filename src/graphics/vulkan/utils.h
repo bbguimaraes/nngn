@@ -69,6 +69,10 @@ std::vector<Graphics::Extension> vk_parse_extensions(
 std::vector<Graphics::PresentMode> vk_parse_present_modes(
     std::span<const VkPresentModeKHR> s);
 
+template<typename T, auto ...Ps>
+constexpr auto vk_vertex_input(
+    std::span<const VkVertexInputBindingDescription> bindings);
+
 template<typename T>
 concept VkNamedRange = requires {
     std::ranges::sized_range<T>;
@@ -108,6 +112,38 @@ std::vector<const char*> vk_names(const VkNamedRange auto &r) {
     for(const auto &x : r)
         ret.push_back(x.name.data());
     return ret;
+}
+
+template<typename T, auto ...Ps>
+auto vk_vertex_attrs() {
+    constexpr auto check = []<typename U>(auto U::*...)
+        { static_assert(std::is_standard_layout_v<U>); };
+    check(Ps...);
+    constexpr auto n = sizeof...(Ps);
+    const std::array off = {static_cast<std::uint32_t>(offsetof_ptr(Ps))...};
+    std::array<VkVertexInputAttributeDescription, n> ret = {};
+    for(std::size_t i = 0; i < n; ++i)
+        ret[i] = {
+            .location = static_cast<std::uint32_t>(i),
+            .binding = 0,
+            .format = VK_FORMAT_R32G32B32_SFLOAT,
+            .offset = off[i]};
+    return ret;
+}
+
+constexpr VkPipelineVertexInputStateCreateInfo vk_vertex_input(
+    std::span<const VkVertexInputBindingDescription> bindings,
+    std::span<const VkVertexInputAttributeDescription> attrs
+) {
+    return {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+        .vertexBindingDescriptionCount =
+            static_cast<std::uint32_t>(bindings.size()),
+        .pVertexBindingDescriptions = bindings.data(),
+        .vertexAttributeDescriptionCount =
+            static_cast<std::uint32_t>(attrs.size()),
+        .pVertexAttributeDescriptions = attrs.data(),
+    };
 }
 
 }

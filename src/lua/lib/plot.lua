@@ -24,6 +24,33 @@ local FS = {
         end,
         function(f)
             write_data(f, collectgarbage("count"), #debug.getregistry())
+        end},
+    graphics = {
+        function(f)
+            f:write("s 2\n")
+            write_names(f,
+                "staging.req.n_allocations",
+                "staging.req.total_memory_kb",
+                "staging.n_allocations",
+                "staging.n_reused",
+                "staging.n_free",
+                "staging.total_memory_kb",
+                "buffers.n_writes",
+                "buffers.total_writes_kb")
+        end,
+        function(f)
+            local stats = nngn.graphics:stats()
+            local stg, buf = stats.staging, stats.buffers
+            local kb = 0x1p-10
+            write_data(f,
+                stg.req_n_allocations,
+                stg.req_total_memory * kb,
+                stg.n_allocations,
+                stg.n_reused,
+                stg.n_free,
+                stg.total_memory * kb,
+                buf.n_writes,
+                buf.total_writes_bytes * kb)
         end}}
 
 function PLOT.heartbeat() PLOT:update() end

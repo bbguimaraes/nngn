@@ -4,7 +4,6 @@
 #include "cmd_pool.h"
 
 #include "utils/log.h"
-#include "utils/utils.h"
 
 #include "utils.h"
 
