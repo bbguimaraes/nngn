@@ -119,6 +119,10 @@ Enables the Vulkan graphics backend.  Requires:
 - `vulkan` (1.1.130): graphics library
 - `glslang` (11.1.0): GLSL compiler
 
+Additionally, if the VulkanMemoryAllocator library is present (determined by the
+`vk_mem_alloc.h` header file), it is used for some of the memory allocations.
+This default can be disabled with `--without-vma`.
+
 #### Tests
 
 Building the tests requires `Qt5Core` and `Qt5Test` (5.14.0) and can be enabled

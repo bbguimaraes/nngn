@@ -38,6 +38,14 @@ AS_IF([test "x$with_vulkan" == xyes],
     [GLSLANG=:])
 AC_SUBST([GLSLANG])
 
+AC_ARG_WITH([vma],
+    [AS_HELP_STRING([--with-vma], [use the Vulkan memory allocation library])],
+    [], [AC_CHECK_HEADER(
+        [vk_mem_alloc.h],
+        [AC_DEFINE([NNGN_PLATFORM_HAS_VMA], [1], [Define if you have VMA])])])
+AS_IF([test "x$with_vma" == xyes],
+    [AC_DEFINE([NNGN_PLATFORM_HAS_VMA], [1], [Define if you have VMA])])
+
 # Non-essential configuration options.
 ENABLE_TESTS=no
 AC_ARG_ENABLE([tests],
@@ -64,6 +72,16 @@ AC_ARG_ENABLE([tools],
         [build auxiliary tools, requires Qt and rustc (default: no)])],
     [ENABLE_TOOLS=$enableval])
 AM_CONDITIONAL([ENABLE_TOOLS], [test "x$ENABLE_TOOLS" == xyes])
+
+ENABLE_LUA_ALLOC=no
+AC_ARG_ENABLE([lua-alloc],
+    [AS_HELP_STRING(
+        [--enable-lua-alloc],
+        [use own Lua allocator, required for memory tracking (default: no)])],
+    [ENABLE_LUA_ALLOC=$enableval])
+AM_CONDITIONAL([ENABLE_LUA_ALLOC], [test "x$ENABLE_LUA_ALLOC" == xyes])
+AS_IF([test "$ENABLE_LUA_ALLOC" != no],
+    AC_DEFINE([NNGN_LUA_USE_ALLOC], [1], [Define to enable Lua allocator]))
 
 # Checks for libraries.
 PKG_CHECK_MODULES(

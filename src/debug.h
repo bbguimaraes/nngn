@@ -4,6 +4,7 @@
 #include <ostream>
 #include <sstream>
 
+#include "graphics/graphics.h"
 #include "math/mat4.h"
 
 namespace nngn {
@@ -32,6 +33,9 @@ inline std::ostream &operator <<(std::ostream &os, const nngn::mat4 &m) {
         << "{"  << m.col<0>() << ", " << m.col<1>()
         << ", " << m.col<2>() << ", " << m.col<3>() << "}";
 }
+
+inline std::ostream &operator <<(std::ostream &os, const nngn::Vertex &v)
+    { return os << "{"  << v.pos << ", " << v.color << "}"; }
 
 template<typename T0, typename T1>
 inline std::string vdiff(const T0 &v0, const T1 &v1) {

@@ -28,6 +28,7 @@
 #include "math/math.h"
 #include "os/platform.h"
 #include "os/socket.h"
+#include "render/render.h"
 #include "timing/fps.h"
 #include "timing/profile.h"
 #include "timing/schedule.h"
@@ -59,6 +60,7 @@ struct NNGN {
     nngn::lua::state lua = {};
     nngn::lua::alloc_info lua_alloc = {};
     Input input = {};
+    nngn::Renderers renderers = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(
         nngn::Graphics::Backend b, std::optional<const void*> params);
@@ -122,8 +124,9 @@ bool NNGN::set_graphics(
     g->set_mouse_move_callback(
         &this->input.mouse, [](void *p, nngn::dvec2 pos)
             { static_cast<nngn::MouseInput*>(p)->move_callback(pos); });
+    bool ret = this->renderers.set_graphics(g.get());
     this->graphics = std::move(g);
-    return true;
+    return ret;
 }
 
 int NNGN::loop(void) {
@@ -135,6 +138,7 @@ int NNGN::loop(void) {
     const bool ok = this->input.input.update()
         && this->schedule.update()
         && this->socket.process([&l = this->lua](auto s) { l.dostring(s); })
+        && this->renderers.update()
         && this->graphics->render()
         && this->graphics->vsync();
     if(!ok)
@@ -157,6 +161,7 @@ NNGN_LUA_PROXY(NNGN,
     "lua", readonly(&NNGN::lua),
     "input", property([](const NNGN &nngn) { return &nngn.input.input; }),
     "mouse_input", property([](const NNGN &nngn) { return &nngn.input.mouse; }),
+    "renderers", readonly(&NNGN::renderers),
     "set_graphics", &NNGN::set_graphics,
     "exit", &NNGN::exit,
     "die", &NNGN::die)

@@ -63,6 +63,7 @@ template<typename T> F(vec2_base<T>)
 template<typename T> F(vec3_base<T>)
 template<typename T> F(vec4_base<T>)
 F(mat4)
+F(Vertex)
 #undef F
 
 }

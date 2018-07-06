@@ -33,6 +33,7 @@ struct Pseudograph : Graphics {
     bool error() override { return false; }
     bool window_closed() const override { return false; }
     int swap_interval() const override { return 1; }
+    GraphicsStats stats() override { return {}; }
     bool set_n_frames(std::size_t) override { return true; }
     void set_swap_interval(int) override {}
     void set_window_title(const char*) override {}
@@ -41,7 +42,15 @@ struct Pseudograph : Graphics {
     void set_mouse_button_callback(void*, mouse_button_callback_f) override {}
     void set_mouse_move_callback(void*, mouse_move_callback_f) override {}
     void resize(int, int) override {}
+    u32 create_pipeline(const PipelineConfiguration&) override { return 1; }
+    u32 create_buffer(const BufferConfiguration&) override { return 1; }
+    bool set_buffer_capacity(u32, u64) override { return true; }
+    bool set_buffer_size(u32, u64) override { return true; }
+    bool write_to_buffer(
+        u32 b, u64 offset, u64 n, u64 size, void *data,
+        void f(void*, void*, u64, u64)) override;
     void poll_events() const override {}
+    bool set_render_list(const RenderList&) override { return true; }
     bool render() override { return true; }
     bool vsync() override;
 };

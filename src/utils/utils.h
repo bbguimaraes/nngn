@@ -144,6 +144,18 @@ inline constexpr bool str_less(const char *lhs, const char *rhs) {
     return *rhs && (!*lhs || *lhs < *rhs);
 }
 
+template<typename To, typename From>
+requires (
+    sizeof(To) == sizeof(From)
+    && std::is_trivially_copyable_v<To>
+    && std::is_trivially_copyable_v<From>)
+constexpr auto bit_cast(const From &from) {
+    static_assert(std::is_trivially_constructible_v<To>);
+    To ret = {};
+    std::memcpy(&ret, &from, sizeof(To));
+    return ret;
+}
+
 template<typename T>
 constexpr auto set_bit(T t, T mask, bool value) {
     assert(std::popcount(mask) == 1);

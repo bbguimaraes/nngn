@@ -14,23 +14,79 @@
  * capabilities:
  *
  * - https://bbguimaraes.com/nngn/screenshots/engine.html
+ *
+ * These are the low-level rendering operations.  The higher-level layer is \ref
+ * src/render.
+ *
+ * ## Lua
+ *
+ * The graphics back end is exposed to Lua via the `nngn.graphics` variable.  It
+ * is only used for low-level control of the machine's graphics capabilities,
+ * however.  See the documentation of \ref src/render for how to perform
+ * higher-level rendering from Lua.
+ *
+ * ### Initialization
+ *
+ * A back end is chosen on default initialization (see \ref src).  For other
+ * cases, a specific back end can be initialized with:
+ *
+ * ```lua
+ * nngn:set_graphics(Graphics.VULKAN_BACKEND, Graphics.vulkan_params {
+ *     version = {1, 2, 164},
+ *     debug = true,
+ * })
+ * ```
+ *
+ * A back end can also be partially initialized to query its capabilities (see
+ * demos/graphics/list.lua):
+ *
+ * ```lua
+ * vk = Graphics.create_backend(...)
+ * assert(vk:init_backend())
+ * print(vk:version())
+ * assert(vk:init_instance())
+ * utils.pprint(vk:extensions())
+ * utils.pprint(vk:device_infos())
+ * assert(vk:init_device())
+ * utils.pprint(vk:device_info(g:selected_device()))
+ * ```
+ *
+ * Common operations are:
+ *
+ * ```lua
+ * -- Get current window size.
+ * x, y = nngn.graphics:window_size()
+ * -- Query statistics.
+ * s = nngn.graphics:stats()
+ * -- Set cursor display mode.
+ * nngn.graphics:set_cursor_mode(Graphics.CURSOR_MODE_DISABLED)
+ * -- Control v-sync.
+ * nngn.graphics:set_swap_interval(0)
+ * ```
  */
 #ifndef NNGN_GRAPHICS_GRAPHICS_H
 #define NNGN_GRAPHICS_GRAPHICS_H
 
+#include <array>
 #include <cstdint>
 #include <memory>
+#include <span>
 #include <string>
 #include <tuple>
 
 #include "math/vec2.h"
+#include "math/vec3.h"
 #include "utils/def.h"
 #include "utils/flags.h"
 #include "utils/utils.h"
 
+#include "stats.h"
+
 struct GLFWwindow;
 
 namespace nngn {
+
+struct Vertex { vec3 pos, color; };
 
 struct Graphics {
     using key_callback_f = void (*)(void*, int, int, int, int);
@@ -105,6 +161,19 @@ struct Graphics {
         const char *name = {};
         Type type = {};
     };
+    struct BufferConfiguration {
+        enum class Type { VERTEX, INDEX };
+        const char *name = {};
+        Type type = {};
+        u64 size = {};
+    };
+    struct RenderList {
+        struct Stage {
+            u32 pipeline = {};
+            std::span<const std::pair<u32, u32>> buffers = {};
+        };
+        std::span<const Stage> normal = {};
+    };
     enum class CursorMode { NORMAL, HIDDEN, DISABLED };
     static std::unique_ptr<Graphics> create(Backend b, const void *params);
     static const char *enum_str(DeviceInfo::Type t);
@@ -151,6 +220,7 @@ struct Graphics {
     virtual Version version() const = 0;
     virtual bool window_closed() const = 0;
     virtual int swap_interval() const = 0;
+    virtual GraphicsStats stats() = 0;
     virtual bool set_n_frames(std::size_t n) = 0;
     virtual void set_swap_interval(int i) = 0;
     virtual void set_window_title(const char *t) = 0;
@@ -161,7 +231,23 @@ struct Graphics {
     virtual void set_mouse_move_callback(
         void *data, mouse_move_callback_f f) = 0;
     virtual void resize(int w, int h) = 0;
+    // Pipelines
+    virtual u32 create_pipeline(const PipelineConfiguration &conf) = 0;
+    // Buffers
+    virtual u32 create_buffer(const BufferConfiguration &conf) = 0;
+    virtual bool set_buffer_capacity(u32 b, u64 size) = 0;
+    virtual bool set_buffer_size(u32 b, std::uint64_t size) = 0;
+    virtual bool write_to_buffer(
+        u32 b, u64 offset, u64 n, u64 size,
+        void *data, void f(void*, void*, u64, u64)) = 0;
+    template<typename F>
+    bool write_to_buffer(u32 b, u64 offset, u64 n, u64 size, F &&f);
+    bool update_buffers(
+        u32 vbo, u32 ebo, u64 voff, u64 eoff,
+        u64 vn, u64 vsize, u64 en, u64 esize,
+        void *data, auto &&vgen, auto &&egen);
     // Rendering
+    virtual bool set_render_list(const RenderList &l) = 0;
     virtual void poll_events() const = 0;
     virtual bool render() = 0;
     virtual bool vsync() = 0;
@@ -171,6 +257,27 @@ inline bool Graphics::init() {
     return this->init_backend()
         && this->init_instance()
         && this->init_device({});
+}
+
+template<typename F>
+bool Graphics::write_to_buffer(u32 b, u64 offset, u64 n, u64 size, F &&f) {
+    return this->write_to_buffer(
+        b, offset, n, size, &f,
+        [](void *p, auto ...args) { (*static_cast<F*>(p))(args...); });
+}
+
+inline bool Graphics::update_buffers(
+    u32 vbo, u32 ebo, u64 voff, u64 eoff,
+    u64 vn, u64 vsize, u64 en, u64 esize,
+    void *data, auto &&vgen, auto &&egen
+) {
+    const bool ok = this->write_to_buffer(vbo, voff, vn, vsize, data, vgen)
+        && this->write_to_buffer(ebo, eoff, en, esize, data, egen);
+    if(!ok)
+        return false;
+    this->set_buffer_size(vbo, voff + vn * vsize);
+    this->set_buffer_size(ebo, eoff + en * esize);
+    return true;
 }
 
 template<Graphics::Backend>

@@ -2,11 +2,13 @@
 #define NNGN_UTILS_RANGES_H
 
 #include <algorithm>
+#include <cstring>
 #include <iterator>
 #include <numeric>
 #ifndef __clang__
 #include <ranges>
 #endif
+#include <span>
 #include <utility>
 
 #include "utils.h"
@@ -63,6 +65,15 @@ template<std::size_t N>
 consteval auto to_array(const std::ranges::contiguous_range auto &r)
     { return to_array<N>(std::data(r)); }
 
+constexpr bool contains(
+    const std::ranges::contiguous_range auto &r, const auto &x
+) {
+    const void *const b = &*std::ranges::cbegin(r);
+    const void *const e = &*std::ranges::cend(r);
+    const void *const p = &x;
+    return b <= p && p < e;
+}
+
 template<std::ranges::forward_range R, typename Proj = std::identity>
 constexpr bool is_adjacent(R &&r, Proj proj = {}) {
     constexpr auto not_adj = []<typename T>(const T &lhs, const T &rhs) {
@@ -82,6 +93,13 @@ constexpr auto reduce(std::ranges::range auto &&r) {
     return std::reduce(begin(r), end(r));
 }
 
+void const_time_erase(auto *v, auto *p) {
+    assert(contains(*v, *p));
+    auto last = v->end() - 1;
+    *p = std::move(*last);
+    v->erase(last);
+}
+
 template<
     std::input_iterator I,
     std::output_iterator<std::iter_value_t<I>> O>
@@ -91,6 +109,13 @@ constexpr void fill_with_pattern(I f, I l, O df, O dl) {
             i = f;
         return *i++;
     });
+}
+
+constexpr void memcpy(void *dst, std::ranges::contiguous_range auto &&r) {
+    // TODO https://bugs.llvm.org/show_bug.cgi?id=39663
+    //std::memcpy(dst, data(r), std::span{r}.size_bytes());
+    auto s = std::span{r};
+    std::memcpy(dst, data(r), s.size_bytes());
 }
 
 }

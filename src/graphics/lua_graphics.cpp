@@ -224,6 +224,23 @@ auto memory_types(
         &Graphics::memory_types>(static_cast<lua_State*>(lua), g, i, ih);
 }
 
+auto stats(Graphics *g, nngn::lua::state_arg lua_) {
+    const auto s = g->stats();
+    const auto lua = nngn::lua::state_view{lua_};
+    auto ret = lua.create_table(0, 2);
+    ret["staging"] = nngn::lua::table_map(lua,
+        "req_n_allocations", s.staging.req.n_allocations,
+        "req_total_memory", s.staging.req.total_memory,
+        "n_allocations", s.staging.n_allocations,
+        "n_reused", s.staging.n_reused,
+        "n_free", s.staging.n_free,
+        "total_memory", s.staging.total_memory);
+    ret["buffers"] = nngn::lua::table_map(lua,
+        "n_writes", s.buffers.n_writes,
+        "total_writes_bytes", s.buffers.total_writes_bytes);
+    return ret.release();
+}
+
 }
 
 NNGN_LUA_PROXY(Graphics,
@@ -257,5 +274,7 @@ NNGN_LUA_PROXY(Graphics,
     "memory_types", memory_types,
     "error", &Graphics::error,
     "swap_interval", &Graphics::swap_interval,
+    "stats", stats,
+    "set_n_frames", &Graphics::set_n_frames,
     "set_swap_interval", &Graphics::set_swap_interval,
     "set_cursor_mode", &Graphics::set_cursor_mode)

@@ -39,9 +39,17 @@ local function fmt_time(ns, plus)
     else return string.format(fmt .. "s", ns / 1e9) end
 end
 
+local function fmt_size(n)
+    if n < (1 << 10) then return string.format("%.1f", n)
+    elseif n < (1 << 20) then return string.format("%.1fK", n / (1 << 10))
+    elseif n < (1 << 30) then return string.format("%.1fM", n / (1 << 20))
+    else return string.format("%.1fG", n / (1 << 30)) end
+end
+
 return {
     pprint = pprint,
     pformat = pformat,
     map = map,
     fmt_time = fmt_time,
+    fmt_size = fmt_size,
 }

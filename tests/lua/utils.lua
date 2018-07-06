@@ -33,7 +33,24 @@ local function test_fmt_time()
     end
 end
 
+local function test_fmt_size()
+    for _, t in ipairs{
+        {                        1,    "1.0"},
+        {                      1.5,    "1.5"},
+        {                     1024,    "1.0K"},
+        {               1.5 * 1024,    "1.5K"},
+        {              1024 * 1024,    "1.0M"},
+        {        1.5 * 1024 * 1024,    "1.5M"},
+        {       1024 * 1024 * 1024,    "1.0G"},
+        {1000 * 1024 * 1024 * 1024, "1000.0G"},
+    } do
+        local input, expected = table.unpack(t)
+        common.assert_eq(utils.fmt_size(input), expected)
+    end
+end
+
 return {
     test_pprint,
     test_fmt_time,
+    test_fmt_size,
 }
