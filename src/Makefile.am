@@ -1,5 +1,12 @@
+noinst_HEADERS += \
+	%reldir%/luastate.h
+
 nngn_SOURCES += \
+	%reldir%/luastate.cpp \
 	%reldir%/main.cpp
+
+EXTRA_DIST += \
+	%reldir%/lua
 
 include %reldir%/graphics/Makefile.am
 include %reldir%/os/Makefile.am

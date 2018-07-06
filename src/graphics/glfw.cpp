@@ -3,22 +3,26 @@
 
 #include "glfw.h"
 
-namespace nngn {
-
 #ifndef NNGN_PLATFORM_HAS_GLFW
 
+namespace nngn {
+
 template<> std::unique_ptr<Graphics> graphics_create_backend
-        <Graphics::Backend::GLFW_BACKEND>() {
+        <Graphics::Backend::GLFW_BACKEND>(const void*) {
     Log::l() << "compiled without GLFW support\n";
     return {};
+}
+
 }
 
 #else
 
 #include <GLFW/glfw3.h>
 
+namespace nngn {
+
 template<> std::unique_ptr<Graphics> graphics_create_backend
-        <Graphics::Backend::GLFW_BACKEND>()
+        <Graphics::Backend::GLFW_BACKEND>(const void*)
     { return std::make_unique<GLFWBackend>(); }
 
 GLFWBackend::~GLFWBackend() {
@@ -57,6 +61,6 @@ void GLFWBackend::set_window_title(const char *t)
 void GLFWBackend::poll_events() const { glfwPollEvents(); }
 bool GLFWBackend::render() { glfwSwapBuffers(this->w); return true; }
 
-#endif
-
 }
+
+#endif

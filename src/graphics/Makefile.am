@@ -5,4 +5,5 @@ noinst_HEADERS += \
 nngn_SOURCES += \
 	%reldir%/glfw.cpp \
 	%reldir%/graphics.cpp \
+	%reldir%/lua_graphics.cpp \
 	%reldir%/pseudo.cpp

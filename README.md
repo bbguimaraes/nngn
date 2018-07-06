@@ -19,10 +19,14 @@ See [dependencies](#dependencies) for the required packages.
 
 ### emscripten
 
-A WebAssembly application can be built using `emscripten`.  Follow the
-`autotools` process, prefixing `configure` with `emconfigure`.  `pkg-config`
-doesn't currently work with it, but the
-[scripts/emscripten/pkgconfig](./scripts/emscripten/pkgconfig) directories has
+A WebAssembly application can be built using `emscripten`.  It provides all
+[dependencies](#dependencies) listed below, except for one that must be built
+from source.  See [scripts/emscripten/build.sh](./scripts/emscripten/build.sh)
+for the steps to do that.
+
+Then, follow the `autotools` process, prefixing `configure` with `emconfigure`.
+`pkg-config` doesn't currently work with it, but the
+[scripts/emscripten/pkgconfig](./scripts/emscripten/pkgconfig) directory has
 dummy files that can be used:
 
 ```sh
@@ -35,6 +39,12 @@ The following `configure` options are relevant when targeting WebAssembly:
 - `--disable-tests`
 
 ### dependencies
+
+These are the required packages for building the main program, along with the
+versions known to work:
+
+- `lua` (5.3.5): embedded scripting language
+- `sol` (3.2.0): c++/lua wrapper
 
 The default build of the program is very minimal.  Additional functionality can
 be enabled by passing extra flags to the `configure` script.

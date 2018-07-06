@@ -14,7 +14,7 @@ struct Timing {
     time_point now = clock::now();
     u64 frame = 0;
     duration dt = duration(0);
-    template<typename F> static duration time(F f);
+    template<typename F> static duration time(F &&f);
     duration::rep now_ns() const;
     duration::rep now_us() const;
     duration::rep now_ms() const;
@@ -34,7 +34,7 @@ struct Timing {
     void update();
 };
 
-template<typename F> Timing::duration Timing::time(F f) {
+template<typename F> Timing::duration Timing::time(F &&f) {
     const auto t0 = Timing::clock::now();
     f();
     return Timing::clock::now() - t0;

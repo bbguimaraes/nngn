@@ -5,6 +5,8 @@
 #include "os/platform.h"
 #include "utils/log.h"
 
+#include "utils/log.h"
+
 #include "pseudo.h"
 
 namespace nngn {
@@ -28,14 +30,19 @@ namespace nngn {
 
 #ifdef NNGN_PLATFORM_EMSCRIPTEN
 template<>
-std::unique_ptr<Graphics> graphics_create_backend<Backend>() {
+std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void*) {
     nngn::Log::l() << "compiled without pseudograph support\n";
     return {};
 }
 #else
 template<>
-std::unique_ptr<Graphics> graphics_create_backend<Backend>()
-    { return std::make_unique<Pseudograph>(); }
+std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void *params) {
+    if(params) {
+        nngn::Log::l() << "no parameters allowed\n";
+        return {};
+    }
+    return std::make_unique<Pseudograph>();
+}
 #endif
 
 }

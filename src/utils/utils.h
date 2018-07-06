@@ -3,6 +3,9 @@
 
 #include <bit>
 #include <cassert>
+#include <string>
+#include <string_view>
+
 #define FWD(...) std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
 
 #define NNGN_DEFAULT_CONSTRUCT(x) \
@@ -23,6 +26,8 @@
     x &operator=(x&&) noexcept = default;
 
 namespace nngn {
+
+enum class empty {};
 
 /** Cast value to \c T with the strictest cast operator. */
 template<typename T, typename U>

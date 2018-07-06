@@ -30,10 +30,10 @@ AC_ARG_ENABLE([tests],
 AM_CONDITIONAL([ENABLE_TESTS], [test "x$ENABLE_TESTS" == xyes])
 
 # Checks for libraries.
-AS_IF([test "$DEPS"],
-    [PKG_CHECK_MODULES(
-        [DEPS], [$DEPS],
-        [DEPS_CFLAGS=$(echo "$DEPS_CFLAGS" | sed s/-I/-isystem/g)])])
+PKG_CHECK_MODULES(
+    [DEPS], [$DEPS lua sol2],
+    [DEPS_CFLAGS=$(echo "$DEPS_CFLAGS" | sed s/-I/-isystem/g)])
+
 AS_IF([test "$ENABLE_TESTS" != no],
     [PKG_CHECK_MODULES(
         [TEST_DEPS], [Qt5Core Qt5Test],

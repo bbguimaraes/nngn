@@ -6,6 +6,8 @@ pkgs=(
     base-devel clang gdb glfw-x11 qt5-base
     # emscripten
     emscripten
+    # lua
+    lua
 )
 root=build/root
 pacstrap -cd "$root/" --needed "${pkgs[@]}"

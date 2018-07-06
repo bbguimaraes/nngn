@@ -14,7 +14,7 @@ struct Graphics {
     enum class Backend : u8 {
         PSEUDOGRAPH, GLFW_BACKEND,
     };
-    static std::unique_ptr<Graphics> create(Backend b);
+    static std::unique_ptr<Graphics> create(Backend b, const void *params);
     NNGN_VIRTUAL(Graphics)
     // Initialization
     virtual bool init() = 0;
@@ -30,7 +30,7 @@ struct Graphics {
 };
 
 template<Graphics::Backend>
-std::unique_ptr<Graphics> graphics_create_backend();
+std::unique_ptr<Graphics> graphics_create_backend(const void *params);
 
 }
 

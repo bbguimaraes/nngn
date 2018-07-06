@@ -1,0 +1,4 @@
+Name: sol2
+Description: sol2
+Version: 0
+Cflags: -I emscripten/include

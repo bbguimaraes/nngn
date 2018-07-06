@@ -5,4 +5,6 @@ noinst_HEADERS += \
 nngn_SOURCES += \
 	%reldir%/adhoc.cpp \
 	%reldir%/fps.cpp \
+	%reldir%/lua_fps.cpp \
+	%reldir%/lua_timing.cpp \
 	%reldir%/timing.cpp
