@@ -8,7 +8,7 @@
 namespace nngn {
 
 template<> std::unique_ptr<Graphics> graphics_create_backend
-        <Graphics::Backend::GLFW_BACKEND>() {
+        <Graphics::Backend::GLFW_BACKEND>(const void*) {
     Log::l() << "compiled without GLFW support\n";
     return {};
 }
@@ -21,9 +21,18 @@ template<> std::unique_ptr<Graphics> graphics_create_backend
 
 namespace nngn {
 
-template<> std::unique_ptr<Graphics> graphics_create_backend
-        <Graphics::Backend::GLFW_BACKEND>()
-    { return std::make_unique<GLFWBackend>(); }
+template<>
+std::unique_ptr<Graphics> graphics_create_backend<
+    Graphics::Backend::GLFW_BACKEND
+>(const void *params)
+{
+    NNGN_LOG_CONTEXT_F();
+    if(params) {
+        Log::l() << "no parameters allowed\n";
+        return {};
+    }
+    return std::make_unique<GLFWBackend>();
+}
 
 GLFWBackend::~GLFWBackend(void) {
     if(this->w)

@@ -1,0 +1,5 @@
+Name: lua
+Description: lua
+Version: 5.4
+Cflags: -I emscripten/include
+Libs: -Lemscripten/lib -llua

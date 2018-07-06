@@ -1,0 +1,40 @@
+LUA_FILES += \
+	%reldir%/all.lua \
+	%reldir%/debug.lua \
+	%reldir%/init.lua \
+	%reldir%/lib/all.lua \
+	%reldir%/lib/debug.lua \
+	%reldir%/lib/graphics.lua \
+	%reldir%/lib/math.lua \
+	%reldir%/lib/serial.lua \
+	%reldir%/lib/utils.lua \
+	%reldir%/path.lua \
+	%reldir%/strict.lua
+
+noinst_HEADERS += \
+	%reldir%/function.h \
+	%reldir%/get.h \
+	%reldir%/iter.h \
+	%reldir%/lua.h \
+	%reldir%/push.h \
+	%reldir%/register.h \
+	%reldir%/state.h \
+	%reldir%/table.h \
+	%reldir%/traceback.h \
+	%reldir%/user.h \
+	%reldir%/utils.h \
+	%reldir%/value.h
+
+nngn_SOURCES += \
+	%reldir%/function.cpp \
+	%reldir%/get.cpp \
+	%reldir%/iter.cpp \
+	%reldir%/lua.cpp \
+	%reldir%/push.cpp \
+	%reldir%/register.cpp \
+	%reldir%/state.cpp \
+	%reldir%/table.cpp \
+	%reldir%/traceback.cpp \
+	%reldir%/user.cpp \
+	%reldir%/utils.cpp \
+	%reldir%/value.cpp

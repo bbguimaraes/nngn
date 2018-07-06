@@ -30,8 +30,11 @@ nngn_js_CPPFLAGS = $(AM_CPPFLAGS) $(DEPS_CFLAGS)
 nngn_js_LDFLAGS = \
 	$(nngn_js_CXXFLAGS) \
 	-s ASSERTIONS=2 -s DEMANGLE_SUPPORT=1 -s ALLOW_MEMORY_GROWTH=1 \
+	-s EXPORTED_FUNCTIONS='["_main","_lua"]' \
+	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
 	-s USE_GLFW=3 \
-	--source-map-base /
+	--source-map-base / \
+	--embed-file $(srcdir)/src/lua/@src/lua
 nngn_js_LDADD = $(DEPS_LIBS)
 
 TESTS = $(check_PROGRAMS)
@@ -41,10 +44,13 @@ check_CPPFLAGS = $(AM_CPPFLAGS) $(TEST_DEPS_CFLAGS) -I@srcdir@/src
 check_CXXFLAGS = $(AM_CXXFLAGS) -fPIC
 check_LDADD = $(DEPS_LIBS) $(TEST_DEPS_LIBS)
 check_HEADERS =
+dist_check_DATA =
 
+LUA_FILES =
 EXTRA_DIST = \
 	nngn.html \
-	scripts
+	scripts \
+	$(LUA_FILES)
 
 CLEANFILES =
 
@@ -52,10 +58,16 @@ CLEANFILES =
 	moc -o $@ $^
 
 .PHONY: \
+	check-lua \
 	check-programs \
 	clean-docs \
 	docs \
 	tidy
+
+check: check-lua
+check-lua: $(LUA_FILES:.lua=.lua.check)
+%.lua.check: %.lua
+	luac -p $^
 
 check-programs: $(TESTS)
 clean-local: clean-docs
