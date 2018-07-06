@@ -4,6 +4,8 @@ set -euo pipefail
 pkgs=(
     # base
     base-devel clang gdb glfw-x11 qt5-base
+    # emscripten
+    emscripten
 )
 root=build/root
 pacstrap -cd "$root/" --needed "${pkgs[@]}"

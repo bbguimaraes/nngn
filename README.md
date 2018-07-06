@@ -17,6 +17,23 @@ make
 
 See [dependencies](#dependencies) for the required packages.
 
+### emscripten
+
+A WebAssembly application can be built using `emscripten`.  Follow the
+`autotools` process, prefixing `configure` with `emconfigure`.  `pkg-config`
+doesn't currently work with it, but the
+[scripts/emscripten/pkgconfig](./scripts/emscripten/pkgconfig) directories has
+dummy files that can be used:
+
+```sh
+EM_PKG_CONFIG_LIBDIR=scripts/emscripten/pkgconfig emconfigure ./configure #…
+make nngn.js
+```
+
+The following `configure` options are relevant when targeting WebAssembly:
+
+- `--disable-tests`
+
 ### dependencies
 
 The default build of the program is very minimal.  Additional functionality can

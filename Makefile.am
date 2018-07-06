@@ -17,9 +17,21 @@ AM_LDFLAGS = -fuse-ld=gold -Wl,--threads,--preread-archive-symbols
 
 noinst_HEADERS =
 
-bin_PROGRAMS = nngn
+bin_PROGRAMS = @NNGN_BIN@
+EXTRA_PROGRAMS = nngn nngn.js
 nngn_LDADD = $(DEPS_LIBS)
 nngn_SOURCES =
+
+nngn_js_SOURCES = $(nngn_SOURCES)
+nngn_js_CPPFLAGS = $(AM_CPPFLAGS) $(DEPS_CFLAGS)
+nngn_js_CXXFLAGS = \
+	$(AM_CXXFLAGS) \
+	-s ASSERTIONS=2 -s DEMANGLE_SUPPORT=1 -s ALLOW_MEMORY_GROWTH=1 \
+	-s USE_GLFW=3
+nngn_js_LDFLAGS = \
+	$(nngn_js_CXXFLAGS) \
+	--source-map-base /
+nngn_js_LDADD = $(DEPS_LIBS)
 
 TESTS = $(check_PROGRAMS)
 check_PROGRAMS =
@@ -30,6 +42,7 @@ check_LDADD = $(DEPS_LIBS) $(TEST_DEPS_LIBS)
 check_HEADERS =
 
 EXTRA_DIST = \
+	nngn.html \
 	scripts
 
 CLEANFILES =

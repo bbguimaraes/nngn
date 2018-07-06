@@ -1,11 +1,13 @@
+#include "platform.h"
+
+#ifndef NNGN_PLATFORM_EMSCRIPTEN
 #include <csignal>
 #include <cstring>
 
 #include <unistd.h>
 
-#include "platform.h"
-
 #include "utils/log.h"
+#endif
 
 namespace {
 
@@ -22,6 +24,22 @@ int Platform::argc = {};
 const char *const *Platform::argv = {};
 std::filesystem::path Platform::src_dir = {};
 
+#ifdef NNGN_PLATFORM_EMSCRIPTEN
+#include <emscripten.h>
+
+bool Platform::init(int argc_, const char *const *argv_)
+    { init_common(argc_, argv_); return true; }
+
+int Platform::loop(int (*loop)()) {
+    struct FP { int (*p)(); } fp{loop};
+    emscripten_set_main_loop_arg(
+        [](void *p) {
+            if(static_cast<FP*>(p)->p() != -1)
+                emscripten_cancel_main_loop();
+        }, &fp, 0, 1);
+    return 0;
+}
+#else
 #ifdef HAVE_SIGNAL
 bool Platform::init(int argc_, const char *const *argv_) {
     NNGN_LOG_CONTEXT_CF(Platform);
@@ -43,5 +61,6 @@ int Platform::loop(int (*loop)()) {
     while((ret = loop()) == -1);
     return ret;
 }
+#endif
 
 }

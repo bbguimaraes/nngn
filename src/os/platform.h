@@ -5,6 +5,10 @@
 
 #include "config.h"
 
+#ifdef __EMSCRIPTEN__
+    #define NNGN_PLATFORM_EMSCRIPTEN
+#endif
+
 namespace nngn {
 
 struct Platform {
@@ -12,6 +16,11 @@ struct Platform {
     static constexpr bool debug = true;
 #else
     static constexpr bool debug = false;
+#endif
+#ifdef NNGN_PLATFORM_EMSCRIPTEN
+    static constexpr bool emscripten = true;
+#else
+    static constexpr bool emscripten = false;
 #endif
     static int argc;
     static const char *const *argv;
