@@ -18,6 +18,8 @@ in the source code.  Source code is organized in the following directories:
 - [`src`](https://bbguimaraes.com/nngn/docs/dir_68267d1309a1af8e8297ef4c3efbcdba.html):
   main source code directory.  Most of the code is contained in one of the
   subdirectories, which form mostly-independent modules.
+- [`src/lua`](https://bbguimaraes.com/nngn/docs/dir_eb2a6c909ccee19b40dc174b15a80916.html):
+  Lua libray and scripts.
 - `scripts`: auxiliary scripts for building and interacting with the program.
 - `tests`: unit and integration tests for the C++ and Lua components.
 
@@ -48,11 +50,17 @@ Cross-compiling with `mingw` is supported with the usual `configure` arguments:
 ./configure --build=x86_64-pc-linux-gnu --host=x86_64-w64-mingw32 # …
 ```
 
+See [scripts/src_build.sh](./scripts/src_build.sh) for an example of how to
+build dependencies from source.
+
 ### Emscripten
 
-A WebAssembly application can be built using `emscripten`.  Follow the
-`autotools` process, prefixing `configure` with `emconfigure`.  `pkg-config`
-doesn't currently work with it, but the
+A WebAssembly application can be built using `emscripten`.  It provides all
+[dependencies](#dependencies) listed below, except for one that must be built
+from source.  See [scripts/src_build.sh](./scripts/src_build.sh) for an example.
+
+Then, follow the `autotools` process, prefixing `configure` with `emconfigure`.
+`pkg-config` doesn't currently work with it, but the
 [scripts/emscripten/pkgconfig](./scripts/emscripten/pkgconfig) directory has
 dummy files that can be used:
 
@@ -66,6 +74,12 @@ The following `configure` options are relevant when targeting WebAssembly:
 - `--disable-tests`
 
 ### Dependencies
+
+These are the required packages for building the main program, along with the
+versions known to work:
+
+- `lua` (5.3.5): embedded scripting language
+- `sol` (3.2.0): c++/lua wrapper
 
 The default build of the program is very minimal.  Additional functionality can
 be enabled by passing extra flags to the `configure` script.

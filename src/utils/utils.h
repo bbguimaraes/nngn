@@ -3,6 +3,9 @@
 
 #include <bit>
 #include <cassert>
+#include <functional>
+#include <string>
+#include <string_view>
 #include <utility>
 
 #define FWD(...) std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
@@ -37,7 +40,22 @@
     x(x&&) noexcept = delete; \
     x &operator=(x&&) noexcept = delete;
 
+#define NNGN_ANON_IMPL1(l) nngn_anon_ ## l
+#define NNGN_ANON_IMPL0(l) NNGN_ANON_IMPL1(l)
+#define NNGN_ANON() NNGN_ANON_IMPL0(__LINE__)
+#define NNGN_ANON_DECL(x) [[maybe_unused]] const auto NNGN_ANON() = (x);
+
+#define NNGN_BIND_MEM_FN(x, f) \
+    std::bind_front([] { \
+        constexpr auto nngn_ret = \
+            &std::remove_pointer_t<std::decay_t<decltype(x)>>::f; \
+        static_assert(std::is_member_function_pointer_v<decltype(nngn_ret)>); \
+        return nngn_ret; \
+    }(), (x))
+
 namespace nngn {
+
+enum class empty {};
 
 /** Cast value to \c T with the strictest cast operator. */
 template<typename T, typename U>

@@ -55,6 +55,8 @@ body {
                 canvas.focus();
             }
         </script>
-        <script async type="text/javascript" src="nngn.js"></script>
+        <script
+            async type="text/javascript" src="nngn.js"
+            onload="lua = Module.cwrap('lua', null, ['string'])"></script>
     </body>
 </html>

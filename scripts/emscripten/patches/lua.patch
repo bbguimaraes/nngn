@@ -1,0 +1,28 @@
+--- src/Makefile
++++ src/Makefile
+@@ -6,7 +6,6 @@
+ # Your platform. See PLATS for possible values.
+ PLAT= guess
+ 
+-CC= gcc -std=gnu99
+ CFLAGS= -O2 -Wall -Wextra -DLUA_COMPAT_5_3 $(SYSCFLAGS) $(MYCFLAGS)
+ LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
+ LIBS= -lm $(SYSLIBS) $(MYLIBS)
+@@ -11,8 +11,6 @@
+ LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
+ LIBS= -lm $(SYSLIBS) $(MYLIBS)
+ 
+-AR= ar rcu
+-RANLIB= ranlib
+ RM= rm -f
+ UNAME= uname
+ 
+@@ -57,7 +55,7 @@
+ a:	$(ALL_A)
+ 
+ $(LUA_A): $(BASE_O)
+-	$(AR) $@ $(BASE_O)
++	$(AR) rcu $@ $(BASE_O)
+ 	$(RANLIB) $@
+ 
+ $(LUA_T): $(LUA_O) $(LUA_A)
