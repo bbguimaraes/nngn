@@ -9,6 +9,7 @@ local function new_player()
             function(p, press) if press then player.light(p) end end,
             function(p, press) if press then player.flashlight(p) end end,
             function(p, press) if press then player.fairy(p) end end,
+            player.fire,
         },
     }
 end
@@ -31,7 +32,9 @@ local function show_menu(m)
     local entities <const> = {}
     local actions <const> = {}
     local fairy <const> = dofile("src/lson/zelda/fairy2.lua").renderer
+    local fire <const> = dofile("src/lson/zelda/fire.lua").renderer
     fairy.size = {64, 64}
+    fire.size = {64, 64}
     local box <const> = {
         renderer = {
             type = Renderer.SCREEN_SPRITE,
@@ -49,6 +52,7 @@ local function show_menu(m)
             scale = {512//16, 512//16}, coords = {4, 1},
         },
         fairy,
+        fire,
     } do
         local pos <const> = {menu_pos(n, idx, i)}
         t.type = Renderer.SCREEN_SPRITE

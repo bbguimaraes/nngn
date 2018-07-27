@@ -305,11 +305,11 @@ local opengl = nngn:set_graphics(
     Graphics.opengl_params{maj = 3, min = 1, hidden = true})
 if not opengl then nngn:set_graphics(Graphics.PSEUDOGRAPH) end
 input.install()
-nngn:entities():set_max(7)
+nngn:entities():set_max(9)
 nngn:graphics():resize_textures(4)
 nngn:textures():set_max(4)
 nngn:renderers():set_max_sprites(6)
-nngn:renderers():set_max_screen_sprites(6)
+nngn:renderers():set_max_screen_sprites(10)
 nngn:animations():set_max(3)
 nngn:colliders():set_max_colliders(4)
 player.set{
