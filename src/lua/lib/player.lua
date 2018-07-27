@@ -329,6 +329,67 @@ local function fairy(p, show)
     end
 end
 
+local function fire(show)
+    local p <const> = list[cur]
+    if not p then
+        return
+    end
+    local d = p.data
+    if d.fire then
+        d = d.fire
+    else
+        d = {}
+        p.data.fire = d
+    end
+    if show then
+        if d.entity then
+            d.remove()
+        end
+        local t <const> = dofile("src/lson/fire.lua")
+        local pos <const> = face_vec(p, 16)
+        pos[2] = pos[2] + p.entity:renderer():z_off() + 8
+        t.pos = pos
+        t.parent = p.entity
+        d.vel = face_vec(p, MAX_VEL * 8)
+        d.vel[3] = 0
+        d.entity = entity.load(nil, nil, t)
+        pos[2] = pos[2]  - 12
+        pos[3] = 8
+        d.light = entity.load(nil, nil, {
+            parent = p.entity, pos = pos,
+            light = {type = Light.POINT, color = {1, .2, 0, 1}, att = 2048},
+            anim = {
+                light = {
+                    rate_ms = 50,
+                    f = {
+                        type = AnimationFunction.RANDOM_F,
+                        min = .8, max = 1,
+                    },
+                },
+            },
+        })
+        d.remove = function()
+            nngn:remove_entity(d.entity)
+            nngn:remove_entity(d.light)
+            d.entity, d.light = nil, nil
+        end
+    else
+        local p0 <const> = {p.entity:pos()}
+        local p1 <const> = {d.entity:pos()}
+        d.entity:set_parent(nil)
+        d.entity:set_pos(p0[1] + p1[1], p0[2] + p1[2], 0)
+        d.entity:set_vel(table.unpack(d.vel))
+        entity.load(d.entity, nil, {
+            collider = {
+                type = Collider.AABB,
+                bb = {-4, -8, 4, -4}, flags = Collider.TRIGGER,
+            },
+        })
+        d.light:set_parent(d.entity)
+        d.light:set_pos(0, -16, 8)
+    end
+end
+
 return {
     FACE = FACE,
     ANIMATION = ANIMATION,
@@ -349,4 +410,5 @@ return {
     fairy = fairy,
     light = light,
     flashlight = flashlight,
+    fire = fire,
 }

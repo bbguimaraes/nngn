@@ -7,7 +7,19 @@ local texture = require "nngn.lib.texture"
 dofile "src/lua/input.lua"
 
 nngn.input:register_callback(map.key_callback)
-on_collision = map.on_collision
+
+function on_collision(e0, e1, ...)
+    map.on_collision(e0, e1, ...)
+    local p <const> = player.cur()
+    if not p then
+        return
+    end
+    local fire <const> = p.data.fire
+    if fire then
+        local e = fire.entity
+        if e and (e0 == e or e1 == e) then fire.remove() end
+    end
+end
 
 camera.reset()
 player.set{
