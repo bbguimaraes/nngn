@@ -6,6 +6,7 @@ main() {
         case "$1" in
         modules) modules; shift;;
         textures) textures; shift;;
+        map) map; shift;;
         *) echo >&2 "invalid option: $1"; exit 1;;
         esac
     done
@@ -25,6 +26,15 @@ EOF
 
 textures() {
     printf 'nngn.textures:reload_all()\n'
+}
+
+map() {
+    cat <<'EOF'
+do
+    local m <const> = require("nngn.lib.map")
+    m.next(m.file())
+end
+EOF
 }
 
 main "$@"

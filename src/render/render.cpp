@@ -17,6 +17,7 @@
 #include "gen.h"
 #include "grid.h"
 #include "light.h"
+#include "map.h"
 #include "render.h"
 
 using namespace nngn::literals;
@@ -111,7 +112,7 @@ namespace nngn {
 
 void Renderers::init(
     Textures *t, const Fonts *f, const Textbox *tb, const Grid *g,
-    const Colliders *c, const Lighting *l
+    const Colliders *c, const Lighting *l, const Map *m
 ) {
     this->textures = t;
     this->fonts = f;
@@ -119,6 +120,7 @@ void Renderers::init(
     this->grid = g;
     this->colliders = c;
     this->lighting = l;
+    this->map = m;
 }
 
 std::size_t Renderers::n() const {
@@ -456,9 +458,9 @@ bool Renderers::set_graphics(Graphics *g) {
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
             [](void*, void *p, u64, u64) {
                 const auto v = std::array<nngn::Vertex, TRIANGLE_MAX>{{
-                    {{  0,  16, 0}, {0, 0, 1}, {1, 0, 0}},
-                    {{-16, -16, 0}, {0, 0, 1}, {0, 1, 0}},
-                    {{ 16, -16, 0}, {0, 0, 1}, {0, 0, 1}}}};
+                    {{24, 40, 0}, {0, 0, 1}, {1, 0, 0}},
+                    {{ 8,  8, 0}, {0, 0, 1}, {0, 1, 0}},
+                    {{40,  8, 0}, {0, 0, 1}, {0, 0, 1}}}};
                 memcpy(p, std::span{v});
             },
             [](void*, void *p, u64, u64) {
@@ -469,6 +471,7 @@ bool Renderers::set_graphics(Graphics *g) {
             .depth = std::to_array<Stage>({{
                 .pipeline = sprite_depth_pipeline,
                 .buffers = std::to_array<BufferPair>({
+                    {this->map->vbo(), this->map->ebo()},
                     {this->sprite_vbo, this->sprite_ebo},
                 }),
             }, {
@@ -476,6 +479,18 @@ bool Renderers::set_graphics(Graphics *g) {
                 .buffers = std::to_array<BufferPair>({
                     {this->voxel_vbo, this->voxel_ebo},
                     {this->cube_vbo, this->cube_ebo},
+                }),
+            }}),
+            .map_ortho = std::to_array<Stage>({{
+                .pipeline = circle_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->map->vbo(), this->map->ebo()},
+                }),
+            }}),
+            .map_persp = std::to_array<Stage>({{
+                .pipeline = sprite_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->map->vbo(), this->map->ebo()},
                 }),
             }}),
             .normal = std::to_array<Stage>({{
@@ -486,7 +501,6 @@ bool Renderers::set_graphics(Graphics *g) {
             }, {
                 .pipeline = triangle_pipeline,
                 .buffers = std::to_array<BufferPair>({
-                    {triangle_vbo, triangle_ebo},
                     {this->cube_vbo, this->cube_ebo},
                 }),
             }, {
@@ -523,6 +537,7 @@ bool Renderers::set_graphics(Graphics *g) {
             .hud = std::to_array<Stage>({{
                 .pipeline = box_pipeline,
                 .buffers = std::to_array<BufferPair>({
+                    {triangle_vbo, triangle_ebo},
                     {this->textbox_vbo, this->textbox_ebo},
                 }),
             }, {

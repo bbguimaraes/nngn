@@ -268,6 +268,15 @@ local function test_input_s_control()
     assert(not nngn.lighting:shadows_enabled())
 end
 
+local function test_input_m()
+    local key = string.byte("M")
+    nngn.map:set_enabled(true)
+    nngn.input:key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(not nngn.map:enabled())
+    nngn.input:key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(nngn.map:enabled())
+end
+
 local opengl = nngn:set_graphics(
     Graphics.OPENGL_ES_BACKEND,
     Graphics.opengl_params{maj = 3, min = 1, hidden = true})
@@ -299,4 +308,5 @@ test_input_n()
 test_input_n_alt()
 test_input_z()
 test_input_s_control()
+test_input_m()
 nngn:exit()

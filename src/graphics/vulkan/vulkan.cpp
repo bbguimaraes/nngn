@@ -267,7 +267,7 @@ struct RenderList {
         u32 conf = {};
     };
     std::vector<Stage>
-        depth_dir = {}, depth_point = {},
+        depth_dir = {}, depth_point = {}, map_ortho = {}, map_persp = {},
         normal = {}, overlay = {}, hud = {},
         shadow_maps = {}, shadow_cubes = {};
 };
@@ -1487,6 +1487,7 @@ bool VulkanBackend::update_render_list() {
     }
     for(auto *l : {
         &this->render_list.depth_dir, &this->render_list.depth_point,
+        &this->render_list.map_ortho, &this->render_list.map_persp,
         &this->render_list.normal, &this->render_list.overlay,
         &this->render_list.hud,
         &this->render_list.shadow_maps, &this->render_list.shadow_cubes,
@@ -1636,6 +1637,12 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
                 light_desc.ids()[i], camera_desc.ids()[0], tex_desc.ids()[0]},
             std::array{camera_desc.offset(i)});
         push_alpha(b, this->pipeline_layout, 1);
+        render(b,
+            *this->camera.flags & nngn::Camera::Flag::PERSPECTIVE
+                ? "map_persp" : "map_ortho",
+            viewport, scissors,
+            *this->camera.flags & nngn::Camera::Flag::PERSPECTIVE
+                ? this->render_list.map_persp : this->render_list.map_ortho);
         render(b, "normal", viewport, scissors, this->render_list.normal);
         bind_descriptors(
             b, this->pipeline_layout, "no_light", 0,
@@ -1755,6 +1762,8 @@ bool VulkanBackend::set_render_list(const RenderList &l) {
     };
     f(&this->render_list.depth_dir, l.depth);
     f(&this->render_list.depth_point, l.depth);
+    f(&this->render_list.map_ortho, l.map_ortho);
+    f(&this->render_list.map_persp, l.map_persp);
     f(&this->render_list.normal, l.normal);
     f(&this->render_list.overlay, l.overlay);
     f(&this->render_list.hud, l.hud);

@@ -41,6 +41,7 @@ nngn_js_LDFLAGS = \
 	--embed-file $(srcdir)/src/lson/@src/lson \
 	--embed-file $(srcdir)/demos/@demos \
 	--embed-file $(srcdir)/img/@img \
+	--embed-file $(srcdir)/maps/@maps \
 	--embed-file /usr/share/fonts/TTF/DejaVuSans.ttf@DejaVuSans.ttf
 nngn_js_LDADD = $(DEPS_LIBS)
 
@@ -55,6 +56,7 @@ dist_check_DATA =
 
 EXTRA_DIST = \
 	img \
+	maps \
 	nngn.html \
 	scripts
 
