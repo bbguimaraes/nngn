@@ -27,7 +27,8 @@ local ANIMATION <const> = {
 local MAX_VEL = camera.MAX_VEL
 local cur
 local list = {}
-local preset
+local presets
+local last_loaded = 0
 
 local function get_entity(p)
     p = p or list[cur]
@@ -36,12 +37,13 @@ local function get_entity(p)
     end
 end
 
-local function load(e)
-    if not preset then
+local function load(e, inc)
+    if not presets then
         error("no player presets loaded")
     end
     e = e or get_entity()
-    entity.load(e, preset, {})
+    last_loaded = utils.shift(last_loaded, #presets, inc, 1)
+    entity.load(e, presets[last_loaded], {})
     local anim = e:animation()
     if anim then
         local sprite = anim:sprite()
@@ -185,7 +187,7 @@ return {
     FACE = FACE,
     ANIMATION = ANIMATION,
     MAX_VEL = MAX_VEL,
-    set = function(p) preset = p end,
+    set = function(t) presets = t end,
     n = function() return #list end,
     cur = function() return list[cur] end,
     idx = function() return cur - 1 end,

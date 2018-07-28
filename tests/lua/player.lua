@@ -7,11 +7,17 @@ local player = require "nngn.lib.player"
 local utils = require "nngn.lib.utils"
 
 local function test_load()
-    player.set("src/lson/crono.lua")
+    player.set{
+        "src/lson/crono.lua", "src/lson/link.lua", "src/lson/link_sh.lua",
+    }
     local e = nngn.entities:add()
-    player.load(e)
+    player.load(e, true)
     common.assert_eq(nngn.entities:name(e), "crono")
     common.assert_eq(e:animation():sprite():cur_track(), player.FACE.DOWN)
+    player.load(e, true)
+    common.assert_eq(nngn.entities:name(e), "link")
+    player.load(e, true)
+    common.assert_eq(nngn.entities:name(e), "link_sh")
     player.remove(player.add(e))
     common.assert_eq(nngn.entities:n(), 0)
     common.assert_eq(player.n(), 0)
@@ -187,8 +193,8 @@ end
 
 nngn:set_graphics(Graphics.PSEUDOGRAPH)
 nngn.entities:set_max(2)
-nngn.graphics:resize_textures(2)
-nngn.textures:set_max(2)
+nngn.graphics:resize_textures(3)
+nngn.textures:set_max(3)
 nngn.renderers:set_max_sprites(1)
 nngn.animations:set_max(1)
 common.setup_hook(1)
