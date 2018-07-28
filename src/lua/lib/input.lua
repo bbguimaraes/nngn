@@ -75,17 +75,19 @@ register({
         nngn.renderers:set_perspective(p)
     end},
     {"P", Input.SEL_PRESS, function(_, _, mods)
-        if mods & Input.MOD_CTRL == 0 then
-            pause()
-        elseif mods & Input.MOD_SHIFT == 0 then
-            local e = nngn.entities:add()
-            player.load(e)
-            nngn.players:add(e)
-            if nngn.players:n() == 1 then camera.set_follow(e) end
-        else
-            local p = nngn.players:cur()
+        if mods & Input.MOD_CTRL == 0 then return pause() end
+        local shift = mods & Input.MOD_SHIFT ~= 0
+        local alt = mods & Input.MOD_ALT ~= 0
+        local p = nngn.players:cur()
+        if shift and not alt then
             if p then player.remove(p) end
+            return
         end
+        if alt then if not p then return end
+        else p = nngn.players:add(nngn.entities:add()) end
+        local e = p:entity()
+        player.load(e, not shift)
+        if not alt and nngn.players:n() == 1 then camera.set_follow(e) end
     end},
     {"T", Input.SEL_PRESS, function()
         textbox.update("test",

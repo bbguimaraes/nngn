@@ -3,13 +3,15 @@ local entity = require "nngn.lib.entity"
 local utils = require "nngn.lib.utils"
 
 local MAX_VEL = camera.MAX_VEL
-local PLAYER
+local PLAYERS = {}
+local LAST_LOADED = 0
 
-local function set(t) PLAYER = t end
+local function set(t) PLAYERS = t end
 
-local function load(e)
-    if PLAYER == nil then error("no player loaded") end
-    entity.load(e, PLAYER, {})
+local function load(e, inc)
+    if #PLAYERS == 0 then error("no player loaded") end
+    LAST_LOADED = utils.shift(LAST_LOADED, #PLAYERS, inc, 1)
+    entity.load(e, PLAYERS[LAST_LOADED])
     local anim = e:animation()
     if anim then
         local sprite = anim:sprite()
