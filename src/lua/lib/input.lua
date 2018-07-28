@@ -99,11 +99,16 @@ register({
     end},
     {"P", Input.SEL_PRESS, function(_, _, mods)
         if mods & Input.MOD_CTRL == 0 then
-            pause()
-        elseif mods & Input.MOD_SHIFT == 0 then
-            player.add()
-        else
+            return pause()
+        end
+        local shift <const> = mods & Input.MOD_SHIFT ~= 0
+        local alt <const> = mods & Input.MOD_ALT ~= 0
+        if shift and not alt then
             player.remove()
+        elseif alt then
+            player.load(nil, not shift)
+        else
+            player.add()
         end
     end},
     {"T", Input.SEL_PRESS, function()

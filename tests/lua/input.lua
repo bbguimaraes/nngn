@@ -128,6 +128,23 @@ local function test_input_p_tab()
     common.assert_eq(player.n(), 0)
 end
 
+local function test_input_p_alt()
+    local key = string.byte("P")
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    local e = player.entity()
+    common.assert_eq(nngn:entities():name(e), "crono")
+    nngn:input():key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_ALT)
+    common.assert_eq(nngn:entities():name(e), "link")
+    nngn:input():key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_ALT)
+    common.assert_eq(nngn:entities():name(e), "link_sh")
+    nngn:input():key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_ALT | Input.MOD_SHIFT)
+    common.assert_eq(nngn:entities():name(e), "link")
+    player.remove(player.get(0))
+end
+
 local function test_input_v()
     local scale = nngn:timing():scale()
     local t = timing.scales()
@@ -170,11 +187,15 @@ local opengl = nngn:set_graphics(
 if not opengl then nngn:set_graphics(Graphics.PSEUDOGRAPH) end
 input.install()
 nngn:entities():set_max(3)
-nngn:graphics():resize_textures(2)
-nngn:textures():set_max(2)
+nngn:graphics():resize_textures(3)
+nngn:textures():set_max(3)
 nngn:renderers():set_max_sprites(3)
 nngn:animations():set_max(3)
-player.set("src/lson/crono.lua")
+player.set{
+    "src/lson/crono.lua",
+    "src/lson/zelda/link.lua",
+    "src/lson/zelda/link_sh.lua",
+}
 common.setup_hook(1)
 test_get_keys()
 if opengl then test_input_i() end
@@ -183,6 +204,7 @@ test_input_c()
 test_input_c_follow()
 test_input_p()
 test_input_p_tab()
+test_input_p_alt()
 test_input_v()
 test_input_space()
 test_input_g()
