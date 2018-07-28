@@ -24,6 +24,7 @@ struct Colliders;
 class Fonts;
 class Grid;
 class Lighting;
+class Map;
 class Textures;
 class Textbox;
 
@@ -44,6 +45,7 @@ class Renderers {
     const Grid *grid = nullptr;
     const Colliders *colliders = nullptr;
     const Lighting *lighting = nullptr;
+    const Map *map = nullptr;
     Flags<Flag> flags = {};
     std::vector<SpriteRenderer> sprites = {};
     std::vector<CubeRenderer> cubes = {};
@@ -94,7 +96,7 @@ public:
         u32 tex, const std::array<vec4, 6> &uv);
     void init(
         Textures *t, const Fonts *f, const Textbox *tb, const Grid *g,
-        const Colliders *c, const Lighting *l);
+        const Colliders *c, const Lighting *l, const Map *map);
     auto max_sprites() const { return this->sprites.capacity(); }
     auto max_cubes() const { return this->cubes.capacity(); }
     auto max_voxels() const { return this->voxels.capacity(); }

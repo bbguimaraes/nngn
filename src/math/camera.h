@@ -4,6 +4,8 @@
 #include <bitset>
 #include <vector>
 
+#include "const.h"
+
 #include "utils/flags.h"
 
 #include "mat4.h"

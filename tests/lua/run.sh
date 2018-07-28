@@ -17,3 +17,4 @@ run tests/lua/player.lua
 run tests/lua/font.lua
 run tests/lua/textbox.lua
 run tests/lua/light.lua
+run tests/lua/state.lua

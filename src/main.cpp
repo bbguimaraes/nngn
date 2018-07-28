@@ -18,6 +18,7 @@
 #include "render/animation.h"
 #include "render/grid.h"
 #include "render/light.h"
+#include "render/map.h"
 #include "render/render.h"
 #include "timing/fps.h"
 #include "timing/profile.h"
@@ -59,6 +60,7 @@ struct NNGN {
     Players players = {};
     nngn::Textures textures = {};
     nngn::Lighting lighting = {};
+    nngn::Map map = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(
         nngn::Graphics::Backend b, std::optional<const void*> params);
@@ -86,10 +88,11 @@ bool NNGN::init(int argc, const char *const *argv) {
         return false;
     this->renderers.init(
         &this->textures, &this->fonts, &this->textbox, &this->grid,
-        &this->colliders, &this->lighting);
+        &this->colliders, &this->lighting, &this->map);
     this->animations.init(&this->math);
     this->textbox.init(&this->fonts);
     this->lighting.init(&this->math);
+    this->map.init(&this->textures);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::all_of(
@@ -126,6 +129,7 @@ bool NNGN::set_graphics(
         &this->input.mouse, [](void *p, nngn::dvec2 pos)
             { static_cast<nngn::MouseInput*>(p)->move_callback(pos); });
     const bool ret = this->grid.set_graphics(g.get())
+        && this->map.set_graphics(g.get())
         && this->renderers.set_graphics(g.get());
     this->fonts.graphics = g.get();
     this->textures.set_graphics(g.get());
@@ -133,8 +137,8 @@ bool NNGN::set_graphics(
         &this->camera, [](void *p, auto s)
             { static_cast<nngn::Camera*>(p)->set_screen(s); });
     g->set_camera({
-        &this->camera.screen, &this->camera.proj, &this->camera.hud_proj,
-        &this->camera.view});
+        &this->camera.flags.t, &this->camera.screen,
+        &this->camera.proj, &this->camera.hud_proj, &this->camera.view});
     this->camera.set_screen(g->window_size());
     g->set_lighting({
         &this->lighting.ubo(),
@@ -220,6 +224,7 @@ NNGN_LUA_PROXY(NNGN,
     "players", sol::readonly(&NNGN::players),
     "textures", sol::readonly(&NNGN::textures),
     "lighting", sol::readonly(&NNGN::lighting),
+    "map", sol::readonly(&NNGN::map),
     "set_graphics", &NNGN::set_graphics,
     "remove_entity", &NNGN::remove_entity,
     "remove_entity_v", [](NNGN &nngn, const sol::table &t) {
