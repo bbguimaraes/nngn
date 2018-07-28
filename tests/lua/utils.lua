@@ -101,6 +101,32 @@ local function test_find()
     common.assert_eq(utils.find(t, 5), 5)
 end
 
+local function test_lower_bound()
+    local t <const> = {0, 1, 1, 3, 4, 5}
+    common.assert_eq(utils.lower_bound(t, -1), 1)
+    common.assert_eq(utils.lower_bound(t,  0), 1)
+    common.assert_eq(utils.lower_bound(t,  1), 2)
+    common.assert_eq(utils.lower_bound(t,  2), 4)
+    common.assert_eq(utils.lower_bound(t,  3), 4)
+    common.assert_eq(utils.lower_bound(t,  6), 7)
+end
+
+local function test_insert_sorted()
+    for _, t in ipairs{
+        {-1, 1, {-1, 0, 1, 1, 3, 4, 5}},
+        { 0, 1, { 0, 0, 1, 1, 3, 4, 5}},
+        { 1, 2, { 0, 1, 1, 1, 3, 4, 5}},
+        { 2, 4, { 0, 1, 1, 2, 3, 4, 5}},
+        { 6, 7, { 0, 1, 1, 3, 4, 5, 6}},
+    } do
+        local x <const>, i <const>, expected <const> = table.unpack(t)
+        local t <const> = {0, 1, 1, 3, 4, 5}
+        local ret <const> = utils.insert_sorted(t, x)
+        common.assert_eq(ret, i)
+        common.assert_eq(t, expected, common.deep_cmp)
+    end
+end
+
 return {
     test_pprint,
     test_fmt_time,
@@ -109,4 +135,6 @@ return {
     test_shift_table,
     test_double_tap,
     test_find,
+    test_lower_bound,
+    test_insert_sorted,
 }

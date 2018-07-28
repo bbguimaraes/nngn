@@ -43,6 +43,7 @@
 #include "render/animation.h"
 #include "render/grid.h"
 #include "render/light.h"
+#include "render/map.h"
 #include "render/render.h"
 #include "timing/fps.h"
 #include "timing/profile.h"
@@ -73,6 +74,7 @@ NNGN_LUA_DECLARE_USER_TYPE(nngn::Animations, "Animations")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Colliders, "Colliders")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Textures, "Textures")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Lighting, "Lighting")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Map, "Map")
 
 namespace {
 
@@ -107,6 +109,7 @@ struct NNGN {
     Entities entities = {};
     nngn::Textures textures = {};
     nngn::Lighting lighting = {};
+    nngn::Map map = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(nngn::Graphics::Backend b, const void *params);
     int loop(void);
@@ -149,10 +152,11 @@ bool NNGN::init(int argc, const char *const *argv) {
         return false;
     this->renderers.init(
         &this->textures, &this->fonts, &this->textbox, &this->grid,
-        &this->colliders, &this->lighting);
+        &this->colliders, &this->lighting, &this->map);
     this->animations.init(&this->math);
     this->textbox.init(&this->fonts);
     this->lighting.init(&this->math);
+    this->map.init(&this->textures);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::all_of(
@@ -191,6 +195,7 @@ bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
             static_cast<nngn::MouseInput*>(p)->move_callback(pos);
         });
     const bool ret = this->grid.set_graphics(g.get())
+        && this->map.set_graphics(g.get())
         && this->renderers.set_graphics(g.get());
     this->fonts.graphics = g.get();
     this->textures.set_graphics(g.get());
@@ -198,8 +203,8 @@ bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
         &this->camera, [](void *p, auto s)
             { static_cast<nngn::Camera*>(p)->set_screen(s); });
     g->set_camera({
-        &this->camera.screen, &this->camera.proj, &this->camera.screen_proj,
-        &this->camera.view});
+        &this->camera.flags.v, &this->camera.screen,
+        &this->camera.proj, &this->camera.screen_proj, &this->camera.view});
     this->camera.set_screen(g->window_size());
     g->set_lighting({
         &this->lighting.ubo(),
@@ -284,6 +289,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["entities"] = accessor<&NNGN::entities>;
     t["textures"] = accessor<&NNGN::textures>;
     t["lighting"] = accessor<&NNGN::lighting>;
+    t["map"] = accessor<&NNGN::map>;
     t["set_graphics"] = &NNGN::set_graphics;
     t["remove_entity"] = &NNGN::remove_entity;
     t["remove_entities"] = [](NNGN &nngn, nngn::lua::table_view es) {

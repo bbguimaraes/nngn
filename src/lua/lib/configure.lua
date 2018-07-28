@@ -50,6 +50,7 @@ local FS = {
         int(
             "text", 8, 65536, 65536,
             "nngn:renderers():set_max_text(%1)"),
+        int("map", 8, 1048576, 1048576, "nngn:map():set_max(%1)"),
         int(
             "colliders", 8, 8192, 8192,
             'require("nngn.lib.collision").set_max_colliders(%1)'),
@@ -146,6 +147,7 @@ local FS = {
         int(
             "grid size", 1, 1024, 64,
             "nngn:grid():set_dimensions(nngn:grid():spacing(), %1)"),
+        bool("map", true, "nngn:map():set_enabled(%1)"),
         bool("lighting", false, "nngn:lighting():set_enabled(%1)"),
         bool("lighting Z sprites", false, "nngn:lighting():set_zsprites(%1)"),
         bool("update sun", true, "nngn:lighting():set_update_sun(%1)"),

@@ -213,11 +213,13 @@ struct Graphics {
             std::span<const std::pair<u32, u32>> buffers = {};
         };
         std::span<const Stage>
-            depth = {}, normal = {}, overlay = {}, screen = {},
+            depth = {}, map_ortho = {}, map_persp = {},
+            normal = {}, overlay = {}, screen = {},
             shadow_maps = {}, shadow_cubes = {};
     };
     enum class CursorMode { NORMAL, HIDDEN, DISABLED };
     struct Camera {
+        uint8_t *flags = nullptr;
         const uvec2 *screen = nullptr;
         const mat4 *proj = nullptr, *screen_proj = nullptr, *view = nullptr;
     };

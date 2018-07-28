@@ -114,6 +114,7 @@ LUA_TESTS = \
 	%reldir%/player.lua \
 	%reldir%/run.sh \
 	%reldir%/serial.lua \
+	%reldir%/state.lua \
 	%reldir%/textbox.lua \
 	%reldir%/unit.lua \
 	%reldir%/utils.lua

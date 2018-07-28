@@ -62,6 +62,9 @@ register({
     {"L", Input.SEL_PRESS | Input.SEL_CTRL, function()
         nngn:lighting():set_enabled(not nngn:lighting():enabled())
     end},
+    {"M", Input.SEL_PRESS | Input.SEL_CTRL, function()
+        nngn:map():set_enabled(not nngn:map():enabled())
+    end},
     {"V", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
         nngn:timing():set_scale(utils.shift_table(
             nngn:timing():scale(), timing.scales(), 1,

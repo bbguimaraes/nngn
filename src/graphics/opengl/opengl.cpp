@@ -104,7 +104,8 @@ struct RenderList {
         std::vector<Buffer> buffers = {};
     };
     std::vector<Stage>
-        depth = {}, normal = {}, overlay = {}, screen = {},
+        depth = {}, map_ortho = {}, map_persp = {},
+        normal = {}, overlay = {}, screen = {},
         shadow_maps = {}, shadow_cubes = {};
 };
 
@@ -489,6 +490,8 @@ bool OpenGLBackend::set_render_list(const RenderList &l) {
             dst->emplace_back(s);
     };
     f(&this->render_list.depth, l.depth);
+    f(&this->render_list.map_ortho, l.map_ortho);
+    f(&this->render_list.map_persp, l.map_persp);
     f(&this->render_list.normal, l.normal);
     f(&this->render_list.overlay, l.overlay);
     f(&this->render_list.screen, l.screen);
@@ -806,6 +809,10 @@ bool OpenGLBackend::render() {
             GL_UNIFORM_BUFFER, CAMERA_UBO_BINDING,
             this->camera_ubo.id(), 0, sizeof(nngn::CameraUBO));
         CHECK_RESULT(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        const bool persp =
+            *this->camera.flags & nngn::Camera::Flag::PERSPECTIVE;
+        if(!render(persp ? &render_list.map_persp : &render_list.map_ortho))
+            return false;
         const auto &triangle_prog = this->programs[
             static_cast<std::size_t>(PipelineConfiguration::Type::TRIANGLE)];
         CHECK_RESULT(glUseProgram, triangle_prog.id());

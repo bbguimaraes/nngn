@@ -2,6 +2,7 @@ if ENABLE_TESTS
 check_PROGRAMS += \
 	%reldir%/animation \
 	%reldir%/light \
+	%reldir%/map \
 	%reldir%/render \
 	%reldir%/sun
 endif
@@ -9,6 +10,7 @@ endif
 check_HEADERS += \
 	%reldir%/animation_test.h \
 	%reldir%/light_test.h \
+	%reldir%/map_test.h \
 	%reldir%/render_test.h \
 	%reldir%/sun_test.h
 
@@ -46,6 +48,21 @@ check_HEADERS += \
 	src/utils/log.cpp \
 	%reldir%/light_test.cpp \
 	%reldir%/light_test.moc.cpp
+
+%canon_reldir%_map_CPPFLAGS = $(check_CPPFLAGS)
+%canon_reldir%_map_CXXFLAGS = $(check_CXXFLAGS)
+%canon_reldir%_map_LDADD = $(check_LDADD)
+%canon_reldir%_map_SOURCES = \
+	src/graphics/pseudo.cpp \
+	src/graphics/texture.cpp \
+	src/lua/alloc.cpp \
+	src/lua/lua.cpp \
+	src/lua/state.cpp \
+	src/lua/traceback.cpp \
+	src/render/map.cpp \
+	src/utils/log.cpp \
+	%reldir%/map_test.cpp \
+	%reldir%/map_test.moc.cpp
 
 %canon_reldir%_render_CPPFLAGS = $(check_CPPFLAGS)
 %canon_reldir%_render_CXXFLAGS = $(check_CXXFLAGS)

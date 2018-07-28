@@ -275,6 +275,22 @@ local function move(key, press, _, keys)
     e:set_vel(dir[1] * v, dir[2] * v, 0)
 end
 
+local function move_all(x, y, abs)
+    for _, p in ipairs(list) do
+        local e <const> = p.entity
+        local px, py, pz = e:pos()
+        if abs then
+            e:set_pos(x, y - e:renderer():z_off(), pz)
+        else
+            e:set_pos(px + x, py + y, pz)
+        end
+    end
+    if not camera.following() then
+        local _, _, z = nngn:camera():pos()
+        nngn:camera():set_pos(x, y, z)
+    end
+end
+
 local function player_menu(p, mods)
     p = p or list[cur]
     if p then
@@ -354,6 +370,7 @@ return {
     action = action,
     next = next,
     move = move,
+    move_all = move_all,
     face_vec = face_vec,
     fairy = fairy,
     light = light,

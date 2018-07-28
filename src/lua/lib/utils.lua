@@ -130,6 +130,24 @@ local function find(t, x)
     end
 end
 
+local function cmp(x, y) return not (y < x) end
+
+local function lower_bound(t, x, f)
+    f = f or cmp
+    for i, y in ipairs(t) do
+        if f(x, y) then
+            return i
+        end
+    end
+    return #t + 1
+end
+
+local function insert_sorted(t, x, f)
+    local i <const> = lower_bound(t, x, f)
+    table.insert(t, i, x)
+    return i
+end
+
 local DOUBLE_TAP = {}
 local DOUBLE_TAP_INTERVAL = 200
 
@@ -165,6 +183,8 @@ return {
     shift = shift,
     shift_table = shift_table,
     find = find,
+    lower_bound = lower_bound,
+    insert_sorted = insert_sorted,
     get_double_tap_interval = get_double_tap_interval,
     set_double_tap_interval = set_double_tap_interval,
     check_double_tap = check_double_tap,

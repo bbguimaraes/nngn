@@ -6,6 +6,7 @@ LUA_FILES += \
 	%reldir%/input.lua \
 	%reldir%/inspect.lua \
 	%reldir%/lib/all.lua \
+	%reldir%/lib/animation.lua \
 	%reldir%/lib/camera.lua \
 	%reldir%/lib/collision.lua \
 	%reldir%/lib/configure.lua \
@@ -16,12 +17,14 @@ LUA_FILES += \
 	%reldir%/lib/input.lua \
 	%reldir%/lib/inspect.lua \
 	%reldir%/lib/light.lua \
+	%reldir%/lib/map.lua \
 	%reldir%/lib/math.lua \
 	%reldir%/lib/menu.lua \
 	%reldir%/lib/player.lua \
 	%reldir%/lib/plot.lua \
 	%reldir%/lib/profile.lua \
 	%reldir%/lib/serial.lua \
+	%reldir%/lib/state.lua \
 	%reldir%/lib/textbox.lua \
 	%reldir%/lib/texture.lua \
 	%reldir%/lib/timeline.lua \

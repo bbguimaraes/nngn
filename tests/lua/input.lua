@@ -251,6 +251,15 @@ local function test_input_s_control()
     assert(not nngn:lighting():shadows_enabled())
 end
 
+local function test_input_m()
+    local key = string.byte("M")
+    nngn:map():set_enabled(true)
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(not nngn:map():enabled())
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(nngn:map():enabled())
+end
+
 local function test_menu_fairy()
     local key_e <const>, key_f <const> = string.byte("EF", 1, -1)
     local p = player.add()
@@ -326,6 +335,7 @@ test_input_n()
 test_input_n_alt()
 test_input_z()
 test_input_s_control()
+test_input_m()
 test_menu_fairy()
 test_menu_light()
 test_menu_flashlight()

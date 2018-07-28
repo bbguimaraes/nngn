@@ -20,6 +20,7 @@ struct Graphics;
 class Fonts;
 class Grid;
 class Lighting;
+class Map;
 class Textures;
 class Textbox;
 
@@ -48,7 +49,7 @@ public:
     /** Partially initializes this system.  \see set_graphics */
     void init(
         Textures *t, const Fonts *f, const Textbox *tb, const Grid *g,
-        const Colliders *c, const Lighting *l);
+        const Colliders *c, const Lighting *l, const Map *map);
     // Configuration
     auto debug(void) const { return *this->m_debug; }
     bool perspective(void) const;
@@ -119,6 +120,7 @@ private:
     const Grid *grid = nullptr;
     const Colliders *colliders = nullptr;
     const Lighting *lighting = nullptr;
+    const Map *map = nullptr;
     std::vector<SpriteRenderer> sprites = {};
     std::vector<SpriteRenderer> screen_sprites = {};
     std::vector<CubeRenderer> cubes = {};
