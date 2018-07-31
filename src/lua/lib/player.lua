@@ -11,7 +11,9 @@ local function set(t) PLAYERS = t end
 local function load(e, inc)
     if #PLAYERS == 0 then error("no player loaded") end
     LAST_LOADED = utils.shift(LAST_LOADED, #PLAYERS, inc, 1)
-    entity.load(e, PLAYERS[LAST_LOADED])
+    local t = dofile(PLAYERS[LAST_LOADED])
+    if t.collider then t.collider.flags = Collider.SOLID end
+    entity.load(e, nil, t)
     local anim = e:animation()
     if anim then
         local sprite = anim:sprite()

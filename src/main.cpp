@@ -152,6 +152,7 @@ int NNGN::loop() {
     this->animations.update(this->timing);
     if(!this->colliders.check_collisions(this->timing))
         return 1;
+    this->colliders.resolve_collisions();
     this->colliders.lua_on_collision(this->lua.L);
     if(this->camera.flags & nngn::Camera::Flag::SCREEN_UPDATED)
         this->textbox.flags.set(nngn::Textbox::Flag::SCREEN_UPDATED);

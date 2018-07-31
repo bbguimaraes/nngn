@@ -17,7 +17,7 @@ nngn.colliders:set_max_colliders(N)
 nngn.renderers:set_max_colliders(N)
 nngn.colliders:set_max_collisions(32 * N)
 local colliders = {
-    {type = Collider.AABB, bb = 8}}
+    {type = Collider.AABB, flags = Collider.SOLID, bb = 8}}
 local n_col = #colliders
 local rnd = function() return (nngn.math:rand() - .5) * 256 end
 for i = 1, N do
