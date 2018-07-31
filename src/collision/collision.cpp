@@ -1,5 +1,7 @@
 #include "entity.h"
 
+#include <cmath>
+
 #include "lua/register.h"
 #include "lua/state.h"
 #include "lua/utils.h"
@@ -69,6 +71,23 @@ bool Colliders::check_collisions(const Timing &t) {
         this->backend->set_max_colliders(this->m_max_colliders);
     }
     return this->backend->check(t, &this->input, &this->output);
+}
+
+void Colliders::resolve_collisions(void) const {
+    NNGN_PROFILE_CONTEXT(collision_resolve);
+    if(!this->m_flags.is_set(Flag::RESOLVE))
+        return;
+    constexpr auto div = [](auto x, auto y)
+        { return std::isinf(x) && std::isinf(y) ? 1.0f : x / y; };
+    for(const auto &c : this->output.collisions) {
+        if(!(c.flags0 & c.flags1 & Collider::Flag::SOLID))
+            continue;
+        const auto denom = c.mass0 + c.mass1;
+        if(const auto f = div(c.mass1, denom); f != 0)
+            c.entity0->set_pos(c.entity0->p + f * c.force);
+        if(const auto f = div(c.mass0, denom); f != 0)
+            c.entity1->set_pos(c.entity1->p - f * c.force);
+    }
 }
 
 bool Colliders::lua_on_collision(nngn::lua::state_view lua) {

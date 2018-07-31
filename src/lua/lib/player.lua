@@ -44,7 +44,9 @@ local function load(e, inc)
     end
     e = e or get_entity()
     last_loaded = utils.shift(last_loaded, #presets, inc, 1)
-    entity.load(e, presets[last_loaded], {})
+    local t = dofile(presets[last_loaded])
+    if t.collider then t.collider.flags = Collider.SOLID end
+    entity.load(e, nil, t)
     local anim = e:animation()
     if anim then
         local sprite = anim:sprite()

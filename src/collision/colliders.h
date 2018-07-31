@@ -18,6 +18,7 @@ struct Collider {
     enum Flag : u8 {
         COLLIDING = 1 << 0,
         TRIGGER = 1 << 1,
+        SOLID = 1 << 2,
     };
     Entity *entity = nullptr;
     vec3 pos = {}, vel = {};

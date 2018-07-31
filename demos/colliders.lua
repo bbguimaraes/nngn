@@ -17,7 +17,7 @@ nngn:renderers():set_debug(Renderers.DEBUG_BB | Renderers.DEBUG_CIRCLE)
 
 local C <const> = Collider
 local colliders <const> = {
-    {type = C.AABB, bb = 8},
+    {type = C.AABB, C.SOLID, bb = 8},
 }
 local n <const> = #colliders
 local math <const> = nngn:math()
