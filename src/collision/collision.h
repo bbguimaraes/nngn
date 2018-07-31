@@ -89,6 +89,7 @@ public:
     void remove(Collider *p);
     void clear(void);
     bool check_collisions(const Timing &t);
+    void resolve_collisions() const;
     void lua_on_collision(lua_State *L);
 };
 

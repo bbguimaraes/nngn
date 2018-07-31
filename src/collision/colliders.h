@@ -14,7 +14,7 @@ struct Collider {
     enum Type : uint8_t {
         NONE, AABB, N_TYPES,
     };
-    enum Flag : uint8_t { TRIGGER = 0b1 };
+    enum Flag : uint8_t { TRIGGER = 0b1, SOLID = 0b10 };
     Entity *entity = nullptr;
     vec3 pos = {}, vel = {};
     float m = {};

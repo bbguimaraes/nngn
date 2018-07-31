@@ -30,6 +30,7 @@ local FS = {
             "time scale (log₂)", -10000, 10000, 0, 1000,
             "nngn.timing:set_scale(2 ^ %1)"),
         bool("check collisions", true, "nngn.colliders:set_check(%1)"),
+        bool("resolve collisions", true, "nngn.colliders:set_resolve(%1)"),
     },
     limits = {
         int("textures", 2, 64, 16, 'require("nngn.lib.texture").set_max(%1)'),
