@@ -6,6 +6,7 @@
 
 #include "entity.h"
 
+#include "collision/collision.h"
 #include "font/font.h"
 #include "font/text.h"
 #include "font/textbox.h"
@@ -20,6 +21,10 @@
 using nngn::u8, nngn::u32, nngn::u64;
 
 namespace {
+
+constexpr std::array<nngn::vec2, 2>
+    CIRCLE_UV_32 = {{{ 32/512.0f, 1}, { 64/512.0f, 1 -  32/512.0f}}},
+    CIRCLE_UV_64 = {{{128/512.0f, 1}, {256/512.0f, 1 - 128/512.0f}}};
 
 template<std::size_t per_obj>
 void update_indices(void*, void *p, u64 i, u64 n) {
@@ -231,17 +236,42 @@ void update_selections(
     *it_p = it;
 }
 
+using UpdateAABBData = std::tuple<
+    const nngn::AABBCollider*,
+    const std::unordered_set<const nngn::Collider*>&>;
+
+void update_aabbs(const UpdateAABBData *data, nngn::Vertex *p, u64 i, u64 n) {
+    auto &[aabbs, lookup] = *data;
+    for(; n--; ++i) {
+        const auto &x = aabbs[i];
+        nngn::Renderers::gen_quad_verts(
+            &p, x.bl, x.tr, 0,
+            lookup.find(&x) != cend(lookup)
+                ? nngn::vec3(0, 1, 0) : nngn::vec3(1, 0, 0));
+    }
+}
+
+void update_aabb_circles(
+    nngn::Vertex **p, const nngn::AABBCollider *x
+) {
+    const auto uv = x->radius < 32.0f ? CIRCLE_UV_32 : CIRCLE_UV_64;
+    nngn::Renderers::gen_quad_verts(
+        p, x->center - x->radius, x->center + x->radius, 0, 1, uv[0], uv[1]);
+}
+
 }
 
 namespace nngn {
 
 void Renderers::init(
-    Textures *t, const Fonts *f, const Textbox *tb, const Grid *g
+    Textures *t, const Fonts *f, const Textbox *tb, const Grid *g,
+    const Colliders *c
 ) {
     this->textures = t;
     this->fonts = f;
     this->textbox = tb;
     this->grid = g;
+    this->colliders = c;
 }
 
 std::size_t Renderers::n() const {
@@ -287,6 +317,17 @@ bool Renderers::set_max_text(std::size_t n) {
             this->text_ebo, 6 * n * sizeof(u32));
 }
 
+bool Renderers::set_max_colliders(std::size_t n) {
+    if(!this->graphics)
+        return true;
+    const auto vsize = 4 * n * sizeof(Vertex);
+    const auto esize = 6 * n * sizeof(u32);
+    return this->graphics->set_buffer_capacity(this->aabb_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->aabb_ebo, esize)
+        && this->graphics->set_buffer_capacity(this->aabb_circle_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->aabb_circle_ebo, esize);
+}
+
 void Renderers::set_debug(std::underlying_type_t<Debug> d) {
     auto old = this->m_debug;
     this->m_debug = {d};
@@ -318,6 +359,7 @@ bool Renderers::set_graphics(Graphics *g) {
     u32
         triangle_pipeline = {}, sprite_pipeline = {}, voxel_pipeline = {},
         box_pipeline = {}, font_pipeline = {}, line_pipeline = {},
+        circle_pipeline = {},
         triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
@@ -348,6 +390,10 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "line_pipeline",
             .type = Pipeline::Type::TRIANGLE,
             .flags = Pipeline::Flag::LINE,
+        }))
+        && (circle_pipeline = g->create_pipeline({
+            .name = "circle_pipeline",
+            .type = Pipeline::Type::SPRITE,
         }))
         && (triangle_vbo = g->create_buffer({
             .name = "triangle_vbo",
@@ -435,6 +481,22 @@ bool Renderers::set_graphics(Graphics *g) {
             .type = index,
             .size = 6 * SELECTION_MAX * sizeof(u32),
         }))
+        && (this->aabb_vbo = g->create_buffer({
+            .name = "aabb_vbo",
+            .type = vertex,
+        }))
+        && (this->aabb_ebo = g->create_buffer({
+            .name = "aabb_ebo",
+            .type = index,
+        }))
+        && (this->aabb_circle_vbo = g->create_buffer({
+            .name = "aabb_circle_vbo",
+            .type = vertex,
+        }))
+        && (this->aabb_circle_ebo = g->create_buffer({
+            .name = "aabb_circle_ebo",
+            .type = index,
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -468,12 +530,18 @@ bool Renderers::set_graphics(Graphics *g) {
                 }),
             }}),
             .overlay = std::to_array<Stage>({{
+                .pipeline = circle_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->aabb_circle_vbo, this->aabb_circle_ebo},
+                }),
+            }, {
                 .pipeline = box_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->box_vbo, this->box_ebo},
                     {this->cube_debug_vbo, this->cube_debug_ebo},
                     {this->voxel_debug_vbo, this->voxel_debug_ebo},
                     {this->selection_vbo, this->selection_ebo},
+                    {this->aabb_vbo, this->aabb_ebo},
                 }),
             }, {
                 .pipeline = line_pipeline,
@@ -707,6 +775,44 @@ bool Renderers::update() {
                 rptr(cbegin(this->selections)),
                 std::span{std::as_const(this->sprites)}}));
     };
+    const auto update_aabbs = [this] {
+        NNGN_LOG_CONTEXT("aabb");
+        const auto vbo = this->aabb_vbo;
+        const auto ebo = this->aabb_ebo;
+        if(!this->m_debug.is_set(Debug::BB)) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        const auto &v = this->colliders->aabb();
+        if(v.empty()) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        const auto &collisions = this->colliders->collisions();
+        std::unordered_set<const Collider*> lookup;
+        for(auto x : collisions) {
+            lookup.insert(x.entity0->collider);
+            lookup.insert(x.entity1->collider);
+        }
+        const auto n = v.size();
+        return update_with_state<::update_aabbs, update_indices<6>>(
+            this->graphics, vbo, ebo, 0, 0,
+            n, 4 * sizeof(Vertex), n, 6 * sizeof(std::uint32_t),
+            rptr(UpdateAABBData{v.data(), std::move(lookup)}));
+    };
+    const auto update_aabb_circles = [this] {
+        NNGN_LOG_CONTEXT("aabb circle");
+        const auto vbo = this->aabb_circle_vbo;
+        const auto ebo = this->aabb_circle_ebo;
+        const auto v = std::span{
+            const_cast<std::vector<AABBCollider>&>(this->colliders->aabb())};
+        if(!this->m_debug.is_set(Debug::CIRCLE) || v.empty()) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        return update_span<::update_aabb_circles, update_indices<6>>(
+            this->graphics, v, vbo, ebo, 4, 6);
+    };
     const auto updated = [&flags = this->flags](auto f, const auto &v) {
         return flags.is_set(f)
             ? (flags.clear(f), true)
@@ -736,7 +842,8 @@ bool Renderers::update() {
             this->graphics->set_buffer_size(this->voxel_debug_ebo, 0);
         }
     }
-    return update_text() && update_textbox() && update_selections();
+    return update_text() && update_textbox() && update_selections()
+        && update_aabbs() && update_aabb_circles();
 }
 
 }

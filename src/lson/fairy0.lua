@@ -1,5 +1,6 @@
 return {
     name = "fairy0",
+    collider = {type = Collider.AABB, bb = {-4, -8, 4, -4}},
     renderer = {
         type = Renderer.SPRITE,
         tex = "img/zelda.png",

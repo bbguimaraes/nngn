@@ -4,6 +4,7 @@
 
 #include "entity.h"
 
+#include "collision/colliders.h"
 #include "math/camera.h"
 #include "math/math.h"
 #include "render/animation.h"
@@ -47,6 +48,8 @@ void set_pos(Entity *e, const nngn::vec3 &oldp, const nngn::vec3 &p) {
         e->renderer->set_pos(p);
     if(e->camera)
         e->camera->set_pos(e->camera->p + p - oldp);
+    if(e->collider)
+        e->collider->pos = p;
 }
 
 }
@@ -59,6 +62,8 @@ void Entity::set_pos(const nngn::vec3 &pos) {
 
 void Entity::set_vel(const nngn::vec3 &vel) {
     this->v = vel;
+    if(this->collider)
+        this->collider->vel = v;
 }
 
 void Entity::set_renderer(nngn::Renderer *r) {
@@ -66,6 +71,14 @@ void Entity::set_renderer(nngn::Renderer *r) {
         r->entity = this;
         r->set_pos(this->p);
     }
+}
+
+void Entity::set_collider(nngn::Collider *c) {
+    if(!(this->collider = c))
+        return;
+    c->entity = this;
+    c->pos = this->p;
+    c->vel = this->v;
 }
 
 void Entity::set_animation(nngn::Animation *p_a) {

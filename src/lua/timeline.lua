@@ -2,7 +2,9 @@ local profile = require "nngn.lib.profile"
 local timeline = require "nngn.lib.timeline"
 local tools = require "nngn.lib.tools"
 
-local stats = {profile = Profile}
+local stats = {
+    profile = Profile,
+    collision = Colliders}
 
 local function named(name)
     local s = stats[name]

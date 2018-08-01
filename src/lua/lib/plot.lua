@@ -77,7 +77,10 @@ local FS = {
                 stg.total_memory * kb,
                 buf.n_writes,
                 buf.total_writes_bytes * kb)
-        end}}
+        end},
+    coll = {
+        function(f) write_names(f, "coll") end,
+        function(f) write_data(f, nngn.colliders:n_collisions()) end}}
 
 function PLOT.heartbeat() PLOT:update() end
 

@@ -1,4 +1,6 @@
 return {
+    name = "chocobo",
+    collider = {type = Collider.AABB, bb = {-4, -8, 4, 0}},
     renderer = {
         type = Renderer.SPRITE,
         tex = "img/ff.png",

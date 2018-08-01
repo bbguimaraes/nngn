@@ -20,6 +20,7 @@ struct Entity;
 
 namespace nngn {
 
+struct Colliders;
 class Fonts;
 class Grid;
 class Textures;
@@ -39,6 +40,7 @@ class Renderers {
     const Fonts *fonts = nullptr;
     const Textbox *textbox = nullptr;
     const Grid *grid = nullptr;
+    const Colliders *colliders = nullptr;
     Flags<Flag> flags = {};
     std::vector<SpriteRenderer> sprites = {};
     std::vector<CubeRenderer> cubes = {};
@@ -53,10 +55,12 @@ class Renderers {
         box_vbo = {}, box_ebo = {},
         text_vbo = {}, text_ebo = {},
         textbox_vbo = {}, textbox_ebo = {},
-        selection_vbo = {}, selection_ebo = {};
+        selection_vbo = {}, selection_ebo = {},
+        aabb_vbo = {}, aabb_ebo = {},
+        aabb_circle_vbo = {}, aabb_circle_ebo = {};
 public:
     enum Debug : u8 {
-        RECT = 1u << 0, N_DEBUG = 1,
+        RECT = 1u << 0, CIRCLE = 1u << 1, BB = 1u << 2, N_DEBUG = 3,
     };
 private:
     Flags<Debug> m_debug = {};
@@ -74,7 +78,8 @@ public:
         Vertex **p, vec3 pos, vec3 size,
         u32 tex, const std::array<vec4, 6> &uv);
     void init(
-        Textures *t, const Fonts *f, const Textbox *tb, const Grid *g);
+        Textures *t, const Fonts *f, const Textbox *tb, const Grid *g,
+        const Colliders *c);
     auto max_sprites() const { return this->sprites.capacity(); }
     auto max_cubes() const { return this->cubes.capacity(); }
     auto max_voxels() const { return this->voxels.capacity(); }
@@ -89,6 +94,7 @@ public:
     bool set_max_cubes(std::size_t n);
     bool set_max_voxels(std::size_t n);
     bool set_max_text(std::size_t n);
+    bool set_max_colliders(std::size_t n);
     void set_debug(std::underlying_type_t<Debug> d);
     void set_perspective(bool p);
     bool set_graphics(Graphics *g);

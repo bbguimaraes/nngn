@@ -21,3 +21,5 @@ check_HEADERS += \
 	src/utils/log.cpp \
 	%reldir%/entity.cpp \
 	%reldir%/entity.moc.cpp
+
+include %reldir%/collision/Makefile.am

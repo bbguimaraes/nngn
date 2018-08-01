@@ -4,6 +4,7 @@
 #include "luastate.h"
 #include "player.h"
 
+#include "collision/collision.h"
 #include "font/font.h"
 #include "font/textbox.h"
 #include "graphics/graphics.h"
@@ -52,6 +53,7 @@ struct NNGN {
     nngn::Camera camera = {};
     nngn::Renderers renderers = {};
     nngn::Animations animations = {};
+    nngn::Colliders colliders = {};
     Entities entities = {};
     Players players = {};
     nngn::Textures textures = {};
@@ -81,7 +83,8 @@ bool NNGN::init(int argc, const char *const *argv) {
     if(!this->fonts.init())
         return false;
     this->renderers.init(
-        &this->textures, &this->fonts, &this->textbox, &this->grid);
+        &this->textures, &this->fonts, &this->textbox, &this->grid,
+        &this->colliders);
     this->animations.init(&this->math);
     this->textbox.init(&this->fonts);
     if(!(argc < 2
@@ -93,6 +96,8 @@ bool NNGN::init(int argc, const char *const *argv) {
     this->fps.init(nngn::Timing::clock::now());
     if(!this->graphics)
         this->set_graphics(nngn::Graphics::Backend::PSEUDOGRAPH, {});
+    if(!this->colliders.has_backend())
+        this->colliders.set_backend(nngn::Colliders::native_backend());
     return true;
 }
 
@@ -145,6 +150,9 @@ int NNGN::loop() {
         return 1;
     this->entities.update(this->timing);
     this->animations.update(this->timing);
+    if(!this->colliders.check_collisions(this->timing))
+        return 1;
+    this->colliders.lua_on_collision(this->lua.L);
     if(this->camera.flags & nngn::Camera::Flag::SCREEN_UPDATED)
         this->textbox.flags.set(nngn::Textbox::Flag::SCREEN_UPDATED);
     if(this->camera.update(this->timing))
@@ -169,6 +177,8 @@ void NNGN::remove_entity(Entity *e) {
         this->renderers.remove(e->renderer);
     if(e->anim)
         this->animations.remove(e->anim);
+    if(e->collider)
+        this->colliders.remove(e->collider);
     this->entities.remove(e);
 }
 
@@ -190,6 +200,7 @@ NNGN_LUA_PROXY(NNGN,
     "camera", sol::readonly(&NNGN::camera),
     "renderers", sol::readonly(&NNGN::renderers),
     "animations", sol::readonly(&NNGN::animations),
+    "colliders", sol::readonly(&NNGN::colliders),
     "entities", sol::readonly(&NNGN::entities),
     "players", sol::readonly(&NNGN::players),
     "textures", sol::readonly(&NNGN::textures),

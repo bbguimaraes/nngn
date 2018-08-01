@@ -26,7 +26,7 @@ template<typename CRTP, size_t N> struct StatsBase {
 };
 
 class Stats {
-    static constexpr size_t MAX = 1;
+    static constexpr size_t MAX = 2;
     static std::array<pointer_flag<void>, MAX> v;
     static void check([[maybe_unused]] size_t i)
         { assert(i < MAX); assert(v[i].get()); }

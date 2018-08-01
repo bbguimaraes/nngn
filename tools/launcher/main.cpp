@@ -20,6 +20,12 @@ do
     local i = require("nngn.lib.inspect")
     i.inspect(table.unpack(i.FS.textures))
 end)"sv;
+constexpr auto PLOT_COLL = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.plot")
+    p.plot(p.FS.coll)
+end)"sv;
 constexpr auto PLOT_FPS = R"(
 do
     require("nngn.lib.tools").add_to_path()
@@ -43,6 +49,14 @@ do
     require("nngn.lib.tools").add_to_path()
     local p = require("nngn.lib.plot")
     p.plot(p.FS.graphics)
+end)"sv;
+constexpr auto TIMELINE_COLL = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.profile")
+    if not p.active(Colliders) then p.activate(Colliders) end
+    local t = require("nngn.lib.timeline")
+    t.timeline(t.FS.collision)
 end)"sv;
 constexpr auto TIMELINE_PROF = R"(
 do
@@ -94,11 +108,13 @@ int main(int argc, char **argv) {
     const auto *const inspect_texture =
         w.add_button(inspect_section, "texture");
     const auto plot_section = w.add_section("plot");
+    const auto *const plot_coll = w.add_button(plot_section, "coll");
     const auto *const plot_fps = w.add_button(plot_section, "fps");
     const auto *const plot_lua = w.add_button(plot_section, "lua");
     const auto *const plot_camera = w.add_button(plot_section, "camera");
     const auto *const plot_graphics = w.add_button(plot_section, "graphics");
     const auto timeline_section = w.add_section("timeline");
+    const auto *const timeline_coll = w.add_button(timeline_section, "coll");
     const auto *const timeline_prof = w.add_button(timeline_section, "prof");
     QObject::connect(
         &launcher.socket(), &QLocalSocket::errorOccurred,
@@ -128,6 +144,12 @@ int main(int argc, char **argv) {
     QObject::connect(
         plot_graphics, &QPushButton::pressed,
         [&l = launcher] { l.exec(PLOT_GRAPHICS); });
+    QObject::connect(
+        plot_coll, &QPushButton::pressed,
+        [&l = launcher] { l.exec(PLOT_COLL); });
+    QObject::connect(
+        timeline_coll, &QPushButton::pressed,
+        [&l = launcher] { l.exec(TIMELINE_COLL); });
     QObject::connect(
         timeline_prof, &QPushButton::pressed,
         [&l = launcher] { l.exec(TIMELINE_PROF); });
