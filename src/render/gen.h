@@ -10,7 +10,9 @@ namespace nngn {
 struct Gen {
     // Primitives
     static void quad_indices(u64 i, u64 n, u32 *p);
-    static void quad_vertices(Vertex **p, vec2 bl, vec2 tr, float z);
+    static void quad_vertices(
+        Vertex **p, vec2 bl, vec2 tr, float z,
+        u32 tex, vec2 uv0, vec2 uv1);
     static void quad_vertices(
         Vertex **p, vec2 bl, vec2 tr, float z, vec3 color);
     // Renderers
@@ -27,15 +29,6 @@ inline void Gen::quad_indices(u64 i_64, u64 n, u32 *p) {
     }
 }
 
-inline void Gen::quad_vertices(Vertex **pp, vec2 bl, vec2 tr, float z) {
-    auto *p = *pp;
-    *p++ = {{bl,         z}, {1, 0, 0}};
-    *p++ = {{tr.x, bl.y, z}, {0, 1, 0}};
-    *p++ = {{bl.x, tr.y, z}, {0, 0, 1}};
-    *p++ = {{tr,         z}, {1, 1, 1}};
-    *pp = p;
-}
-
 inline void Gen::quad_vertices(
     Vertex **pp, vec2 bl, vec2 tr, float z, vec3 color
 ) {
@@ -47,11 +40,26 @@ inline void Gen::quad_vertices(
     *pp = p;
 }
 
+inline void Gen::quad_vertices(
+    Vertex **pp, vec2 bl, vec2 tr, float z,
+    u32 tex, vec2 uv0, vec2 uv1
+) {
+    const auto tex_f = static_cast<float>(tex);
+    auto *p = *pp;
+    *p++ = {{bl,         z}, {uv0.x, uv0.y, tex_f}};
+    *p++ = {{tr.x, bl.y, z}, {uv1.x, uv0.y, tex_f}};
+    *p++ = {{bl.x, tr.y, z}, {uv0.x, uv1.y, tex_f}};
+    *p++ = {{tr,         z}, {uv1.x, uv1.y, tex_f}};
+    *pp = p;
+}
+
 inline void Gen::sprite(Vertex **p, SpriteRenderer *x) {
     x->flags.clear(Renderer::Flag::UPDATED);
     const auto pos = x->pos.xy();
     const auto s = x->size / 2.0f;
-    Gen::quad_vertices(p, pos - s, pos + s, -pos.y);
+    Gen::quad_vertices(
+        p, pos - s, pos + s, -pos.y - x->z_off,
+        x->tex, x->uv0, x->uv1);
 }
 
 inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {
@@ -63,8 +71,8 @@ inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {
     bl = pos - s;
     tr = pos + s;
     Gen::quad_vertices(p, bl, tr, 0, {1, 0, 0});
-    bl.y = x->pos.y - s.y;
-    tr.y = x->pos.y + s.y;
+    bl.y = x->pos.y + x->z_off - s.y;
+    tr.y = x->pos.y + x->z_off + s.y;
     Gen::quad_vertices(p, bl, tr, 0, {1, 0, 0});
 }
 

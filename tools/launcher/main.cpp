@@ -14,6 +14,12 @@ using namespace std::string_view_literals;
 namespace {
 
 constexpr auto SOCKET_PATH = "sock"sv;
+constexpr auto INSPECT_TEXTURE = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local i = require("nngn.lib.inspect")
+    i.inspect(i.FS.textures)
+end)"sv;
 constexpr auto PLOT_FPS = R"(
 do
     require("nngn.lib.tools").add_to_path()
@@ -113,6 +119,7 @@ int main(int argc, char **argv) {
                 + "\n\n"
                 + launcher.socket().errorString());
     Window w;
+    const auto inspect_section = w.add_section("inspect");
     const auto plot_section = w.add_section("plot");
     const auto timeline_section = w.add_section("timeline");
     const auto configure_section = w.add_section("configure");
@@ -121,6 +128,7 @@ int main(int argc, char **argv) {
             w.add_button(s, n), &QPushButton::pressed,
             [&l, p] { l.exec(p); });
     };
+    add(inspect_section, "texture", INSPECT_TEXTURE);
     add(plot_section, "fps", PLOT_FPS);
     add(plot_section, "lua", PLOT_LUA);
     add(plot_section, "render", PLOT_RENDER);

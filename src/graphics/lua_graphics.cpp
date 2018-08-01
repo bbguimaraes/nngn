@@ -244,6 +244,7 @@ auto stats(Graphics *g, nngn::lua::state_arg lua_) {
 }
 
 NNGN_LUA_PROXY(Graphics,
+    "TEXTURE_SIZE", nngn::lua::var(Graphics::TEXTURE_SIZE),
     "PSEUDOGRAPH", nngn::lua::var(Graphics::Backend::PSEUDOGRAPH),
     "OPENGL_BACKEND", nngn::lua::var(Graphics::Backend::OPENGL_BACKEND),
     "OPENGL_ES_BACKEND", nngn::lua::var(Graphics::Backend::OPENGL_ES_BACKEND),
@@ -277,4 +278,5 @@ NNGN_LUA_PROXY(Graphics,
     "stats", stats,
     "set_n_frames", &Graphics::set_n_frames,
     "set_swap_interval", &Graphics::set_swap_interval,
-    "set_cursor_mode", &Graphics::set_cursor_mode)
+    "set_cursor_mode", &Graphics::set_cursor_mode,
+    "resize_textures", &Graphics::resize_textures)

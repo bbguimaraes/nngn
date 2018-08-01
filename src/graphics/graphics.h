@@ -60,6 +60,8 @@
  * s = nngn.graphics:stats()
  * -- Set cursor display mode.
  * nngn.graphics:set_cursor_mode(Graphics.CURSOR_MODE_DISABLED)
+ * -- Set resource limits.
+ * nngn.graphics:resize_textures(8)
  * -- Control v-sync.
  * nngn.graphics:set_swap_interval(0)
  * ```
@@ -68,6 +70,8 @@
 #define NNGN_GRAPHICS_GRAPHICS_H
 
 #include <array>
+#include <bit>
+#include <cmath>
 #include <cstdint>
 #include <memory>
 #include <span>
@@ -75,6 +79,7 @@
 #include <tuple>
 
 #include "math/mat4.h"
+#include "math/math.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
 #include "utils/def.h"
@@ -162,7 +167,7 @@ struct Graphics {
             CULL_BACK_FACES = 1u << 1,
         };
         enum class Type : u8 {
-            TRIANGLE, MAX,
+            TRIANGLE, SPRITE, MAX,
         };
         const char *name = {};
         Type type = {};
@@ -182,6 +187,12 @@ struct Graphics {
         std::span<const Stage> normal = {}, overlay = {};
     };
     enum class CursorMode { NORMAL, HIDDEN, DISABLED };
+    static constexpr u32
+        TEXTURE_EXTENT = 512,
+        TEXTURE_EXTENT_LOG2 = std::countr_zero(TEXTURE_EXTENT),
+        TEXTURE_SIZE = 4 * TEXTURE_EXTENT * TEXTURE_EXTENT,
+        TEXTURE_MIP_LEVELS = Math::mip_levels(TEXTURE_EXTENT);
+    static_assert(std::popcount(TEXTURE_EXTENT) == 1);
     static std::unique_ptr<Graphics> create(Backend b, const void *params);
     static const char *enum_str(DeviceInfo::Type t);
     static const char *enum_str(QueueFamily::Flag f);
@@ -253,6 +264,10 @@ struct Graphics {
         u32 vbo, u32 ebo, u64 voff, u64 eoff,
         u64 vn, u64 vsize, u64 en, u64 esize,
         void *data, auto &&vgen, auto &&egen);
+    // Textures
+    virtual bool resize_textures(std::uint32_t s) = 0;
+    virtual bool load_textures(
+        std::uint32_t i, std::uint32_t n, const std::byte *v) = 0;
     // Rendering
     virtual bool set_render_list(const RenderList &l) = 0;
     virtual void poll_events() const = 0;

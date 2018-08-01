@@ -12,4 +12,5 @@ ESCAPE#version 300 es
 #define PUSH_CONSTANT(x) uniform x
 precision highp int;
 precision highp float;
+precision highp sampler2DArray;
 #endif

@@ -9,7 +9,8 @@ using nngn::lua::var;
 
 NNGN_LUA_PROXY(Renderer,
     "SIZEOF_SPRITE", var(sizeof(nngn::SpriteRenderer)),
-    "SPRITE", var(Renderer::Type::SPRITE))
+    "SPRITE", var(Renderer::Type::SPRITE),
+    "z_off", [](const Renderer &r) { return r.z_off; })
 NNGN_LUA_PROXY(Renderers,
     "DEBUG_RENDERERS", var(Renderers::Debug::DEBUG_RENDERERS),
     "DEBUG_ALL", var(Renderers::Debug::DEBUG_ALL),

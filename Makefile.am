@@ -35,10 +35,12 @@ nngn_js_LDFLAGS = \
 	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
 	-s USE_GLFW=3 -s FULL_ES2=1 -s FULL_ES3=1 \
 	-s USE_WEBGL2=1 -s MIN_WEBGL_VERSION=2 -s MAX_WEBGL_VERSION=2 \
+	-s USE_LIBPNG=1 \
 	--source-map-base / \
 	--embed-file $(srcdir)/src/lua/@src/lua \
 	--embed-file $(srcdir)/src/lson/@src/lson \
-	--embed-file $(srcdir)/demos/@demos
+	--embed-file $(srcdir)/demos/@demos \
+	--embed-file $(srcdir)/img/@img
 nngn_js_LDADD = $(DEPS_LIBS)
 
 TESTS = $(check_PROGRAMS)
@@ -51,6 +53,7 @@ check_HEADERS =
 dist_check_DATA =
 
 EXTRA_DIST = \
+	img \
 	nngn.html \
 	scripts
 

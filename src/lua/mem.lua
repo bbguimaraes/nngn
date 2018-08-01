@@ -16,3 +16,6 @@ print("renderers:")
 print(fmt(
     "- sprites", Renderer.SIZEOF_SPRITE,
     nngn.renderers:n_sprites(), nngn.renderers:max_sprites()))
+print(fmt(
+    "textures", Graphics.TEXTURE_SIZE,
+    nngn.textures:n(), nngn.textures:max()))

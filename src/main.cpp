@@ -23,6 +23,7 @@
 #include "entity.h"
 
 #include "graphics/graphics.h"
+#include "graphics/texture.h"
 #include "input/input.h"
 #include "input/mouse.h"
 #include "lua/alloc.h"
@@ -64,6 +65,7 @@ struct NNGN {
     Input input = {};
     nngn::Renderers renderers = {};
     Entities entities = {};
+    nngn::Textures textures = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(
         nngn::Graphics::Backend b, std::optional<const void*> params);
@@ -129,6 +131,7 @@ bool NNGN::set_graphics(
         &this->input.mouse, [](void *p, nngn::dvec2 pos)
             { static_cast<nngn::MouseInput*>(p)->move_callback(pos); });
     bool ret = this->renderers.set_graphics(g.get());
+    this->textures.set_graphics(g.get());
     this->graphics = std::move(g);
     return ret;
 }
@@ -175,6 +178,7 @@ NNGN_LUA_PROXY(NNGN,
     "mouse_input", property([](const NNGN &nngn) { return &nngn.input.mouse; }),
     "renderers", readonly(&NNGN::renderers),
     "entities", readonly(&NNGN::entities),
+    "textures", readonly(&NNGN::textures),
     "set_graphics", &NNGN::set_graphics,
     "remove_entity", &NNGN::remove_entity,
     "remove_entity_v", [](NNGN &nngn, nngn::lua::table_view t) {

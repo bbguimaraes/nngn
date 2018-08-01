@@ -33,6 +33,7 @@ using nngn::lua::var;
 NNGN_LUA_PROXY(Platform,
     "EAGAIN", var(EAGAIN),
     "DEBUG", var(Platform::debug),
+    "HAS_LIBPNG", var(Platform::has_libpng),
     "errno", [] { return errno; },
     "clear_errno", [] { errno = 0; },
     "argv", [] { return nngn::lua::as_table(Platform::argv); },

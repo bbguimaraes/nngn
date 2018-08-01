@@ -95,6 +95,30 @@ bool Device::init(
     return true;
 }
 
+VkSampler Device::create_sampler(
+    VkFilter filter, VkSamplerAddressMode addr_mode, VkBorderColor border,
+    VkSamplerMipmapMode mip_mode, std::uint32_t mip_levels
+) const {
+    NNGN_LOG_CONTEXT_CF(Device);
+    VkSampler ret = {};
+    LOG_RESULT(
+        vkCreateSampler, this->h,
+        rptr(vk_create_info<VkSampler>({
+            .magFilter = filter,
+            .minFilter = filter,
+            .mipmapMode = mip_mode,
+            .addressModeU = addr_mode,
+            .addressModeV = addr_mode,
+            .addressModeW = addr_mode,
+            .maxAnisotropy = 1,
+            .compareOp = VK_COMPARE_OP_ALWAYS,
+            .maxLod = static_cast<float>(mip_levels),
+            .borderColor = border,
+        })),
+        nullptr, &ret);
+    return ret;
+}
+
 VkShaderModule Device::create_shader(
     const Instance &inst,
     std::string_view name, std::span<const std::uint8_t> src

@@ -5,6 +5,7 @@ main() {
     while [[ "$#" -gt 0 ]]; do
         case "$1" in
         modules) modules; shift;;
+        textures) textures; shift;;
         *) echo >&2 "invalid option: $1"; exit 1;;
         esac
     done
@@ -20,6 +21,10 @@ for k in pairs(package.loaded) do
     end
 end
 EOF
+}
+
+textures() {
+    printf 'nngn.textures:reload_all()\n'
 }
 
 main "$@"

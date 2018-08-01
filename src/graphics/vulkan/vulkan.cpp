@@ -36,7 +36,6 @@ std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void*) {
 
 #include "graphics/glfw.h"
 #include "graphics/shaders.h"
-#include "math/math.h"
 #include "timing/profile.h"
 #include "utils/flags.h"
 
@@ -163,6 +162,27 @@ private:
     static constexpr VkDeviceSize size();
 };
 
+struct TextureDescriptorSets : public nngn::DescriptorSets {
+    bool init(VkDevice dev);
+    void write(VkSampler sampler, VkImageView tex_img_view) const;
+};
+
+class TexArray : public nngn::Image {
+public:
+    VkImageView view() const { return this->img_view; }
+    bool init(
+        VkDevice dev, nngn::DeviceMemory *dev_mem, VkCommandBuffer cmd,
+        VkImageCreateFlags flags, VkFormat format, VkExtent3D extent,
+        std::uint32_t mip_levels, std::uint32_t n_layers,
+        VkImageUsageFlags usage, VkImageAspectFlags aspects,
+        VkImageLayout layout, VkImageViewType view_type,
+        VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
+        VkAccessFlags src_mask, VkAccessFlags dst_mask);
+    void destroy(VkDevice dev, nngn::DeviceMemory *dev_mem);
+private:
+    VkImageView img_view = {};
+};
+
 struct RenderList {
     struct Stage {
         NNGN_MOVE_ONLY(Stage)
@@ -199,6 +219,7 @@ class VulkanBackend final : public nngn::GLFWBackend {
     nngn::DedicatedBuffer ubo = {};
     nngn::DescriptorPool descriptor_pool = {};
     CameraDescriptorSets camera_descriptor_sets = {};
+    TextureDescriptorSets texture_descriptor_sets = {};
     Shaders shaders = {};
     VkRenderPass render_pass = {};
     VkPipelineCache pipeline_cache = {};
@@ -208,12 +229,18 @@ class VulkanBackend final : public nngn::GLFWBackend {
     std::vector<nngn::CommandPool> cmd_pools = {};
     std::vector<PipelineConfiguration> pipeline_conf = {{}};
     ::RenderList render_list = {};
+    VkSampler sampler = {};
+    TexArray tex = {};
     static void error_callback(void *p)
         { static_cast<VulkanBackend*>(p)->flags.set(Flag::ERROR); };
     static bool begin_cmd(VkCommandBuffer cmd);
     static bool submit(
         VkQueue queue, VkCommandBuffer cmd, VkPipelineStageFlags dst_mask = {},
         VkSemaphore wait = {}, VkSemaphore signal = {}, VkFence fence = {});
+    static void copy_buffer(
+        VkCommandBuffer cmd, VkImage dst, VkBuffer src,
+        VkExtent3D extent, std::uint32_t base_layer, std::uint32_t n_layers,
+        VkOffset3D dst_offset, VkDeviceSize src_offset);
     std::size_t last_frame() const
         { return (this->cur_frame + this->n_frames - 1) % this->n_frames; }
     VkCommandBuffer cur_cmd_buffer() const;
@@ -224,6 +251,7 @@ class VulkanBackend final : public nngn::GLFWBackend {
     bool recreate_swapchain();
     bool update_render_list();
     bool create_cmd_buffer(std::size_t img_idx);
+    bool name_tex_array(std::string_view name, const TexArray &t) const;
 public:
     NNGN_MOVE_ONLY(VulkanBackend)
     explicit VulkanBackend(const VulkanParameters &p);
@@ -262,6 +290,9 @@ public:
     bool write_to_buffer(
         u32 b, u64 offset, u64 n, u64 size,
         void *data, void f(void*, void*, u64, u64)) final;
+    bool resize_textures(std::uint32_t s) final;
+    bool load_textures(
+        std::uint32_t i, std::uint32_t n, const std::byte *v) final;
     bool set_render_list(const RenderList &l) final;
     bool render() final;
     bool vsync() final;
@@ -446,6 +477,81 @@ void CameraDescriptorSets::write(VkBuffer ubo, VkDeviceSize offset) const {
         0, nullptr);
 }
 
+bool TextureDescriptorSets::init(VkDevice dev_) {
+    NNGN_LOG_CONTEXT_CF(TextureDescriptorSets);
+    return DescriptorSets::init(
+        dev_, std::to_array<VkDescriptorSetLayoutBinding>({{
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        }}));
+}
+
+void TextureDescriptorSets::write(
+    VkSampler sampler, VkImageView tex_img_view
+) const {
+    NNGN_LOG_CONTEXT_CF(TextureDescriptorSets);
+    std::array<VkDescriptorImageInfo, 1> img_infos = {};
+    std::array<VkWriteDescriptorSet, 1> writes = {};
+    std::uint32_t i = 0;
+    const auto add_write = [&img_infos, &writes, &i](
+        auto id, auto img_view, auto sampler_
+    ) {
+        if(!img_view || !sampler_)
+            return;
+        img_infos[i] = {
+            .sampler = sampler_,
+            .imageView = img_view,
+            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+        };
+        writes[i] = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = id,
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &img_infos[i],
+        };
+        ++i;
+    };
+    add_write(this->ids()[0], tex_img_view, sampler);
+    vkUpdateDescriptorSets(this->dev, i, writes.data(), 0, nullptr);
+}
+
+bool TexArray::init(
+    VkDevice dev, nngn::DeviceMemory *dev_mem, VkCommandBuffer cmd,
+    VkImageCreateFlags flags, VkFormat format, VkExtent3D extent,
+    std::uint32_t mip_levels, std::uint32_t n_layers,
+    VkImageUsageFlags usage, VkImageAspectFlags aspects,
+    VkImageLayout layout, VkImageViewType view_type,
+    VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
+    VkAccessFlags src_mask, VkAccessFlags dst_mask
+) {
+    const bool ok = Image::init<VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT>(
+            dev, dev_mem, flags, VK_IMAGE_TYPE_2D, format, extent,
+            mip_levels, n_layers, VK_SAMPLE_COUNT_1_BIT,
+            VK_IMAGE_TILING_OPTIMAL, usage)
+        && Image::create_view(
+            dev, view_type, format, aspects, mip_levels, 0, n_layers,
+            &this->img_view);
+    if(!ok)
+        return false;
+    Image::transition_layout(
+        cmd, src_stage, dst_stage, src_mask, dst_mask,
+        VK_IMAGE_LAYOUT_UNDEFINED, layout, {
+            .aspectMask = aspects,
+            .levelCount = mip_levels,
+            .layerCount = n_layers,
+        });
+    return true;
+}
+
+void TexArray::destroy(VkDevice dev, nngn::DeviceMemory *dev_mem) {
+    vkDestroyImageView(dev, std::exchange(this->img_view, {}), nullptr);
+    Image::destroy(dev, dev_mem);
+}
+
 RenderList::Stage::Stage(const nngn::Graphics::RenderList::Stage &s) :
     conf{s.pipeline}
 {
@@ -469,6 +575,9 @@ VulkanBackend::~VulkanBackend() {
     vkDestroyPipelineLayout(this->dev.id(), this->pipeline_layout, nullptr);
     vkDestroyPipelineCache(this->dev.id(), this->pipeline_cache, nullptr);
     vkDestroyRenderPass(this->dev.id(), this->render_pass, nullptr);
+    vkDestroySampler(
+        this->dev.id(), std::exchange(this->sampler, {}), nullptr);
+    this->tex.destroy(this->dev.id(), &this->dev_mem);
     this->ubo.destroy(this->dev.id(), &this->dev_mem);
 }
 
@@ -675,17 +784,30 @@ bool VulkanBackend::init_device(std::size_t i) {
     vkGetPhysicalDeviceProperties(physical_dev, &prop);
     ok = this->camera_descriptor_sets.init(
             this->dev.id(), prop.limits.minUniformBufferOffsetAlignment)
+        && this->texture_descriptor_sets.init(this->dev.id())
+        && (this->sampler = this->dev.create_sampler(
+            VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE, {},
+            VK_SAMPLER_MIPMAP_MODE_NEAREST, Graphics::TEXTURE_MIP_LEVELS))
+        && this->instance.set_obj_name(
+            this->dev.id(), this->sampler, "sampler"sv)
         && this->shaders.init(
             this->instance, PipelineConfiguration::Type::TRIANGLE,
             "src/glsl/vk/triangle.vert.spv"sv,
             "src/glsl/vk/triangle.frag.spv"sv,
             nngn::GLSL_VK_TRIANGLE_VERT,
             nngn::GLSL_VK_TRIANGLE_FRAG)
+        && this->shaders.init(
+            this->instance, PipelineConfiguration::Type::SPRITE,
+            "src/glsl/vk/sprite.vert.spv"sv,
+            "src/glsl/vk/sprite.frag.spv"sv,
+            nngn::GLSL_VK_SPRITE_VERT,
+            nngn::GLSL_VK_SPRITE_FRAG)
         && this->create_render_pass(surface_format.format);
     if(!ok)
         return false;
     const auto descriptor_layouts = std::to_array<VkDescriptorSetLayout>({
         this->camera_descriptor_sets.layout(),
+        this->texture_descriptor_sets.layout(),
     });
     ok = LOG_RESULT(
             vkCreatePipelineLayout, this->dev.id(),
@@ -928,6 +1050,17 @@ bool VulkanBackend::update_render_list() {
     return true;
 }
 
+bool VulkanBackend::name_tex_array(
+    std::string_view name, const TexArray &t
+) const {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    return this->instance.set_obj_name(this->dev.id(), t.id(), name)
+        && this->instance.set_obj_name(
+            this->dev.id(), t.mem(), name.data() + "_mem"s)
+        && this->instance.set_obj_name(
+            this->dev.id(), t.view(), name.data() + "_view"s);
+}
+
 bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
     const auto i = this->cur_frame;
@@ -997,9 +1130,10 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
         };
         const VkRect2D scissors = {{}, {width, height}};
         const auto &camera_desc = this->camera_descriptor_sets;
+        const auto &tex_desc = this->texture_descriptor_sets;
         bind_descriptors(
             b, this->pipeline_layout, "normal", 0,
-            std::array{camera_desc.ids()[0]},
+            std::array{camera_desc.ids()[0], tex_desc.ids()[0]},
             std::array{camera_desc.offset(i)});
         push_alpha(b, this->pipeline_layout, 1);
         render(b, "normal", viewport, scissors, this->render_list.normal);
@@ -1011,6 +1145,25 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
     const auto b = this->cmd_pools[i].buffers()[0];
     record_render_pass(b, extent);
     return LOG_RESULT(vkEndCommandBuffer, b);
+}
+
+void VulkanBackend::copy_buffer(
+    VkCommandBuffer cmd, VkImage dst, VkBuffer src,
+    VkExtent3D extent, std::uint32_t base_layer, std::uint32_t n_layers,
+    VkOffset3D dst_offset, VkDeviceSize src_offset
+) {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    vkCmdCopyBufferToImage(
+        cmd, src, dst, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1,
+        nngn::rptr(VkBufferImageCopy{
+            .bufferOffset = src_offset,
+            .imageSubresource = {
+                .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                .baseArrayLayer = base_layer,
+                .layerCount = n_layers},
+            .imageOffset = dst_offset,
+            .imageExtent = extent,
+        }));
 }
 
 u32 VulkanBackend::create_pipeline(const PipelineConfiguration &conf) {
@@ -1114,11 +1267,12 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     const u32
         n_camera_desc = 1,
-        n_desc = n_camera_desc;
+        n_tex_desc = 1,
+        n_desc = n_camera_desc + n_tex_desc;
     const VkDeviceSize
         ubo_camera_size = this->camera_descriptor_sets.size(this->n_frames),
         ubo_size = ubo_camera_size;
-    bool ok = this->ubo.init<host_mem>(
+    const bool ok = this->ubo.init<host_mem>(
             this->dev.id(), &this->dev_mem, ubo_size,
             VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
         && this->instance.set_obj_name(
@@ -1130,6 +1284,9 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
             n_desc, std::to_array<VkDescriptorPoolSize>({{
                 .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
                 .descriptorCount = n_camera_desc,
+            }, {
+                .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+                .descriptorCount = n_tex_desc,
             }}))
         && this->instance.set_obj_name(
             this->dev.id(), this->descriptor_pool.id(), "descriptor_pool"sv)
@@ -1139,10 +1296,19 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
             "camera_descriptor_set_layout"sv)
         && this->instance.set_obj_name(
             this->dev.id(), this->camera_descriptor_sets.ids()[0],
-            "camera_descriptor_set"sv);
+            "camera_descriptor_set"sv)
+        && this->texture_descriptor_sets.reset(
+            this->descriptor_pool.id(), n_tex_desc)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->texture_descriptor_sets.layout(),
+            "texture_descriptor_set_layout"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->texture_descriptor_sets.ids()[0],
+            "texture_descriptor_set"sv);
     if(!ok)
         return false;
     this->camera_descriptor_sets.write(this->ubo.id(), 0);
+    this->texture_descriptor_sets.write(this->sampler, this->tex.view());
     this->frame_fences.resize(this->n_frames);
     std::ranges::fill(this->frame_fences, VkFence{});
     this->stg_buffer.resize(this->n_frames);
@@ -1158,6 +1324,69 @@ void VulkanBackend::set_swap_interval(int i) {
     this->flags |= Flag::RECREATE_SWAPCHAIN;
 }
 
+bool VulkanBackend::resize_textures(std::uint32_t s) {
+    this->tex.destroy(this->dev.id(), &this->dev_mem);
+    const bool ok = this->tex.init(
+            this->dev.id(), &this->dev_mem, this->cur_cmd_buffer(),
+            {}, VK_FORMAT_R8G8B8A8_UNORM,
+            {Graphics::TEXTURE_EXTENT, Graphics::TEXTURE_EXTENT, 1},
+            Graphics::TEXTURE_MIP_LEVELS, s,
+            VK_IMAGE_USAGE_TRANSFER_SRC_BIT
+                | VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                | VK_IMAGE_USAGE_SAMPLED_BIT,
+            VK_IMAGE_ASPECT_COLOR_BIT,
+            VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+            VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0, VK_ACCESS_TRANSFER_WRITE_BIT)
+        && this->name_tex_array("tex"sv, this->tex);
+    if(!ok)
+        return false;
+    this->texture_descriptor_sets.write(this->sampler, this->tex.view());
+    return true;
+}
+
+bool VulkanBackend::load_textures(
+    std::uint32_t i, std::uint32_t n, const std::byte *v
+) {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    auto cmd = this->cur_cmd_buffer();
+    this->tex.transition_layout(
+        cmd, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+        VK_PIPELINE_STAGE_TRANSFER_BIT,
+        0, VK_ACCESS_TRANSFER_WRITE_BIT,
+        VK_IMAGE_LAYOUT_UNDEFINED,
+        VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, {
+            .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+            .levelCount = Graphics::TEXTURE_MIP_LEVELS,
+            .baseArrayLayer = i,
+            .layerCount = n,
+        });
+    constexpr auto ext = Graphics::TEXTURE_EXTENT;
+    const auto id = this->tex.id();
+    const auto e = i + n;
+    for(auto l = i; l < e; ++l, v += Graphics::TEXTURE_SIZE) {
+        const auto write = [l, v, cmd, id](
+            auto src, void *p, auto off, auto iw, auto nw
+        ) {
+            constexpr auto line_log2 = Graphics::TEXTURE_EXTENT_LOG2 + 2;
+            const auto y = static_cast<std::int32_t>(iw);
+            const auto h = static_cast<std::uint32_t>(nw);
+            std::memcpy(
+                p, v + (iw << line_log2),
+                static_cast<std::size_t>(nw << line_log2));
+            VulkanBackend::copy_buffer(
+                cmd, id, src, {ext, h, 1}, l, 1, {0, y, 0}, off);
+            return true;
+        };
+        if(!this->stg_buffer.write(this->cur_frame, ext, ext << 2, write))
+            return false;
+    }
+    return this->tex.init_mipmaps(
+        cmd, {ext, ext, 1}, Graphics::TEXTURE_MIP_LEVELS, i, n);
+}
+
 bool VulkanBackend::render() {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
     NNGN_PROFILE_CONTEXT(render);
@@ -1169,10 +1398,13 @@ bool VulkanBackend::render() {
             this->dev.id(), 0, this->n_frames,
             this->camera_descriptor_sets.alignment(),
             nngn::as_byte_span(nngn::rptr(nngn::CameraUBO{
-                .proj = CLIP_PROJ * nngn::Math::ortho(
-                    -extent.x, extent.x, -extent.y, extent.y, 0.0f, far),
-                .view = nngn::Math::look_at<float>(
-                    {0, 0, far / 2}, {}, {0, 1, 0})})));
+                .proj =
+                    CLIP_PROJ
+                    * nngn::Math::ortho(
+                        -extent.x, extent.x, -extent.y, extent.y, 0.0f, far)
+                    * nngn::Math::look_at<float>(
+                        {0, 0, far / 2}, {}, {0, 1, 0}),
+            })));
     };
     const auto cmd = this->cur_cmd_buffer();
     const auto queue = this->dev.graphics_queue();
