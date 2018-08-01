@@ -1,4 +1,5 @@
 noinst_HEADERS += \
+	%reldir%/const.h \
 	%reldir%/debug.h \
 	%reldir%/entity.h
 

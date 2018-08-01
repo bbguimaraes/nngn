@@ -61,6 +61,7 @@ namespace {
 
 enum : u32 {
     CAMERA_UBO_BINDING,
+    MAIN_TEX_BINDING = 0,
 };
 
 constexpr auto N_PROGRAMS =
@@ -98,6 +99,7 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     std::array<nngn::GLProgram, N_PROGRAMS> programs = {};
     GLint triangle_prog_alpha_loc = -1;
     ::RenderList render_list = {};
+    nngn::GLTexArray tex = {};
     void resize(int, int) final { this->flags |= Flag::RESIZED; }
     static bool create_uniform_buffer(
         std::string_view name, u64 size, nngn::GLBuffer *b);
@@ -140,6 +142,8 @@ public:
     bool write_to_buffer(
         u32 b, u64 offset, u64 n, u64 size,
         void *data, void f(void*, void*, u64, u64)) final;
+    bool resize_textures(u32 s) final;
+    bool load_textures(u32 i, u32 n, const std::byte *v) final;
     bool set_render_list(const RenderList&) final;
     bool render() final;
     bool vsync() final;
@@ -219,12 +223,14 @@ bool OpenGLBackend::init_instance() {
     CHECK_RESULT(glClearColor, 0, 0, 0, 0);
     CHECK_RESULT(glEnable, GL_BLEND);
     CHECK_RESULT(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    CHECK_RESULT(glGenTextures, 1, &this->tex.id());
     if(!OpenGLBackend::create_uniform_buffer("camera_ubo"sv,
             sizeof(nngn::CameraUBO), &this->camera_ubo))
         return false;
 #define P(x) static_cast<std::size_t>(PipelineConfiguration::Type::x)
     nngn::GLProgram
-        &triangle_prog = this->programs[P(TRIANGLE)];
+        &triangle_prog = this->programs[P(TRIANGLE)],
+        &sprite_prog = this->programs[P(SPRITE)];
 #undef P
     if(!triangle_prog.create(
             "src/glsl/gl/triangle.vert"sv, "src/glsl/gl/triangle.frag"sv,
@@ -238,6 +244,13 @@ bool OpenGLBackend::init_instance() {
         glBindBufferRange, GL_UNIFORM_BUFFER,
         CAMERA_UBO_BINDING, this->camera_ubo.id(), 0, sizeof(nngn::CameraUBO));
     if(!triangle_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
+        return false;
+    if(!sprite_prog.create(
+            "src/glsl/gl/sprite.vert"sv, "src/glsl/gl/sprite.frag"sv,
+            nngn::GLSL_GL_SPRITE_VERT, nngn::GLSL_GL_SPRITE_FRAG))
+        return false;
+    CHECK_RESULT(glUseProgram, sprite_prog.id());
+    if(!sprite_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
     if(!this->params.flags.is_set(Parameters::Flag::HIDDEN))
         glfwShowWindow(this->w);
@@ -343,9 +356,10 @@ bool OpenGLBackend::create_vao(
     using A = std::array<std::array<nngn::VAO::Attrib, 3>, N_PROGRAMS>;
     static constexpr A attrs = {{
         {{{"position", 3}, {"color", 3}}},
+        {{{"position", 3}, {"tex_coord", 3}}},
     }};
     static constexpr std::array names = {
-        "triangle",
+        "triangle", "sprite",
     };
     assert(vbo_idx < this->buffers.size());
     assert(ebo_idx < this->buffers.size());
@@ -379,6 +393,35 @@ bool OpenGLBackend::set_buffer_size(u32 i, u64 size) {
     return true;
 }
 
+bool OpenGLBackend::resize_textures(u32 s) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    const auto si = static_cast<GLint>(s);
+    return this->tex.destroy()
+        && LOG_RESULT(glActiveTexture, GL_TEXTURE0 + MAIN_TEX_BINDING)
+        && LOG_RESULT(glGenTextures, 1, &this->tex.id())
+        && this->tex.create(
+            GL_TEXTURE_2D_ARRAY, GL_RGBA8, GL_NEAREST, GL_NEAREST, GL_REPEAT,
+            {Graphics::TEXTURE_EXTENT, Graphics::TEXTURE_EXTENT, si},
+            static_cast<GLsizei>(Graphics::TEXTURE_MIP_LEVELS))
+        && nngn::gl_set_obj_name(GL_TEXTURE, this->tex.id(), "tex"sv);
+}
+
+bool OpenGLBackend::load_textures(u32 i, u32 n, const std::byte *v) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    const u32 base_layer = i;
+    constexpr auto type = GL_TEXTURE_2D_ARRAY;
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE0 + MAIN_TEX_BINDING);
+    CHECK_RESULT(glBindTexture, type, this->tex.id());
+    for(i = 0; i < n; ++i)
+        CHECK_RESULT(glTexSubImage3D,
+            type, 0, 0, 0, static_cast<GLint>(base_layer + i),
+            Graphics::TEXTURE_EXTENT, Graphics::TEXTURE_EXTENT,
+            1, GL_RGBA, GL_UNSIGNED_BYTE,
+            v + static_cast<std::size_t>(i) * Graphics::TEXTURE_SIZE);
+    CHECK_RESULT(glGenerateMipmap, type);
+    return true;
+}
+
 bool OpenGLBackend::render() {
     NNGN_LOG_CONTEXT_CF(OpenGLBackend);
     if(this->flags.check_and_clear(Flag::RESIZED)) {
@@ -389,10 +432,12 @@ bool OpenGLBackend::render() {
         const auto width_f = static_cast<float>(width) / 2.0f;
         const auto height_f = static_cast<float>(height) / 2.0f;
         const nngn::CameraUBO c = {
-            .proj = nngn::Math::ortho(
-                -width_f, width_f, -height_f, height_f, 0.0f, far),
-            .view = nngn::Math::look_at<float>(
-                    {0, 0, far / 2}, {}, {0, 1, 0})};
+            .proj =
+                nngn::Math::ortho(
+                    -width_f, width_f, -height_f, height_f, 0.0f, far)
+                * nngn::Math::look_at<float>(
+                    {0, 0, far / 2}, {}, {0, 1, 0}),
+        };
         CHECK_RESULT(glBindBuffer, GL_UNIFORM_BUFFER, this->camera_ubo.id());
         CHECK_RESULT(glBufferSubData, GL_UNIFORM_BUFFER, 0, sizeof(c), &c);
     }

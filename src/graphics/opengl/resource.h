@@ -21,6 +21,13 @@ struct GLBuffer final : OpenGLHandle<GLBuffer> {
     bool destroy();
 };
 
+struct GLTexArray : OpenGLHandle<GLTexArray> {
+    bool create(
+        GLenum type, GLenum fmt, GLint min_filter, GLint mag_filter, GLint wrap,
+        const ivec3 &extent, GLsizei mip_levels);
+    bool destroy();
+};
+
 }
 
 #endif

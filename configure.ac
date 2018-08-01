@@ -46,6 +46,15 @@ AC_ARG_WITH([vma],
 AS_IF([test "x$with_vma" == xyes],
     [AC_DEFINE([NNGN_PLATFORM_HAS_VMA], [1], [Define if you have VMA])])
 
+AC_ARG_WITH([libpng],
+    [AS_HELP_STRING([--with-libpng], [enable loading PNG images])],
+    [], [])
+AS_IF([test "x$with_libpng" == xyes],
+    [DEPS="$DEPS libpng"
+     AC_DEFINE([NNGN_PLATFORM_HAS_LIBPNG], [1], [Define if you have libpng])],
+    [])
+AM_CONDITIONAL([ENABLE_LIBPNG], [test "x$with_libpng" == xyes])
+
 # Non-essential configuration options.
 ENABLE_TESTS=no
 AC_ARG_ENABLE([tests],

@@ -256,6 +256,7 @@ void set_n_swap_chain_images(Graphics &g, lua_Integer n) {
 }
 
 void register_graphics(nngn::lua::table_view t) {
+    t["TEXTURE_SIZE"] = Graphics::TEXTURE_SIZE;
     t["PSEUDOGRAPH"] = Graphics::Backend::PSEUDOGRAPH;
     t["OPENGL_BACKEND"] = Graphics::Backend::OPENGL_BACKEND;
     t["OPENGL_ES_BACKEND"] = Graphics::Backend::OPENGL_ES_BACKEND;
@@ -291,6 +292,7 @@ void register_graphics(nngn::lua::table_view t) {
     t["set_n_swap_chain_images"] = set_n_swap_chain_images;
     t["set_swap_interval"] = &Graphics::set_swap_interval;
     t["set_cursor_mode"] = &Graphics::set_cursor_mode;
+    t["resize_textures"] = &Graphics::resize_textures;
 }
 
 }

@@ -94,11 +94,16 @@ bool Renderers::set_graphics(Graphics *g) {
     constexpr auto index = Graphics::BufferConfiguration::Type::INDEX;
     this->graphics = g;
     u32
-        triangle_pipeline = {}, box_pipeline = {},
+        triangle_pipeline = {}, sprite_pipeline = {}, box_pipeline = {},
         triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
             .type = Pipeline::Type::TRIANGLE,
+            .flags = Pipeline::Flag::DEPTH_TEST,
+        }))
+        && (sprite_pipeline = g->create_pipeline({
+            .name = "sprite_pipeline",
+            .type = Pipeline::Type::SPRITE,
             .flags = Pipeline::Flag::DEPTH_TEST,
         }))
         && (box_pipeline = g->create_pipeline({
@@ -150,6 +155,10 @@ bool Renderers::set_graphics(Graphics *g) {
                 .pipeline = triangle_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {triangle_vbo, triangle_ebo},
+                }),
+            }, {
+                .pipeline = sprite_pipeline,
+                .buffers = std::to_array<BufferPair>({
                     {this->sprite_vbo, this->sprite_ebo},
                 }),
             }}),

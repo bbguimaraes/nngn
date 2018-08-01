@@ -187,6 +187,23 @@ constexpr auto set_bit(T t, T mask, bool value) {
     return t ^ ((t ^ -T{value}) & mask);
 }
 
+/**
+ * Type associated with a member object/function pointer.
+ * For object pointers, the containing type.  For function pointers (methods),
+ * the target type.
+ */
+template<typename> struct member_obj_type;
+
+template<typename T, typename O>
+struct member_obj_type<O(T::*)> : std::type_identity<T> {};
+
+template<typename T, typename R, typename ...Args>
+struct member_obj_type<R(T::*)(Args...)> : std::type_identity<T> {};
+
+/** \see member_obj_type */
+template<typename T>
+using member_obj_type_t = typename member_obj_type<T>::type;
+
 template<member_pointer auto p>
 struct mem_obj {
     template<typename T>

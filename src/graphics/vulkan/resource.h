@@ -76,11 +76,21 @@ public:
         VkExtent3D extent, std::uint32_t mip_levels, std::uint32_t n_layers,
         VkSampleCountFlagBits n_samples, VkImageTiling tiling,
         VkImageUsageFlags usage);
+    bool init_mipmaps(
+        VkCommandBuffer cmd,
+        VkExtent3D extent, std::uint32_t mip_levels, std::uint32_t base_layer,
+        std::uint32_t n_layers) const;
     bool create_view(
         VkDevice dev, VkImageViewType type, VkFormat format,
         VkImageAspectFlags aspect_flags,
         std::uint32_t mip_levels, std::uint32_t base_layer,
         std::uint32_t n_layers, VkImageView *p) const;
+    void transition_layout(
+        VkCommandBuffer cmd,
+        VkPipelineStageFlags src_stage, VkPipelineStageFlags dst_stage,
+        VkAccessFlags src_mask, VkAccessFlags dst_mask,
+        VkImageLayout src, VkImageLayout dst,
+        const VkImageSubresourceRange &range) const;
 private:
     bool init(
         VkDevice dev,

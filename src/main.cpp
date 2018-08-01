@@ -25,6 +25,7 @@
 #include "entity.h"
 
 #include "graphics/graphics.h"
+#include "graphics/texture.h"
 #include "input/input.h"
 #include "input/mouse.h"
 #include "lua/alloc.h"
@@ -57,6 +58,7 @@ NNGN_LUA_DECLARE_USER_TYPE(nngn::lua::state, "state")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Input, "Input")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::MouseInput, "MouseInput")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderers, "Renderers")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Textures, "Textures")
 
 namespace {
 
@@ -83,6 +85,7 @@ struct NNGN {
     Input input = {};
     nngn::Renderers renderers = {};
     Entities entities = {};
+    nngn::Textures textures = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(nngn::Graphics::Backend b, const void *params);
     int loop(void);
@@ -157,6 +160,7 @@ bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
             static_cast<nngn::MouseInput*>(p)->move_callback(pos);
         });
     const bool ret = this->renderers.set_graphics(g.get());
+    this->textures.set_graphics(g.get());
     this->graphics = std::move(g);
     return ret;
 }
@@ -202,6 +206,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["mouse_input"] = [](NNGN &nngn) { return &nngn.input.mouse; };
     t["renderers"] = accessor<&NNGN::renderers>;
     t["entities"] = accessor<&NNGN::entities>;
+    t["textures"] = accessor<&NNGN::textures>;
     t["set_graphics"] = &NNGN::set_graphics;
     t["remove_entity"] = &NNGN::remove_entity;
     t["remove_entities"] = [](NNGN &nngn, nngn::lua::table_view es) {

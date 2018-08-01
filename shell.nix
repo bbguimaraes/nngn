@@ -11,6 +11,7 @@ pkgs.mkShell {
     pkgs.glew
     pkgs.glfw
     pkgs.glslang
+    pkgs.libpng
     pkgs.lua5_4
     pkgs.qt5.qtbase
     pkgs.qt5.qtcharts

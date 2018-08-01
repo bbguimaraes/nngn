@@ -28,6 +28,9 @@ nngn_SOURCES =
 
 nngn_js_SOURCES = $(nngn_SOURCES)
 nngn_js_CPPFLAGS = $(AM_CPPFLAGS) $(DEPS_CFLAGS)
+nngn_js_CXXFLAGS = \
+	$(AM_CXXFLAGS) \
+	-s USE_LIBPNG=1
 nngn_js_LDFLAGS = \
 	$(nngn_js_CXXFLAGS) \
 	-s ASSERTIONS=2 -s DEMANGLE_SUPPORT=1 -s ALLOW_MEMORY_GROWTH=1 \
@@ -38,7 +41,8 @@ nngn_js_LDFLAGS = \
 	--source-map-base / \
 	--embed-file $(srcdir)/src/lua/@src/lua \
 	--embed-file $(srcdir)/src/lson/@src/lson \
-	--embed-file $(srcdir)/demos/@demos
+	--embed-file $(srcdir)/demos/@demos \
+	--embed-file $(srcdir)/img/@img
 nngn_js_LDADD = $(DEPS_LIBS)
 
 TESTS = $(check_PROGRAMS)
@@ -52,6 +56,7 @@ dist_check_DATA =
 
 LUA_FILES =
 EXTRA_DIST = \
+	img \
 	nngn.html \
 	scripts \
 	$(LUA_FILES)

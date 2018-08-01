@@ -33,6 +33,7 @@ bool set_non_blocking(nngn::lua::state_view lua) {
 
 void register_platform(nngn::lua::table_view t) {
     t["EAGAIN"] = EAGAIN;
+    t["has_libpng"] = Platform::has_libpng;
     t["debug"] = Platform::debug;
     t["errno"] = [] { return errno; };
     t["clear_errno"] = [] { errno = 0; };

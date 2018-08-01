@@ -19,10 +19,15 @@ void set(Renderers &r, lua_Integer n) {
     (r.*f)(nngn::narrow<std::size_t>(n));
 }
 
+auto z_off(const Renderer &r) {
+    return nngn::narrow<lua_Number>(r.z_off);
+}
+
 void register_renderer(nngn::lua::table_view t) {
     t["SIZEOF_SPRITE"] =
         nngn::narrow<lua_Integer>(sizeof(nngn::SpriteRenderer));
     t["SPRITE"] = Renderer::Type::SPRITE;
+    t["z_off"] = z_off;
 }
 
 void register_renderers(nngn::lua::table_view t) {

@@ -122,6 +122,12 @@ Additionally, if the VulkanMemoryAllocator library is present (determined by the
 `vk_mem_alloc.h` header file), it is used for some of the memory allocations.
 This default can be disabled with `--without-vma`.
 
+#### `--with-libpng`
+
+Enables loading images.  Requires:
+
+- `libpng` (1.6.37): PNG loading library
+
 #### Tests
 
 Building the tests requires `Qt5Core` and `Qt5Test` (5.14.0) and can be enabled

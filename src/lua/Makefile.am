@@ -16,6 +16,7 @@ LUA_FILES += \
 	%reldir%/lib/plot.lua \
 	%reldir%/lib/profile.lua \
 	%reldir%/lib/serial.lua \
+	%reldir%/lib/texture.lua \
 	%reldir%/lib/timeline.lua \
 	%reldir%/lib/tools.lua \
 	%reldir%/lib/utils.lua \
