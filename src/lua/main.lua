@@ -17,7 +17,9 @@ entities = {
     entity.load(nil, "src/lson/old_man.lua", {pos = {-32, 0}}),
     entity.load(nil, nil, {
         pos = {32, 0, 8},
-        renderer = {type = Renderer.CUBE, size = 16, color = {1, .5, 0}}}),
+        renderer = {type = Renderer.CUBE, size = 16, color = {1, .5, 0}},
+        collider = {type = Collider.AABB, bb = {-8, -8, 8, 8}},
+    }),
     entity.load(nil, nil, {
         pos = {64, 0, 8},
         renderer = {
@@ -31,6 +33,7 @@ entities = {
                 0, 1, 0x1p-4, 1 - 0x1p-4,
             },
         },
+        collider = {type = Collider.AABB, bb = {-8, -8, 8, 8}},
     }),
     entity.load(nil, "src/lson/fairy0.lua", {pos = {96, 0}}),
 }

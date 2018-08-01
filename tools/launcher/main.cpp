@@ -38,6 +38,12 @@ do
     local p = require("nngn.lib.plot")
     p.plot(p.FS.render)
 end)"sv;
+constexpr auto PLOT_COLL = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.plot")
+    p.plot(p.FS.coll)
+end)"sv;
 constexpr auto PLOT_CAMERA = R"(
 do
     require("nngn.lib.tools").add_to_path()
@@ -49,6 +55,14 @@ do
     require("nngn.lib.tools").add_to_path()
     local p = require("nngn.lib.plot")
     p.plot(p.FS.graphics)
+end)"sv;
+constexpr auto TIMELINE_COLL = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.profile")
+    if not p.active(Colliders) then p.activate(Colliders) end
+    local t = require("nngn.lib.timeline")
+    t.timeline(t.FS.collision)
 end)"sv;
 constexpr auto TIMELINE_PROF = R"(
 do
@@ -158,8 +172,10 @@ int main(int argc, char **argv) {
     add(plot_section, "render", PLOT_RENDER);
     add(plot_section, "camera", PLOT_CAMERA);
     add(plot_section, "graphics", PLOT_GRAPHICS);
+    add(plot_section, "coll", PLOT_COLL);
     add(timeline_section, "prof", TIMELINE_PROF);
     add(timeline_section, "lua", TIMELINE_LUA);
+    add(timeline_section, "coll", TIMELINE_COLL);
     add(configure_section, "general", CONFIGURE_GENERAL);
     add(configure_section, "limits", CONFIGURE_LIMITS);
     add(configure_section, "camera", CONFIGURE_CAMERA);

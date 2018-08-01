@@ -1,6 +1,7 @@
 #ifndef NNGN_RENDER_GEN_H
 #define NNGN_RENDER_GEN_H
 
+#include "collision/colliders.h"
 #include "font/font.h"
 #include "font/text.h"
 #include "font/textbox.h"
@@ -44,6 +45,12 @@ struct Gen {
         vec2 *pos_p, float *color_p, u64 *i_p, u64 *n_visible_p);
     static void textbox(Vertex **p, const Textbox &x);
     static void selection(Vertex **p, const SpriteRenderer &x);
+    static void aabb(Vertex **p, const AABBCollider &x, vec3 color);
+    static void aabb_circle(Vertex **p, const AABBCollider &x);
+private:
+    static constexpr std::array<vec2, 2>
+        CIRCLE_UV_32 = {{{ 32/512.0f, 1}, { 64/512.0f, 1 -  32/512.0f}}},
+        CIRCLE_UV_64 = {{{128/512.0f, 1}, {256/512.0f, 1 - 128/512.0f}}};
 };
 
 inline void Gen::quad_indices(u64 i_64, u64 n, u32 *p) {
@@ -287,6 +294,17 @@ inline void Gen::selection(Vertex **p, const SpriteRenderer &x) {
     const auto pos = x.pos.xy();
     const auto s = x.size / 2.0f;
     nngn::Gen::quad_vertices(p, pos - s, pos + s, 0, {1, 1, 0});
+}
+
+inline void Gen::aabb(Vertex **p, const AABBCollider &x, vec3 color) {
+    Gen::quad_vertices(p, x.bl, x.tr, 0, color);
+}
+
+inline void Gen::aabb_circle(Vertex **p, const AABBCollider &x) {
+    const auto uv = x.radius < 32.0f ? Gen::CIRCLE_UV_32 : Gen::CIRCLE_UV_64;
+    Gen::quad_vertices(
+        p, x.center - x.radius, x.center + x.radius, 0, 1,
+        uv[0], uv[1]);
 }
 
 }

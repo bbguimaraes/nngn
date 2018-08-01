@@ -117,6 +117,16 @@ local FS = {
                 buf.total_writes_bytes * kb)
         end,
     },
+    coll = {
+        function(f)
+            f:write("s 1\n")
+            write_names(f, "aabbs", "coll")
+        end,
+        function(f)
+            local c <const> = nngn.colliders
+            write_data(f, c:n_aabbs(), c:n_collisions())
+        end,
+    },
 }
 
 local update

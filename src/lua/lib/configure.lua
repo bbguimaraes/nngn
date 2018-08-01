@@ -29,6 +29,7 @@ local FS = {
         float(
             "time scale (log₂)", -10000, 10000, 0, 1000,
             "nngn.timing:set_scale(2 ^ %1)"),
+        bool("check collisions", true, "nngn.colliders:set_check(%1)"),
     },
     limits = {
         int("textures", 2, 64, 16, 'require("nngn.lib.texture").set_max(%1)'),
@@ -46,6 +47,12 @@ local FS = {
         int(
             "text", 8, 65536, 65536,
             "nngn.renderers:set_max_text(%1)"),
+        int(
+            "colliders", 8, 8192, 8192,
+            'require("nngn.lib.collision").set_max_colliders(%1)'),
+        int(
+            "collisions", 8, 8192, 8192,
+            "nngn.colliders:set_max_collisions(%1)"),
     },
     camera = {
         bool("ortho./persp.", false, "nngn.camera:set_perspective(%1)"),

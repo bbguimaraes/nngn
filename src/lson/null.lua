@@ -1,4 +1,6 @@
 return {
+    name = "null",
+    collider = {type = Collider.AABB, bb = 8},
     renderer = {
         type = Renderer.SPRITE,
         tex = "img/nngn.png",

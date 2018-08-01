@@ -1,5 +1,6 @@
 return {
     name = "link",
+    collider = {type = Collider.AABB, bb = {-6, -12, 6, -4}},
     renderer = {
         type = Renderer.SPRITE,
         tex = "img/zelda.png",

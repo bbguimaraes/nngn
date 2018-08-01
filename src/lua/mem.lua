@@ -9,6 +9,7 @@ local function fmt(name, size, n, max)
         utils.fmt_size(size))
 end
 
+local max_colliders = nngn.colliders:max_colliders()
 print(fmt(
     "entities", Entity.SIZEOF,
     nngn.entities:n(), nngn.entities:max()))
@@ -26,3 +27,7 @@ print("animations:")
 print(fmt(
     "- sprite", Animation.SIZEOF_SPRITE,
     nngn.animations:n_sprite(), nngn.animations:max_sprite()))
+print("colliders:")
+print(fmt(
+    "- aabb", Collider.SIZEOF_AABB,
+    nngn.colliders:n_aabbs(), max_colliders))

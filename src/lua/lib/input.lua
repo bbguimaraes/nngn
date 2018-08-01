@@ -75,6 +75,9 @@ register({
         c:set_perspective(p)
         nngn.renderers:set_perspective(p)
     end},
+    {"O", Input.SEL_PRESS | Input.SEL_CTRL, function()
+        nngn.colliders:set_resolve(not nngn.colliders:resolve())
+    end},
     {"P", Input.SEL_PRESS, function(_, _, mods)
         if mods & Input.MOD_CTRL == 0 then
             return pause()
