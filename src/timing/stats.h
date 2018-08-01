@@ -20,7 +20,7 @@ struct StatsBase {
 };
 
 class Stats {
-    static constexpr std::size_t MAX = 1;
+    static constexpr std::size_t MAX = 2;
     static std::array<pointer_flag<void>, MAX> v;
     static std::size_t check(std::size_t i);
 public:

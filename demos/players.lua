@@ -13,6 +13,9 @@ nngn:graphics():resize_textures(5)
 nngn:textures():set_max(5)
 assert(nngn:textures():load(texture.NNGN))
 nngn:animations():set_max(N)
+nngn:colliders():set_max_colliders(N)
+nngn:renderers():set_max_colliders(N)
+nngn:colliders():set_max_collisions(N * N)
 
 player.set{
     "src/lson/crono.lua",

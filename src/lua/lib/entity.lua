@@ -19,6 +19,12 @@ local function load(e, f, extra)
         r = nngn:renderers():load(t.renderer)
         if r then e:set_renderer(r) end
     end
+    if t.collider then
+        local c = e:collider()
+        if c then nngn:colliders():remove(c) end
+        c = nngn:colliders():load(t.collider)
+        if c then e:set_collider(c) end
+    end
     if t.anim then
         if e:animation() then nngn:animations():remove(e:animation()) end
         e:set_animation(nngn:animations():load(t.anim))

@@ -24,6 +24,7 @@
 
 #include "entity.h"
 
+#include "collision/collision.h"
 #include "font/font.h"
 #include "font/textbox.h"
 #include "graphics/graphics.h"
@@ -68,6 +69,7 @@ NNGN_LUA_DECLARE_USER_TYPE(nngn::Camera, "Camera")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::MouseInput, "MouseInput")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderers, "Renderers")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Animations, "Animations")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Colliders, "Colliders")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Textures, "Textures")
 
 namespace {
@@ -99,6 +101,7 @@ struct NNGN {
     nngn::Camera camera = {};
     nngn::Renderers renderers = {};
     nngn::Animations animations = {};
+    nngn::Colliders colliders = {};
     Entities entities = {};
     nngn::Textures textures = {};
     bool init(int argc, const char *const *argv);
@@ -142,7 +145,8 @@ bool NNGN::init(int argc, const char *const *argv) {
     if(!this->fonts.init())
         return false;
     this->renderers.init(
-        &this->textures, &this->fonts, &this->textbox, &this->grid);
+        &this->textures, &this->fonts, &this->textbox, &this->grid,
+        &this->colliders);
     this->animations.init(&this->math);
     this->textbox.init(&this->fonts);
     if(!(argc < 2
@@ -156,6 +160,8 @@ bool NNGN::init(int argc, const char *const *argv) {
     this->fps.init(nngn::Timing::clock::now());
     if(!this->graphics)
         this->set_graphics(nngn::Graphics::Backend::PSEUDOGRAPH, {});
+    if(!this->colliders.has_backend())
+        this->colliders.set_backend(nngn::Colliders::native_backend());
     return true;
 }
 
@@ -208,6 +214,10 @@ int NNGN::loop(void) {
         return 1;
     this->entities.update(this->timing);
     this->animations.update(this->timing);
+    if(!this->colliders.check_collisions(this->timing))
+        return 1;
+    if(!this->colliders.lua_on_collision(this->lua))
+        return 1;
     if(this->camera.flags & nngn::Camera::Flag::SCREEN_UPDATED)
         this->textbox.set_screen_updated();
     if(this->camera.update(this->timing))
@@ -232,6 +242,8 @@ void NNGN::remove_entity(Entity *e) {
         this->renderers.remove(e->renderer);
     if(e->anim)
         this->animations.remove(e->anim);
+    if(e->collider)
+        this->colliders.remove(e->collider);
     this->entities.remove(e);
 }
 
@@ -252,6 +264,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["camera"] = accessor<&NNGN::camera>;
     t["renderers"] = accessor<&NNGN::renderers>;
     t["animations"] = accessor<&NNGN::animations>;
+    t["colliders"] = accessor<&NNGN::colliders>;
     t["entities"] = accessor<&NNGN::entities>;
     t["textures"] = accessor<&NNGN::textures>;
     t["set_graphics"] = &NNGN::set_graphics;

@@ -1,4 +1,5 @@
 local camera = require "nngn.lib.camera"
+local collision = require "nngn.lib.collision"
 local nngn_math = require "nngn.lib.math"
 local menu = require "nngn.lib.menu"
 local player = require "nngn.lib.player"
@@ -94,8 +95,7 @@ register({
     {"E", Input.SEL_PRESS, function(_, _, mods) player.menu(nil, mods) end},
     {"F", 0, function(_, press) player.action(nil, press) end},
     {"O", Input.SEL_PRESS | Input.SEL_CTRL, function()
-        local c <const> = camera:get()
-        c:set_ignore_limits(not c:ignore_limits())
+        collision:toggle_resolve()
     end},
     {"P", Input.SEL_PRESS, function(_, _, mods)
         if mods & Input.MOD_CTRL == 0 then

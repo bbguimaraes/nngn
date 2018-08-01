@@ -181,6 +181,15 @@ local function test_input_g()
     assert(not nngn:grid():enabled())
 end
 
+local function test_input_o()
+    local key = string.byte("O")
+    nngn:colliders():set_resolve(true)
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(not nngn:colliders():resolve())
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(nngn:colliders():resolve())
+end
+
 local opengl = nngn:set_graphics(
     Graphics.OPENGL_ES_BACKEND,
     Graphics.opengl_params{maj = 3, min = 1, hidden = true})
@@ -191,6 +200,7 @@ nngn:graphics():resize_textures(3)
 nngn:textures():set_max(3)
 nngn:renderers():set_max_sprites(3)
 nngn:animations():set_max(3)
+nngn:colliders():set_max_colliders(4)
 player.set{
     "src/lson/crono.lua",
     "src/lson/zelda/link.lua",
@@ -208,4 +218,5 @@ test_input_p_alt()
 test_input_v()
 test_input_space()
 test_input_g()
+test_input_o()
 nngn:exit()

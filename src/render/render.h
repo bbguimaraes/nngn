@@ -15,6 +15,7 @@
 
 namespace nngn {
 
+struct Colliders;
 struct Graphics;
 class Fonts;
 class Grid;
@@ -36,12 +37,15 @@ public:
     /** Enabled debugging features. */
     enum Debug : u8 {
         DEBUG_RENDERERS = 1u << 0,
-        DEBUG_ALL = (1u << 1) - 1,
+        DEBUG_CIRCLE = 1u << 1,
+        DEBUG_BB = 1u << 2,
+        DEBUG_ALL = (1u << 3) - 1,
     };
     // Initialization
     /** Partially initializes this system.  \see set_graphics */
     void init(
-        Textures *t, const Fonts *f, const Textbox *tb, const Grid *g);
+        Textures *t, const Fonts *f, const Textbox *tb, const Grid *g,
+        const Colliders *c);
     // Configuration
     auto debug(void) const { return *this->m_debug; }
     bool perspective(void) const;
@@ -67,6 +71,7 @@ public:
     bool set_max_cubes(std::size_t n);
     bool set_max_voxels(std::size_t n);
     bool set_max_text(std::size_t n);
+    bool set_max_colliders(std::size_t n);
     /**
      * Associates this system with a graphics back end.
      * Must be called before \c update.  It is assumed that the current
@@ -106,6 +111,7 @@ private:
     const Fonts *fonts = nullptr;
     const Textbox *textbox = nullptr;
     const Grid *grid = nullptr;
+    const Colliders *colliders = nullptr;
     std::vector<SpriteRenderer> sprites = {};
     std::vector<SpriteRenderer> screen_sprites = {};
     std::vector<CubeRenderer> cubes = {};
@@ -122,7 +128,9 @@ private:
         voxel_debug_vbo = {}, voxel_debug_ebo = {},
         text_vbo = {}, text_ebo = {},
         textbox_vbo = {}, textbox_ebo = {},
-        selection_vbo = {}, selection_ebo = {};
+        selection_vbo = {}, selection_ebo = {},
+        aabb_vbo = {}, aabb_ebo = {},
+        aabb_circle_vbo = {}, aabb_circle_ebo = {};
 };
 
 inline bool Renderers::perspective(void) const {

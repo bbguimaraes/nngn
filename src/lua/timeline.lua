@@ -5,6 +5,7 @@ local tools = require "nngn.lib.tools"
 local stats = {
     lua = false,
     profile = Profile,
+    collision = Colliders,
 }
 
 local function named(name)

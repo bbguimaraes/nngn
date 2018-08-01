@@ -5,6 +5,7 @@
 
 #include <QTest>
 
+#include "collision/colliders.h"
 #include "math/camera.h"
 #include "render/animation.h"
 #include "render/renderers.h"
@@ -16,6 +17,7 @@ class EntityBench : public QObject {
     std::vector<nngn::SpriteRenderer> sprites = {};
     std::vector<nngn::Camera> cameras = {};
     std::vector<nngn::Animation> animations = {};
+    std::vector<nngn::AABBCollider> colliders = {};
     void clear();
     Entities gen_entities();
     Entities gen_entities_with_components();

@@ -34,6 +34,10 @@ local FS = {
         function(p) write(p, "g", Profile.stats_names()) end,
         function(p) write(p, "d", Profile.stats_as_timeline()) end,
     },
+    collision = {
+        function(p) write(p, "g", Colliders.stats_names()) end,
+        function(p) write(p, "d", Colliders.stats()) end,
+    },
 }
 
 local update

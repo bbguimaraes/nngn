@@ -1,5 +1,6 @@
 return {
     name = "crono",
+    collider = {type = Collider.AABB, bb = {-8, -16, 8, -8}},
     renderer = {
         type = Renderer.SPRITE,
         tex = "img/chrono_trigger/crono.png",

@@ -6,12 +6,15 @@
 
 #include "math/camera.h"
 #include "math/lua_vector.h"
+
+#include "collision/colliders.h"
 #include "render/animation.h"
 #include "render/renderers.h"
 
 NNGN_LUA_DECLARE_USER_TYPE(Entity)
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Animation, "Animation")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Camera, "Camera")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Collider, "Collider")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderer, "Renderer")
 
 namespace {
@@ -126,12 +129,14 @@ void register_entity(nngn::lua::table_view t) {
     t["acc"] = get<&Entity::a>;
     t["max_vel"] = get<&Entity::max_v>;
     t["renderer"] = [](const Entity &e) { return e.renderer; };
+    t["collider"] = [](const Entity &e) { return e.collider; };
     t["animation"] = [](const Entity &e) { return e.anim; };
     t["set_pos"] = set_pos;
     t["set_vel"] = set_vel;
     t["set_acc"] = set_acc;
     t["set_max_vel"] = [](Entity &e, float v) { e.max_v = v; };
     t["set_renderer"] = &Entity::set_renderer;
+    t["set_collider"] = &Entity::set_collider;
     t["set_animation"] = &Entity::set_animation;
     t["set_camera"] = &Entity::set_camera;
 }

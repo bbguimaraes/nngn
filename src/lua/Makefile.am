@@ -7,6 +7,7 @@ LUA_FILES += \
 	%reldir%/inspect.lua \
 	%reldir%/lib/all.lua \
 	%reldir%/lib/camera.lua \
+	%reldir%/lib/collision.lua \
 	%reldir%/lib/configure.lua \
 	%reldir%/lib/debug.lua \
 	%reldir%/lib/entity.lua \
