@@ -49,7 +49,8 @@ void update_sprites(nngn::Vertex **p, nngn::SpriteRenderer *x) {
     const auto pos = x->pos.xy();
     const auto s = x->size / 2.0f;
     nngn::Renderers::gen_quad_verts(
-        p, pos - s, pos + s, -x->pos.z);
+        p, pos - s, pos + s, -pos.y - x->z_off,
+        x->tex, x->uv0, x->uv1);
 }
 
 void update_boxes(nngn::Vertex **p, nngn::SpriteRenderer *x) {
@@ -61,8 +62,8 @@ void update_boxes(nngn::Vertex **p, nngn::SpriteRenderer *x) {
     bl = pos - s;
     tr = pos + s;
     nngn::Renderers::gen_quad_verts(p, bl, tr, 0, {1, 0, 0});
-    bl.y = x->pos.z - s.y;
-    tr.y = x->pos.z + s.y;
+    bl.y = x->pos.y + x->z_off - s.y;
+    tr.y = x->pos.y + x->z_off + s.y;
     nngn::Renderers::gen_quad_verts(p, bl, tr, 0, {1, 0, 0});
 }
 
@@ -103,11 +104,16 @@ bool Renderers::set_graphics(Graphics *g) {
     constexpr auto index = Graphics::BufferConfiguration::Type::INDEX;
     this->graphics = g;
     u32
-        triangle_pipeline = {}, box_pipeline = {},
+        triangle_pipeline = {}, sprite_pipeline = {}, box_pipeline = {},
         triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
             .type = Pipeline::Type::TRIANGLE,
+            .flags = Pipeline::Flag::DEPTH_TEST,
+        }))
+        && (sprite_pipeline = g->create_pipeline({
+            .name = "sprite_pipeline",
+            .type = Pipeline::Type::SPRITE,
             .flags = Pipeline::Flag::DEPTH_TEST,
         }))
         && (box_pipeline = g->create_pipeline({
@@ -159,6 +165,10 @@ bool Renderers::set_graphics(Graphics *g) {
                 .pipeline = triangle_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {triangle_vbo, triangle_ebo},
+                }),
+            }, {
+                .pipeline = sprite_pipeline,
+                .buffers = std::to_array<BufferPair>({
                     {this->sprite_vbo, this->sprite_ebo},
                 }),
             }}),

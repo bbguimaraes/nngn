@@ -41,6 +41,9 @@ public:
         std::span<const char *const> extensions,
         std::span<const char *const> layers,
         const VkPhysicalDeviceFeatures &features);
+    VkSampler create_sampler(
+        VkFilter filter, VkSamplerAddressMode addr_mode, VkBorderColor border,
+        VkSamplerMipmapMode mip_mode, std::uint32_t mip_levels) const;
     /** Compiles and names a shader module from source. */
     VkShaderModule create_shader(
         const Instance &inst,

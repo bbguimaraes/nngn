@@ -35,6 +35,11 @@ struct Platform {
 #else
     static constexpr bool emscripten = false;
 #endif
+#ifdef NNGN_PLATFORM_HAS_LIBPNG
+    static constexpr bool has_libpng = true;
+#else
+    static constexpr bool has_libpng = false;
+#endif
 #ifdef NNGN_PLATFORM_HAS_SOCKETS
     static constexpr bool has_sockets = true;
 #else

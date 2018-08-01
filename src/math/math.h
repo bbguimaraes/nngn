@@ -1,6 +1,7 @@
 #ifndef NNGN_MATH_MATH_H
 #define NNGN_MATH_MATH_H
 
+#include <bit>
 #include <cassert>
 #include <cmath>
 #include <optional>
@@ -133,6 +134,12 @@ template<typename T> inline constexpr T Math::degrees(T r)
 template<typename T> constexpr T Math::round_up(T n, T d) {
     const auto r = n % d;
     return r ? n + d - r : n;
+}
+
+template<std::unsigned_integral T>
+constexpr T Math::mip_levels(T extent) {
+    assert(std::popcount(extent) == 1);
+    return T{1} + static_cast<T>(std::countr_zero(std::bit_floor(extent)));
 }
 
 template<typename T> inline constexpr auto Math::length2(const T &v)

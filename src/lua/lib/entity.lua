@@ -7,6 +7,10 @@ local function load(e, f, extra)
     if t.tag then nngn.entities:set_tag(e, t.tag) end
     if t.pos then e:set_pos(t.pos[1] or 0, t.pos[2] or 0, t.pos[3] or 0) end
     if t.renderer then
+        local tex = t.renderer.tex
+        if type(tex) == "string" then
+            t.renderer.tex = nngn.textures:load(tex)
+        end
         local r = e:renderer()
         if r then nngn.renderers:remove(r) end
         r = nngn.renderers:load(t.renderer)

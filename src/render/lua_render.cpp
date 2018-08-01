@@ -11,7 +11,8 @@ using nngn::Renderers;
 NNGN_LUA_PROXY(Renderer,
     sol::no_constructor,
     "SIZEOF_SPRITE", sol::var(sizeof(nngn::SpriteRenderer)),
-    "SPRITE", sol::var(Renderer::Type::SPRITE))
+    "SPRITE", sol::var(Renderer::Type::SPRITE),
+    "z_off", [](const Renderer &r) { return r.z_off; })
 NNGN_LUA_PROXY(Renderers,
     sol::no_constructor,
     "RECT", sol::var(Renderers::Debug::RECT),

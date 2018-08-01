@@ -10,4 +10,5 @@ ESCAPE#version 300 es
 #define LAYOUT2(x, y)
 precision highp int;
 precision highp float;
+precision highp sampler2DArray;
 #endif

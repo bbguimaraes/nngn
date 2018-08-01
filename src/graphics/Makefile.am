@@ -2,16 +2,20 @@ noinst_HEADERS += \
 	%reldir%/glfw.h \
 	%reldir%/graphics.h \
 	%reldir%/pseudo.h \
-	%reldir%/shaders.h
+	%reldir%/shaders.h \
+	%reldir%/stats.h \
+	%reldir%/texture.h
 nngn_SOURCES += \
 	%reldir%/glfw.cpp \
 	%reldir%/graphics.cpp \
 	%reldir%/lua_graphics.cpp \
+	%reldir%/lua_texture.cpp \
 	%reldir%/opengl.cpp \
 	%reldir%/pseudo.cpp \
 	%reldir%/shaders.cpp \
 	%reldir%/shaders_gl.cpp \
-	%reldir%/shaders_vk.cpp
+	%reldir%/shaders_vk.cpp \
+	%reldir%/texture.cpp
 
 BUILT_SOURCES += \
 	%reldir%/shaders.h \

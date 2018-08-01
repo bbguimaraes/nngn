@@ -3,6 +3,7 @@ local entity = require "nngn.lib.entity"
 local common = require "tests/lua/common"
 
 local function test_load()
+    local tex = "tests/graphics/texture_test.png"
     common.assert_eq(nngn.entities:n(), 0)
     local e = entity.load()
     common.assert_eq(nngn.entities:n(), 1)
@@ -20,9 +21,10 @@ local function test_load()
     common.assert_eq(nngn.entities:n(), 1)
     common.assert_eq({e:pos()}, {0, 1, 2}, common.deep_cmp)
     entity.load(e, nil, {
-        renderer = {
-            type = Renderer.SPRITE, size = {0, 0}}})
+        renderer = {type = Renderer.SPRITE, size = {0, 0}, tex = tex}})
     common.assert_eq(nngn.entities:n(), 1)
+    common.assert_eq(nngn.renderers:n_sprites(), 1)
+    if Platform.HAS_LIBPNG then common.assert_eq(nngn.textures:n(), 2) end
     assert(e:renderer() ~= nil)
     nngn:remove_entity(e)
 end
@@ -71,6 +73,8 @@ end
 
 assert(nngn:set_graphics(Graphics.PSEUDOGRAPH))
 nngn.entities:set_max(3)
+nngn.graphics:resize_textures(2)
+nngn.textures:set_max(2)
 nngn.renderers:set_max_sprites(1)
 common.setup_hook(1)
 test_load()

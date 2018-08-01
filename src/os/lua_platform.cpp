@@ -12,6 +12,7 @@ using nngn::Platform;
 NNGN_LUA_PROXY(Platform,
     sol::no_constructor,
     "DEBUG", sol::var(Platform::debug),
+    "HAS_LIBPNG", sol::var(Platform::has_libpng),
     "argv", [] {
         const auto *const p = Platform::argv;
         return sol::as_table(std::vector(p, p + Platform::argc));
