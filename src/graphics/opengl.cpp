@@ -102,6 +102,7 @@ struct GLBuffer final : OpenGLHandle<GLBuffer> {
 struct GLProgram : OpenGLHandle<GLProgram> {
     bool create(u32 vert, u32 frag);
     bool destroy();
+    bool get_uniform_location(const char *name, int *l) const;
     bool bind_ubo(const char *name, u32 binding) const;
 };
 
@@ -128,7 +129,7 @@ struct RenderList {
         u32 pipeline = {};
         std::vector<Buffer> buffers = {};
     };
-    std::vector<Stage> normal = {};
+    std::vector<Stage> normal = {}, overlay = {};
 };
 
 class OpenGLBackend final : public nngn::GLFWBackend {
@@ -142,6 +143,7 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     std::vector<GLBuffer> buffers = std::vector<GLBuffer>(1);
     std::vector<Pipeline> pipelines = {{}};
     std::array<GLProgram, N_PROGRAMS> programs = {};
+    GLint triangle_prog_alpha_loc = -1;
     ::RenderList render_list = {};
     void resize(int, int) final { this->flags |= Flag::RESIZED; }
     static bool set_obj_name(GLenum type, GLuint obj, std::string_view name);
@@ -312,6 +314,14 @@ bool GLProgram::destroy() {
     if(this->id())
         CHECK_RESULT(glDeleteProgram, this->id());
     return true;
+}
+
+bool GLProgram::get_uniform_location(const char *name, int *l) const {
+    if((*l = glGetUniformLocation(this->id(), name)) != -1)
+        return true;
+    nngn::Log::l() << "glGetUniformLocation(" << name << "): -1" << std::endl;
+    check_result("glGetUniformLocation");
+    return false;
 }
 
 bool GLProgram::bind_ubo(const char *name, u32 binding) const {
@@ -486,8 +496,8 @@ bool OpenGLBackend::init_instance() {
     }
 #endif
     CHECK_RESULT(glClearColor, 0, 0, 0, 0);
-    CHECK_RESULT(glEnable, GL_CULL_FACE);
-    CHECK_RESULT(glEnable, GL_DEPTH_TEST);
+    CHECK_RESULT(glEnable, GL_BLEND);
+    CHECK_RESULT(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     if(!OpenGLBackend::create_uniform_buffer("camera_ubo"sv,
             sizeof(nngn::CameraUBO), &this->camera_ubo))
         return false;
@@ -503,6 +513,9 @@ bool OpenGLBackend::init_instance() {
             &triangle_prog))
         return false;
     CHECK_RESULT(glUseProgram, triangle_prog.id());
+    if(!triangle_prog.get_uniform_location("alpha", &triangle_prog_alpha_loc))
+        return false;
+    CHECK_RESULT(glUniform1f, triangle_prog_alpha_loc, 1);
     CHECK_RESULT(
         glBindBufferRange, GL_UNIFORM_BUFFER,
         CAMERA_UBO_BINDING, this->camera_ubo.id(), 0, sizeof(nngn::CameraUBO));
@@ -577,6 +590,7 @@ bool OpenGLBackend::set_render_list(const RenderList &l) {
             dst->emplace_back(s);
     };
     f(&this->render_list.normal, l.normal);
+    f(&this->render_list.overlay, l.overlay);
     return true;
 }
 
@@ -684,9 +698,18 @@ bool OpenGLBackend::render() {
         CHECK_RESULT(glBufferSubData, GL_UNIFORM_BUFFER, 0, sizeof(c), &c);
     }
     const auto render = [this](auto *l) {
+        using PFlag = PipelineConfiguration::Flag;
         for(auto &x : *l) {
             assert(x.pipeline < this->pipelines.size());
             const auto &pipeline = this->pipelines[x.pipeline];
+            if(pipeline.conf.flags & PFlag::DEPTH_TEST)
+                CHECK_RESULT(glEnable, GL_DEPTH_TEST);
+            else
+                CHECK_RESULT(glDisable, GL_DEPTH_TEST);
+            if(pipeline.conf.flags & PFlag::CULL_BACK_FACES)
+                CHECK_RESULT(glEnable, GL_CULL_FACE);
+            else
+                CHECK_RESULT(glDisable, GL_CULL_FACE);
             const auto type = pipeline.conf.type;
             const auto &prog = this->programs[static_cast<std::size_t>(type)];
             CHECK_RESULT(glUseProgram, prog.id());
@@ -710,7 +733,15 @@ bool OpenGLBackend::render() {
         return true;
     };
     CHECK_RESULT(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    const auto &triangle_prog = this->programs[
+        static_cast<std::size_t>(PipelineConfiguration::Type::TRIANGLE)];
+    CHECK_RESULT(glUseProgram, triangle_prog.id());
+    CHECK_RESULT(glUniform1f, triangle_prog_alpha_loc, 1);
     if(!render(&render_list.normal))
+        return false;
+    CHECK_RESULT(glUseProgram, triangle_prog.id());
+    CHECK_RESULT(glUniform1f, triangle_prog_alpha_loc, .5);
+    if(!render(&render_list.overlay))
         return false;
     CHECK_RESULT(glBindVertexArray, 0);
     prof.end();

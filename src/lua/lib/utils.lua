@@ -46,10 +46,20 @@ local function fmt_size(n)
     else return string.format("%.1fG", n / (1 << 30)) end
 end
 
+local function shift(i, n, inc, base)
+    if base then i = i - base end
+    if inc then i = i + 1
+    else i = i + n - 1 end
+    i = i % n
+    if base then i = i + base end
+    return i
+end
+
 return {
     pprint = pprint,
     pformat = pformat,
     map = map,
     fmt_time = fmt_time,
     fmt_size = fmt_size,
+    shift = shift,
 }

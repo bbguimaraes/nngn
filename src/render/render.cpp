@@ -52,6 +52,20 @@ void update_sprites(nngn::Vertex **p, nngn::SpriteRenderer *x) {
         p, pos - s, pos + s, -x->pos.z);
 }
 
+void update_boxes(nngn::Vertex **p, nngn::SpriteRenderer *x) {
+    const auto pos = x->pos.xy();
+    auto s = x->size / 2.0f;
+    nngn::vec2 bl = pos - s, tr = pos + s;
+    nngn::Renderers::gen_quad_verts(p, bl, tr, 0, {1, 1, 1});
+    s = {0.5f, 0.5f};
+    bl = pos - s;
+    tr = pos + s;
+    nngn::Renderers::gen_quad_verts(p, bl, tr, 0, {1, 0, 0});
+    bl.y = x->pos.z - s.y;
+    tr.y = x->pos.z + s.y;
+    nngn::Renderers::gen_quad_verts(p, bl, tr, 0, {1, 0, 0});
+}
+
 }
 
 namespace nngn {
@@ -62,10 +76,19 @@ std::size_t Renderers::n() const {
 
 bool Renderers::set_max_sprites(std::size_t n) {
     set_capacity(&this->sprites, n);
-    return this->graphics->set_buffer_capacity(
-            this->sprite_vbo, 4 * n * sizeof(Vertex))
-        && this->graphics->set_buffer_capacity(
-            this->sprite_ebo, 6 * n * sizeof(u32));
+    const auto vsize = 4 * n * sizeof(Vertex);
+    const auto esize = 6 * n * sizeof(u32);
+    return this->graphics->set_buffer_capacity(this->sprite_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->sprite_ebo, esize)
+        && this->graphics->set_buffer_capacity(this->box_vbo, 3 * vsize)
+        && this->graphics->set_buffer_capacity(this->box_ebo, 3 * esize);
+}
+
+void Renderers::set_debug(std::underlying_type_t<Debug> d) {
+    auto old = this->m_debug;
+    this->m_debug = {d};
+    if((old ^ this->m_debug) & Debug::RECT)
+        this->flags |= Flag::RECT_UPDATED;
 }
 
 bool Renderers::set_graphics(Graphics *g) {
@@ -80,9 +103,15 @@ bool Renderers::set_graphics(Graphics *g) {
     constexpr auto index = Graphics::BufferConfiguration::Type::INDEX;
     this->graphics = g;
     u32
-        triangle_pipeline = {}, triangle_vbo = {}, triangle_ebo = {};
+        triangle_pipeline = {}, box_pipeline = {},
+        triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
+            .type = Pipeline::Type::TRIANGLE,
+            .flags = Pipeline::Flag::DEPTH_TEST,
+        }))
+        && (box_pipeline = g->create_pipeline({
+            .name = "box_pipeline",
             .type = Pipeline::Type::TRIANGLE,
         }))
         && (triangle_vbo = g->create_buffer({
@@ -101,6 +130,14 @@ bool Renderers::set_graphics(Graphics *g) {
         }))
         && (this->sprite_ebo = g->create_buffer({
             .name = "sprite_ebo",
+            .type = index,
+        }))
+        && (this->box_vbo = g->create_buffer({
+            .name = "box_vbo",
+            .type = vertex,
+        }))
+        && (this->box_ebo = g->create_buffer({
+            .name = "box_ebo",
             .type = index,
         }))
         && g->update_buffers(
@@ -123,6 +160,12 @@ bool Renderers::set_graphics(Graphics *g) {
                 .buffers = std::to_array<BufferPair>({
                     {triangle_vbo, triangle_ebo},
                     {this->sprite_vbo, this->sprite_ebo},
+                }),
+            }}),
+            .overlay = std::to_array<Stage>({{
+                .pipeline = box_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->box_vbo, this->box_ebo},
                 }),
             }}),
         });
@@ -174,6 +217,12 @@ bool Renderers::update() {
         return update_span<::update_sprites, update_indices<6>>(
             this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
     };
+    const auto update_rect = [this] {
+        NNGN_LOG_CONTEXT("rect");
+        return update_span<::update_boxes, update_indices<3 * 6>>(
+            this->graphics, std::span{this->sprites},
+            this->box_vbo, this->box_ebo, 3 * 4, 3 * 6);
+    };
     const auto updated = [&flags = this->flags](auto f, const auto &v) {
         return flags.is_set(f)
             ? (flags.clear(f), true)
@@ -182,7 +231,19 @@ bool Renderers::update() {
     };
     NNGN_PROFILE_CONTEXT(renderers);
     const auto sprites_updated = updated(Flag::SPRITES_UPDATED, this->sprites);
-    return !sprites_updated || update_sprites();
+    if(sprites_updated && !update_sprites())
+        return false;
+    const auto rect_enabled = this->m_debug & Debug::RECT;
+    const auto rect_updated = this->flags.check_and_clear(Flag::RECT_UPDATED)
+        || sprites_updated;
+    if(rect_updated) {
+        if(rect_enabled) {
+            if(!update_rect())
+                return false;
+        } else
+            this->graphics->set_buffer_size(this->box_ebo, 0);
+    }
+    return true;
 }
 
 }

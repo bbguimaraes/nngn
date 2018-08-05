@@ -20,18 +20,31 @@ namespace nngn {
 class Renderers {
     enum Flag : u8 {
         SPRITES_UPDATED = 1u << 0,
+        RECT_UPDATED = 1u << 1,
     };
     Graphics *graphics = nullptr;
     Flags<Flag> flags = {};
     std::vector<SpriteRenderer> sprites = {};
-    u32 sprite_vbo = {}, sprite_ebo = {};
+    u32
+        sprite_vbo = {}, sprite_ebo = {},
+        box_vbo = {}, box_ebo = {};
+public:
+    enum Debug : u8 {
+        RECT = 1u << 0, N_DEBUG = 1,
+    };
+private:
+    Flags<Debug> m_debug = {};
 public:
     static void gen_quad_idxs(u64 i, u64 n, u32 *p);
     static void gen_quad_verts(Vertex **p, vec2 bl, vec2 tr, float z);
+    static void gen_quad_verts(
+        Vertex **p, vec2 bl, vec2 tr, float z, vec3 color);
     auto max_sprites() const { return this->sprites.capacity(); }
+    auto debug() const { return this->m_debug.t; }
     std::size_t n() const;
     std::size_t n_sprites() const { return this->sprites.size(); }
     bool set_max_sprites(std::size_t n);
+    void set_debug(std::underlying_type_t<Debug> d);
     bool set_graphics(Graphics *g);
     Renderer *load(const sol::stack_table &t);
     void remove(Renderer *p);
@@ -53,6 +66,17 @@ inline void Renderers::gen_quad_verts(Vertex **pp, vec2 bl, vec2 tr, float z) {
     *p++ = {{tr.x, bl.y, z}, {0, 1, 0}};
     *p++ = {{bl.x, tr.y, z}, {0, 0, 1}};
     *p++ = {{tr,         z}, {1, 1, 1}};
+    *pp = p;
+}
+
+inline void Renderers::gen_quad_verts(
+    Vertex **pp, vec2 bl, vec2 tr, float z, vec3 color
+) {
+    auto *p = *pp;
+    *p++ = {{bl,         z}, color};
+    *p++ = {{tr.x, bl.y, z}, color};
+    *p++ = {{bl.x, tr.y, z}, color};
+    *p++ = {{tr,         z}, color};
     *pp = p;
 }
 
