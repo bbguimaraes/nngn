@@ -27,6 +27,16 @@ local function test_input_i()
     common.assert_eq(nngn:graphics():swap_interval(), 0)
 end
 
+local function test_input_b()
+    local key = string.byte("B")
+    common.assert_eq(nngn:renderers():debug(), 0)
+    nngn:input():key_callback(key, Input.SEL_PRESS, Input.MOD_CTRL)
+    common.assert_eq(nngn:renderers():debug(), 1)
+    nngn:input():key_callback(
+        key, Input.SEL_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT)
+    common.assert_eq(nngn:renderers():debug(), 0)
+end
+
 local function test_input_p()
     local function group() return deref(nngn:input():binding_group()) end
     local key = string.byte("P")
@@ -45,5 +55,6 @@ input.install()
 common.setup_hook(1)
 test_get_keys()
 if opengl then test_input_i() end
+test_input_b()
 test_input_p()
 nngn:exit()

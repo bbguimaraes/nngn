@@ -156,7 +156,7 @@ bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
         &this->input.mouse, [](void *p, nngn::dvec2 pos) {
             static_cast<nngn::MouseInput*>(p)->move_callback(pos);
         });
-    bool ret = this->renderers.set_graphics(g.get());
+    const bool ret = this->renderers.set_graphics(g.get());
     this->graphics = std::move(g);
     return ret;
 }

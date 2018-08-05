@@ -22,9 +22,10 @@ namespace nngn {
 
 struct ProfileStats : StatsBase<ProfileStats, 2> {
     std::array<uint64_t, 2>
-        schedule, socket, renderers, render, vsync;
+        schedule, socket, renderers, renderers_debug, render, vsync;
     static constexpr std::array names = {
-        "schedule", "socket", "renderers", "render", "vsync",
+        "schedule", "socket", "renderers", "renderers_debug", "render",
+        "vsync",
     };
     const uint64_t *to_u64() const { return this->schedule.data(); }
     uint64_t *to_u64() { return this->schedule.data(); }

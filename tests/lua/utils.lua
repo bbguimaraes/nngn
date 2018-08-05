@@ -49,8 +49,21 @@ local function test_fmt_size()
     end
 end
 
+local function test_shift()
+    common.assert_eq(utils.shift(1, 3, true, 1), 2)
+    common.assert_eq(utils.shift(2, 3, true, 1), 3)
+    common.assert_eq(utils.shift(3, 3, true, 1), 1)
+    common.assert_eq(utils.shift(1, 3, false, 1), 3)
+    common.assert_eq(utils.shift(2, 3, false, 1), 1)
+    common.assert_eq(utils.shift(3, 3, false, 1), 2)
+    common.assert_eq(utils.shift(2, 3, true, 2), 3)
+    common.assert_eq(utils.shift(3, 3, true, 2), 4)
+    common.assert_eq(utils.shift(4, 3, true, 2), 2)
+end
+
 return {
     test_pprint,
     test_fmt_time,
     test_fmt_size,
+    test_shift,
 }

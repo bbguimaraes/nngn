@@ -5,25 +5,29 @@
 #include "entity.h"
 
 #include "timing/profile.h"
+#include "utils/literals.h"
 #include "utils/log.h"
 #include "utils/ranges.h"
 
 #include "gen.h"
 #include "render.h"
 
+using namespace nngn::literals;
 using nngn::u32, nngn::u64;
 
 namespace {
 
 bool set_max_sprites(
     std::size_t n, std::vector<nngn::SpriteRenderer> *v,
-    nngn::Graphics *g, u32 vbo, u32 ebo)
+    nngn::Graphics *g, u32 vbo, u32 ebo, u32 debug_vbo, u32 debug_ebo)
 {
     set_capacity(v, n);
     const auto vsize = 4 * n * sizeof(nngn::Vertex);
     const auto esize = 6 * n * sizeof(u32);
     return g->set_buffer_capacity(vbo, vsize)
-        && g->set_buffer_capacity(ebo, esize);
+        && g->set_buffer_capacity(ebo, esize)
+        && g->set_buffer_capacity(debug_vbo, 3 * vsize)
+        && g->set_buffer_capacity(debug_ebo, 3 * esize);
 }
 
 template<std::size_t per_obj>
@@ -66,7 +70,16 @@ std::size_t Renderers::n() const {
 bool Renderers::set_max_sprites(std::size_t n) {
     return ::set_max_sprites(
         n, &this->sprites, this->graphics,
-        this->sprite_vbo, this->sprite_ebo);
+        this->sprite_vbo, this->sprite_ebo,
+        this->sprite_debug_vbo, this->sprite_debug_ebo);
+}
+
+void Renderers::set_debug(Debug d) {
+    const auto old = this->m_debug;
+    const auto diff = old ^ d;
+    this->m_debug = {d};
+    if(diff & Debug::DEBUG_RENDERERS)
+        this->flags.set(Flag::DEBUG_UPDATED);
 }
 
 bool Renderers::set_graphics(Graphics *g) {
@@ -81,9 +94,15 @@ bool Renderers::set_graphics(Graphics *g) {
     constexpr auto index = Graphics::BufferConfiguration::Type::INDEX;
     this->graphics = g;
     u32
-        triangle_pipeline = {}, triangle_vbo = {}, triangle_ebo = {};
+        triangle_pipeline = {}, box_pipeline = {},
+        triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
+            .type = Pipeline::Type::TRIANGLE,
+            .flags = Pipeline::Flag::DEPTH_TEST,
+        }))
+        && (box_pipeline = g->create_pipeline({
+            .name = "box_pipeline",
             .type = Pipeline::Type::TRIANGLE,
         }))
         && (triangle_vbo = g->create_buffer({
@@ -102,6 +121,14 @@ bool Renderers::set_graphics(Graphics *g) {
         }))
         && (this->sprite_ebo = g->create_buffer({
             .name = "sprite_ebo",
+            .type = index,
+        }))
+        && (this->sprite_debug_vbo = g->create_buffer({
+            .name = "sprite_debug_vbo",
+            .type = vertex,
+        }))
+        && (this->sprite_debug_ebo = g->create_buffer({
+            .name = "sprite_debug_ebo",
             .type = index,
         }))
         && g->update_buffers(
@@ -124,6 +151,12 @@ bool Renderers::set_graphics(Graphics *g) {
                 .buffers = std::to_array<BufferPair>({
                     {triangle_vbo, triangle_ebo},
                     {this->sprite_vbo, this->sprite_ebo},
+                }),
+            }}),
+            .overlay = std::to_array<Stage>({{
+                .pipeline = box_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->sprite_debug_vbo, this->sprite_debug_ebo},
                 }),
             }}),
         });
@@ -175,7 +208,8 @@ bool Renderers::update(void) {
             : std::any_of(begin(v), end(v), std::mem_fn(&Renderer::updated));
     };
     const auto sprites_updated = updated(Flag::SPRITES_UPDATED, this->sprites);
-    return this->update_renderers(sprites_updated);
+    return this->update_renderers(sprites_updated)
+        && this->update_debug(sprites_updated);
 }
 
 bool Renderers::update_renderers(bool sprites_updated) {
@@ -188,6 +222,26 @@ bool Renderers::update_renderers(bool sprites_updated) {
             this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
     };
     return !sprites_updated || update_sprites();
+}
+
+bool Renderers::update_debug(bool sprites_updated) {
+    NNGN_PROFILE_CONTEXT(renderers_debug);
+    const auto update_sprite_debug = [this] {
+        NNGN_LOG_CONTEXT("sprite_debug");
+        return update_span<Gen::sprite_debug, update_quad_indices<3 * 6>>(
+            this->graphics, std::span{this->sprites},
+            this->sprite_debug_vbo, this->sprite_debug_ebo,
+            3_z * 4_z, 3_z * 6_z);
+    };
+    const auto update = [
+        this,
+        enabled = this->m_debug.is_set(Debug::DEBUG_RENDERERS),
+        updated = this->flags.check_and_clear(Flag::DEBUG_UPDATED)
+    ](bool flag, auto f, auto ebo) {
+        return !(updated || flag)
+            || (enabled ? f() : this->graphics->set_buffer_size(ebo, 0));
+    };
+    return update(sprites_updated, update_sprite_debug, this->sprite_debug_ebo);
 }
 
 }
