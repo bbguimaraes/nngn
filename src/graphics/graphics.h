@@ -157,11 +157,16 @@ struct Graphics {
         uvec2 min_extent = {}, max_extent = {}, cur_extent = {};
     };
     struct PipelineConfiguration {
+        enum Flag : u8 {
+            DEPTH_TEST = 1u << 0,
+            CULL_BACK_FACES = 1u << 1,
+        };
         enum class Type : u8 {
             TRIANGLE, MAX,
         };
         const char *name = {};
         Type type = {};
+        Flag flags = {};
     };
     struct BufferConfiguration {
         enum class Type { VERTEX, INDEX };
@@ -174,7 +179,7 @@ struct Graphics {
             u32 pipeline = {};
             std::span<const std::pair<u32, u32>> buffers = {};
         };
-        std::span<const Stage> normal = {};
+        std::span<const Stage> normal = {}, overlay = {};
     };
     enum class CursorMode { NORMAL, HIDDEN, DISABLED };
     static std::unique_ptr<Graphics> create(Backend b, const void *params);

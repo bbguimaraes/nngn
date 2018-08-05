@@ -173,7 +173,7 @@ struct RenderList {
         std::vector<std::pair<u32, u32>> buffers = {};
         u32 conf = {};
     };
-    std::vector<Stage> normal = {};
+    std::vector<Stage> normal = {}, overlay = {};
 };
 
 class VulkanBackend final : public nngn::GLFWBackend {
@@ -692,6 +692,12 @@ bool VulkanBackend::init_device(std::size_t i) {
             nngn::rptr(nngn::vk_create_info<VkPipelineLayout>({
                 .setLayoutCount = static_cast<u32>(descriptor_layouts.size()),
                 .pSetLayouts = descriptor_layouts.data(),
+                .pushConstantRangeCount = 1,
+                .pPushConstantRanges = nngn::rptr(VkPushConstantRange{
+                    .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .offset = 0,
+                    .size = sizeof(float),
+                }),
             })),
             nullptr, &this->pipeline_layout)
         && this->instance.set_obj_name(
@@ -791,6 +797,26 @@ bool VulkanBackend::recreate_swapchain() {
 bool VulkanBackend::update_render_list() {
     if(this->pipelines.size() == this->pipeline_conf.size() - 1)
         return true;
+    constexpr auto raster_info = [](auto cull_mode) {
+        return VkPipelineRasterizationStateCreateInfo{
+            .sType =
+                VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .polygonMode = VK_POLYGON_MODE_FILL,
+            .cullMode = cull_mode,
+            .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
+            .lineWidth = 1,
+        };
+    };
+    constexpr auto depth_info = [](bool test, bool write) {
+        return VkPipelineDepthStencilStateCreateInfo{
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+            .depthTestEnable = test,
+            .depthWriteEnable = write,
+            .depthCompareOp = VK_COMPARE_OP_LESS,
+            .minDepthBounds = 0,
+            .maxDepthBounds = 1,
+        };
+    };
     std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages = {{{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
         .stage = VK_SHADER_STAGE_VERTEX_BIT,
@@ -807,6 +833,12 @@ bool VulkanBackend::update_render_list() {
         .inputRate = VK_VERTEX_INPUT_RATE_VERTEX}});
     const auto vertex_vattrs = nngn::vk_vertex_attrs<V, &V::pos, &V::color>();
     const auto vertex_vinput = nngn::vk_vertex_input(bindings, vertex_vattrs);
+    constexpr auto
+        rast_back_cull = raster_info(VK_CULL_MODE_BACK_BIT),
+        rast_no_cull = raster_info(VK_CULL_MODE_NONE);
+    constexpr auto
+        depth_test = depth_info(true, true),
+        no_depth = depth_info(false, false);
     constexpr VkPipelineInputAssemblyStateCreateInfo triangle_asm = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
         .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
@@ -820,30 +852,15 @@ bool VulkanBackend::update_render_list() {
         .scissorCount = 1,
         .pScissors = &scissor,
     };
-    constexpr VkPipelineRasterizationStateCreateInfo rasterize_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
-        .polygonMode = VK_POLYGON_MODE_FILL,
-        .cullMode = VK_CULL_MODE_BACK_BIT,
-        .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
-        .lineWidth = 1,
-    };
     constexpr VkPipelineMultisampleStateCreateInfo ms_info = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
         .minSampleShading = 1.0f,
     };
-    constexpr VkPipelineDepthStencilStateCreateInfo depth_info = {
-        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
-        .depthTestEnable = VK_TRUE,
-        .depthWriteEnable = VK_TRUE,
-        .depthCompareOp = VK_COMPARE_OP_LESS,
-        .depthBoundsTestEnable = VK_FALSE,
-        .minDepthBounds = 0,
-        .maxDepthBounds = 1,
-    };
     constexpr VkPipelineColorBlendAttachmentState color_blend_att = {
-        .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
-        .dstColorBlendFactor = VK_BLEND_FACTOR_ZERO,
+        .blendEnable = VK_TRUE,
+        .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+        .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
         .colorBlendOp = VK_BLEND_OP_ADD,
         .srcAlphaBlendFactor = VK_BLEND_FACTOR_ONE,
         .dstAlphaBlendFactor = VK_BLEND_FACTOR_ZERO,
@@ -873,9 +890,7 @@ bool VulkanBackend::update_render_list() {
         .pVertexInputState = &vertex_vinput,
         .pInputAssemblyState = &triangle_asm,
         .pViewportState = &viewport_info,
-        .pRasterizationState = &rasterize_info,
         .pMultisampleState = &ms_info,
-        .pDepthStencilState = &depth_info,
         .pColorBlendState = &color_blending_info,
         .pDynamicState = &dyn_state,
         .layout = this->pipeline_layout,
@@ -885,12 +900,17 @@ bool VulkanBackend::update_render_list() {
     };
     this->pipelines.resize(this->pipeline_conf.size() - 1);
     for(std::size_t i = 1, n = this->pipeline_conf.size(); i < n; ++i) {
+        using PFlag = PipelineConfiguration::Flag;
         auto &pipeline = this->pipelines[i - 1];
         if(pipeline)
             continue;
         const auto &conf = this->pipeline_conf[i];
         const auto [vert, frag] = this->shaders.idx(conf.type);
         info.stageCount = 1 + !!frag;
+        info.pRasterizationState = conf.flags & PFlag::CULL_BACK_FACES
+            ? &rast_back_cull : &rast_no_cull;
+        info.pDepthStencilState = conf.flags & PFlag::DEPTH_TEST
+            ? &depth_test : &no_depth;
         shader_stages[0].module = vert;
         shader_stages[1].module = frag;
         const bool ok = LOG_RESULT(vkCreateGraphicsPipelines,
@@ -901,7 +921,7 @@ bool VulkanBackend::update_render_list() {
             return false;
     }
     for(auto *l : {
-        &this->render_list.normal,
+        &this->render_list.normal, &this->render_list.overlay,
     })
         for(auto &x : *l)
             x.pipeline = pipelines[x.conf - 1];
@@ -921,6 +941,10 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
             b, VK_PIPELINE_BIND_POINT_GRAPHICS, l, first_set,
             static_cast<std::uint32_t>(dv.size()), dv.data(),
             static_cast<std::uint32_t>(ov.size()), ov.data());
+    };
+    constexpr auto push_alpha = [](auto b, auto l, float a) {
+        vkCmdPushConstants(
+            b, l, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(a), &a);
     };
     const auto render = [this, i](
         auto b, const char *name,
@@ -946,7 +970,7 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
         }
     };
     const auto record_render_pass = [
-        this, bind_descriptors, render, i, img_idx
+        this, bind_descriptors, push_alpha, render, i, img_idx
     ](
         auto b, const auto extent
     ) {
@@ -977,7 +1001,10 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
             b, this->pipeline_layout, "normal", 0,
             std::array{camera_desc.ids()[0]},
             std::array{camera_desc.offset(i)});
+        push_alpha(b, this->pipeline_layout, 1);
         render(b, "normal", viewport, scissors, this->render_list.normal);
+        push_alpha(b, this->pipeline_layout, .5);
+        render(b, "overlay", viewport, scissors, this->render_list.overlay);
         vkCmdEndRenderPass(b);
     };
     const auto extent = nngn::vk_vec_to_extent(this->m_surface_info.cur_extent);
@@ -999,6 +1026,7 @@ bool VulkanBackend::set_render_list(const RenderList &l) {
             dst->emplace_back(s);
     };
     f(&this->render_list.normal, l.normal);
+    f(&this->render_list.overlay, l.overlay);
     return this->update_render_list();
 }
 

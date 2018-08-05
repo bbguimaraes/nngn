@@ -1,3 +1,5 @@
+local utils = require "nngn.lib.utils"
+
 local input = BindingGroup.new()
 local paused_input = BindingGroup.new()
 
@@ -27,6 +29,11 @@ end
 
 register({
     {Input.KEY_ESC, Input.SEL_PRESS, function() nngn:exit() end},
+    {"B", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+        nngn.renderers:set_debug(utils.shift(
+            nngn.renderers:debug(), Renderers.DEBUG_ALL + 1,
+            mods & Input.MOD_SHIFT == 0))
+    end},
     {"I", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
         local m = 1
         if mods & Input.MOD_SHIFT ~= 0 then m = -1 end
