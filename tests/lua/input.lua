@@ -121,6 +121,7 @@ nngn.entities:set_max(3)
 nngn.graphics:resize_textures(2)
 nngn.textures:set_max(2)
 nngn.renderers:set_max_sprites(3)
+nngn.animations:set_max(3)
 player.set("src/lson/crono.lua")
 common.setup_hook(1)
 if opengl then test_input_i() end
