@@ -197,6 +197,16 @@ void Renderers::set_perspective(bool p) {
     this->flags.set(f);
 }
 
+void Renderers::set_zsprites(bool z) {
+    constexpr auto f =
+        Flag::SPRITES_UPDATED
+        | Flag::CUBES_UPDATED;
+    const bool old = this->flags.is_set(Flag::ZSPRITES);
+    this->flags.set(Flag::ZSPRITES, z);
+    if(old != z)
+        this->flags.set(f);
+}
+
 bool Renderers::set_graphics(Graphics *g) {
     constexpr u32
         TRIANGLE_MAX = 3,
@@ -562,11 +572,14 @@ bool Renderers::update_renderers(
         NNGN_LOG_CONTEXT("sprites");
         const auto vbo = this->sprite_vbo;
         const auto ebo = this->sprite_ebo;
-        return this->flags.is_set(Flag::PERSPECTIVE)
-            ? update_span<Gen::sprite_persp, update_quad_indices<6>>(
-                this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6)
-            : update_span<Gen::sprite_ortho, update_quad_indices<6>>(
+        if(this->flags.is_set(Flag::ZSPRITES))
+            return update_span<Gen::sprite_orthoz, update_quad_indices<6>>(
                 this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
+        if(this->flags.is_set(Flag::PERSPECTIVE))
+            return update_span<Gen::sprite_persp, update_quad_indices<6>>(
+                this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
+        return update_span<Gen::sprite_ortho, update_quad_indices<6>>(
+            this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
     };
     const auto update_cubes = [this] {
         NNGN_LOG_CONTEXT("cube");

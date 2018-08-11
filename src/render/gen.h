@@ -23,6 +23,9 @@ struct Gen {
     static void quad_vertices_persp(
         Vertex **p, vec2 bl, vec2 tr, float y, vec3 norm,
         u32 tex, vec2 uv0, vec2 uv1);
+    static inline void quad_vertices_zsprite(
+        Vertex **p, vec2 bl, vec2 tr, float z, vec3 norm,
+        u32 tex, vec2 uv0, vec2 uv1);
     static void cube_vertices(Vertex **p, vec3 pos, vec3 size, vec3 color);
     static void cube_vertices(
         Vertex **p, vec3 pos, vec3 size,
@@ -32,6 +35,7 @@ struct Gen {
     static float text_color(u32 c);
     // Renderers
     static void sprite_ortho(Vertex **p, SpriteRenderer *x);
+    static void sprite_orthoz(Vertex **p, SpriteRenderer *x);
     static void sprite_persp(Vertex **p, SpriteRenderer *x);
     static void cube_ortho(Vertex **p, CubeRenderer *x);
     static void cube_persp(Vertex **p, CubeRenderer *x);
@@ -101,6 +105,19 @@ inline void Gen::quad_vertices_persp(
     *p++ = {{tr.x, y, bl.y}, norm, {uv1.x, uv0.y, tex_f}};
     *p++ = {{bl.x, y, tr.y}, norm, {uv0.x, uv1.y, tex_f}};
     *p++ = {{tr.x, y, tr.y}, norm, {uv1.x, uv1.y, tex_f}};
+    *pp = p;
+}
+
+inline void Gen::quad_vertices_zsprite(
+    Vertex **pp, vec2 bl, vec2 tr, float z, vec3 norm,
+    u32 tex, vec2 uv0, vec2 uv1
+) {
+    const auto tex_f = static_cast<float>(tex);
+    auto *p = *pp;
+    *p++ = {{bl.x, bl.y, z}, norm, {uv0.x, uv0.y, tex_f}};
+    *p++ = {{tr.x, bl.y, z}, norm, {uv1.x, uv0.y, tex_f}};
+    *p++ = {{bl.x, tr.y, z + tr.y - bl.y}, norm, {uv0.x, uv1.y, tex_f}};
+    *p++ = {{tr.x, tr.y, z + tr.y - bl.y}, norm, {uv1.x, uv1.y, tex_f}};
     *pp = p;
 }
 
@@ -194,6 +211,16 @@ inline void Gen::sprite_ortho(Vertex **p, SpriteRenderer *x) {
     Gen::quad_vertices(
         p, pos - s, pos + s, -pos.y - x->z_off,
         {0, 0, 1}, x->tex, x->uv0, x->uv1);
+}
+
+inline void Gen::sprite_orthoz(Vertex **p, SpriteRenderer *x) {
+    constexpr auto nl = Math::sq2_2<float>();
+    x->flags.clear(Renderer::Flag::UPDATED);
+    const auto pos = x->pos.xy();
+    const auto s = x->size / 2.0f;
+    Gen::quad_vertices_zsprite(
+        p, pos - s, pos + s, -(s.y + x->z_off),
+        {0, -nl, nl}, x->tex, x->uv0, x->uv1);
 }
 
 inline void Gen::sprite_persp(Vertex **p, SpriteRenderer *x) {

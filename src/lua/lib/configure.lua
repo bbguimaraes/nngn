@@ -136,6 +136,7 @@ local FS = {
     },
     render = {
         bool("perspective", false, "nngn.renderers:set_perspective(%1)"),
+        bool("Z sprites", false, "nngn.renderers:set_zsprites(%1)"),
         bool("grid", false, "nngn.grid:set_enabled(%1)"),
         int(
             "grid spacing", 1, 1024, 32,
@@ -144,6 +145,7 @@ local FS = {
             "grid size", 1, 1024, 64,
             "nngn.grid:set_dimensions(nngn.grid:spacing(), %1)"),
         bool("lighting", false, "nngn.lighting:set_enabled(%1)"),
+        bool("lighting Z sprites", false, "nngn.lighting:set_zsprites(%1)"),
         bool("update sun", true, "nngn.lighting:set_update_sun(%1)"),
         float(
             "ambient light", 0, 100, 100, 100,

@@ -51,6 +51,7 @@ public:
     // Configuration
     auto debug(void) const { return this->m_debug.t; }
     bool perspective(void) const;
+    bool zsprites(void) const { return this->flags.is_set(Flag::ZSPRITES); }
     auto max_sprites(void) const { return this->sprites.capacity(); }
     auto max_cubes(void) const { return this->cubes.capacity(); }
     auto max_voxels(void) const { return this->voxels.capacity(); }
@@ -65,6 +66,7 @@ public:
     bool selected(const Renderer *p) const;
     void set_debug(Debug d);
     void set_perspective(bool p);
+    void set_zsprites(bool z);
     bool set_max_sprites(std::size_t n);
     bool set_max_cubes(std::size_t n);
     bool set_max_voxels(std::size_t n);
@@ -98,6 +100,7 @@ private:
         DEBUG_UPDATED = 1u << 3,
         SELECTION_UPDATED = 1u << 4,
         PERSPECTIVE = 1u << 5,
+        ZSPRITES = 1u << 6,
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
