@@ -4,6 +4,7 @@
 #include "entity.h"
 #include "luastate.h"
 
+#include "render/animation.h"
 #include "render/renderers.h"
 
 namespace {
@@ -63,6 +64,7 @@ NNGN_LUA_PROXY(Entity,
     "acc", [](const Entity &e) { return std::tuple(e.a.x, e.a.y, e.a.z); },
     "max_vel", [](const Entity &e) { return e.max_v; },
     "renderer", [](const Entity &e) { return e.renderer; },
+    "animation", [](const Entity &e) { return e.anim; },
     "set_pos", [](Entity &e, float v0, float v1, float v2)
         { e.set_pos({v0, v1, v2}); },
     "set_vel", [](Entity &e, float v0, float v1, float v2)
@@ -71,6 +73,7 @@ NNGN_LUA_PROXY(Entity,
         { e.a = {v0, v1, v2}; },
     "set_max_vel", [](Entity &e, float v) { e.max_v = v; },
     "set_renderer", &Entity::set_renderer,
+    "set_animation", &Entity::set_animation,
     "set_camera", &Entity::set_camera)
 NNGN_LUA_PROXY(Entities,
     sol::no_constructor,

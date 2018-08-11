@@ -8,6 +8,11 @@ struct Entity;
 
 struct Player {
     enum Face : uint8_t { FLEFT, FRIGHT, FDOWN, FUP, N_FACES };
+    enum Animation : uint8_t {
+        FACE,
+        WALK = N_FACES, WLEFT = WALK, WRIGHT, WDOWN, WUP,
+        N_ANIMATIONS,
+    };
     Entity *e;
     Face face = FDOWN;
     explicit constexpr Player(Entity *p_e) noexcept : e(p_e) {}

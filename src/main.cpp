@@ -12,6 +12,7 @@
 #include "math/math.h"
 #include "os/platform.h"
 #include "os/socket.h"
+#include "render/animation.h"
 #include "render/render.h"
 #include "timing/fps.h"
 #include "timing/profile.h"
@@ -44,6 +45,7 @@ struct NNGN {
     Input input = {};
     nngn::Camera camera = {};
     nngn::Renderers renderers = {};
+    nngn::Animations animations = {};
     Entities entities = {};
     Players players = {};
     nngn::Textures textures = {};
@@ -71,6 +73,7 @@ bool NNGN::init(int argc, const char *const *argv) {
     this->input.input.init(this->lua.L);
     this->input.mouse.init(this->lua.L);
     this->renderers.init(&this->textures);
+    this->animations.init(&this->math);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::all_of(
@@ -128,6 +131,7 @@ int NNGN::loop() {
     if(!ok)
         return 1;
     this->entities.update(this->timing);
+    this->animations.update(this->timing);
     if(this->camera.update(this->timing))
         this->graphics->set_camera_updated();
     if(!this->renderers.update())
@@ -145,6 +149,8 @@ void NNGN::remove_entity(Entity *e) {
     assert(e);
     if(e->renderer)
         this->renderers.remove(e->renderer);
+    if(e->anim)
+        this->animations.remove(e->anim);
     this->entities.remove(e);
 }
 
@@ -162,6 +168,7 @@ NNGN_LUA_PROXY(NNGN,
         [](const NNGN &nngn) { return &nngn.input.mouse; }),
     "camera", sol::readonly(&NNGN::camera),
     "renderers", sol::readonly(&NNGN::renderers),
+    "animations", sol::readonly(&NNGN::animations),
     "entities", sol::readonly(&NNGN::entities),
     "players", sol::readonly(&NNGN::players),
     "textures", sol::readonly(&NNGN::textures),

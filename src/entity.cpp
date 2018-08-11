@@ -6,6 +6,7 @@
 
 #include "math/camera.h"
 #include "math/math.h"
+#include "render/animation.h"
 #include "render/renderers.h"
 #include "timing/profile.h"
 #include "timing/timing.h"
@@ -65,6 +66,11 @@ void Entity::set_renderer(nngn::Renderer *r) {
         r->entity = this;
         r->set_pos(this->p);
     }
+}
+
+void Entity::set_animation(nngn::Animation *p_a) {
+    if((this->anim = p_a))
+        p_a->entity = this;
 }
 
 void Entity::set_camera(nngn::Camera *c) {

@@ -10,6 +10,12 @@ local function set(t) PLAYER = t end
 local function load(e)
     if PLAYER == nil then error("no player loaded") end
     entity.load(e, PLAYER, {})
+    local anim = e:animation()
+    if anim then
+        local sprite = anim:sprite()
+        if sprite and sprite:track_count() > 1
+        then sprite:set_track(Player.FDOWN) end
+    end
 end
 
 local function add()
@@ -32,6 +38,13 @@ end
 local function stop(p)
     local e = p:entity()
     e:set_vel(0, 0, 0)
+    local a = e:animation()
+    if a then
+        local sprite = a:sprite()
+        if sprite then
+            sprite:set_track(sprite:cur_track() % Player.N_FACES)
+         end
+    end
 end
 
 local function next(inc)
@@ -56,6 +69,15 @@ local function face_for_dir(hor, ver)
     end
 end
 
+local function set_anim_track(e, t)
+    local a = e:animation()
+    if not a then return end
+    local s = a:sprite()
+    if s and s:cur_track() ~= t and t < s:track_count() then
+        s:set_track(t)
+    end
+end
+
 local function move(_, _, _, keys)
     local p = nngn.players:cur()
     if not p then return end
@@ -64,18 +86,22 @@ local function move(_, _, _, keys)
         string.byte("S"), string.byte("W")}
     local dir = {keys[2] - keys[1], keys[4] - keys[3]}
     local l = math.abs(dir[1]) + math.abs(dir[2])
-    local v, face
+    local v, face, anim
     if l == 0 then
         v = 0
         face = p:face() % Player.N_FACES
+        anim = face
     elseif l == 1 then
         v = MAX_VEL
         face = face_for_dir(table.unpack(dir))
+        anim = face + Player.WALK
     else
         v = MAX_VEL / math.sqrt(2)
     end
     if face then p:set_face(face) on_face_change(p, face) end
-    p:entity():set_vel(dir[1] * v, dir[2] * v, 0)
+    local e = p:entity()
+    if anim then set_anim_track(e, anim) end
+    e:set_vel(dir[1] * v, dir[2] * v, 0)
 end
 
 return {
