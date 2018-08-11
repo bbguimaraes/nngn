@@ -112,6 +112,7 @@ void register_light(nngn::lua::table_view t) {
 
 void register_lighting(nngn::lua::table_view t) {
     t["enabled"] = &Lighting::enabled;
+    t["zsprites"] = &Lighting::zsprites;
     t["update_sun"] = &Lighting::update_sun;
     t["ambient_light"] = get<&Lighting::ambient_light>;
     t["n_dir_lights"] = n_dir_lights;
@@ -121,6 +122,7 @@ void register_lighting(nngn::lua::table_view t) {
     t["sun_light"] = [](const Lighting &l) { return l.sun_light(); };
     t["sun"] = &Lighting::sun;
     t["set_enabled"] = &Lighting::set_enabled;
+    t["set_zsprites"] = &Lighting::set_zsprites;
     t["set_update_sun"] = &Lighting::set_update_sun;
     t["set_ambient_light"] = set<&Lighting::set_ambient_light>;
     t["set_ambient_anim"] = set_ambient_anim;

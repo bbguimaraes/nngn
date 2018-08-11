@@ -46,6 +46,7 @@ void register_renderers(nngn::lua::table_view t) {
     t["max_voxels"] = get<&Renderers::max_voxels>;
     t["debug"] = &Renderers::debug;
     t["perspective"] = &Renderers::perspective;
+    t["zsprites"] = &Renderers::zsprites;
     t["n"] = get<&Renderers::n>;
     t["n_sprites"] = get<&Renderers::n_sprites>;
     t["n_screen_sprites"] = get<&Renderers::n_screen_sprites>;
@@ -60,6 +61,7 @@ void register_renderers(nngn::lua::table_view t) {
     t["set_max_colliders"] = set<&Renderers::set_max_colliders>;
     t["set_debug"] = &Renderers::set_debug;
     t["set_perspective"] = &Renderers::set_perspective;
+    t["set_zsprites"] = &Renderers::set_zsprites;
     t["load"] = &Renderers::load;
     t["remove"] = &Renderers::remove;
     t["add_selection"] = &Renderers::add_selection;

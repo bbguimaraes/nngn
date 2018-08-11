@@ -42,15 +42,22 @@ void Light::write_to_ubo_dir(LightsUBO *ubo, size_t i) const {
     ubo->dir.color_spec[i] = {this->color.xyz() * this->color.w, this->spec};
 }
 
-void Light::write_to_ubo_point(LightsUBO *ubo, size_t i) const {
+void Light::write_to_ubo_point(LightsUBO *ubo, size_t i, bool zsprites) const {
+    const auto fz = static_cast<float>(zsprites);
     ubo->point.color_spec[i] = {this->color.xyz() * this->color.w, this->spec};
-    ubo->point.pos[i] = {this->pos, 0};
+    ubo->point.pos[i] =
+        {this->pos.x, this->pos.y + fz * this->pos.z, this->pos.z, 0};
     ubo->point.dir[i] = {this->dir, 0};
     ubo->point.att_cutoff[i] = {this->att, this->cutoff};
 }
 
 void Lighting::set_enabled(bool b) {
     this->flags.set(Flag::ENABLED, b);
+    this->flags |= Flag::UPDATED;
+}
+
+void Lighting::set_zsprites(bool b) {
+    this->flags.set(Flag::ZSPRITES, b);
     this->flags |= Flag::UPDATED;
 }
 
@@ -121,7 +128,8 @@ bool Lighting::update(const Timing &t) {
         for(size_t i = 0, n = this->n_dir; i < n; ++i)
             this->m_dir_lights[i].write_to_ubo_dir(&this->m_ubo, i);
         for(size_t i = 0, n = this->n_point; i < n; ++i)
-            this->m_point_lights[i].write_to_ubo_point(&this->m_ubo, i);
+            this->m_point_lights[i].write_to_ubo_point(
+                &this->m_ubo, i, this->flags.is_set(Flag::ZSPRITES));
     };
     const auto any_updated = [](const auto &v, size_t n) {
         return std::any_of(

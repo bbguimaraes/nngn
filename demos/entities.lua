@@ -46,6 +46,8 @@ for i = 1, N do
 end
 
 nngn:animations():remove(anim)
+nngn:renderers():set_zsprites(true)
+nngn:lighting():set_zsprites(true)
 nngn:lighting():set_ambient_light(.25, .25, .25, 1)
 entity.load(nil, nil, {
     pos = {0, 0, 32},

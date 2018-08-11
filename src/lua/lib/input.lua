@@ -67,6 +67,11 @@ register({
             nngn:timing():scale(), timing.scales(), 1,
             mods & Input.MOD_SHIFT == 0, nngn_math.float_eq))
     end},
+    {"Z", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
+        local z <const> = not nngn:renderers():zsprites()
+        nngn:renderers():set_zsprites(z)
+        nngn:lighting():set_zsprites(z)
+    end},
     {" ", 0, function(_, press)
         if not press then
             textbox.set_speed_normal()

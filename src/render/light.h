@@ -43,7 +43,7 @@ struct Light {
     float range() const { return 4.5f / this->att[1]; }
     vec3 ortho_view_pos() const;
     void write_to_ubo_dir(LightsUBO *ubo, size_t i) const;
-    void write_to_ubo_point(LightsUBO *ubo, size_t i) const;
+    void write_to_ubo_point(LightsUBO *ubo, size_t i, bool zsprites) const;
 };
 
 class Lighting {
@@ -52,9 +52,10 @@ public:
 private:
     enum Flag : uint8_t {
         ENABLED = 1u << 0,
-        UPDATE_SUN = 1u << 1,
-        UPDATED = 1u << 2,
-        VIEW_UPDATED = 1u << 3,
+        ZSPRITES = 1u << 1,
+        UPDATE_SUN = 1u << 2,
+        UPDATED = 1u << 3,
+        VIEW_UPDATED = 1u << 4,
     };
     Math *math = nullptr;
     Flags<Flag> flags = {Flag::ENABLED | Flag::UPDATE_SUN | Flag::UPDATED};
@@ -69,6 +70,7 @@ private:
 public:
     void init(Math *m) { this->math = m; }
     bool enabled() const { return this->flags.is_set(Flag::ENABLED); }
+    bool zsprites(void) const { return this->flags.is_set(Flag::ZSPRITES); }
     bool update_sun(void) const { return this->flags.is_set(Flag::UPDATE_SUN); }
     const vec4 &ambient_light() const { return this->m_ambient_light; }
     std::span<const Light> dir_lights() const;
@@ -80,6 +82,7 @@ public:
     const LightsUBO &ubo() const { return this->m_ubo; }
     Sun *sun() { return &this->m_sun; }
     void set_enabled(bool b);
+    void set_zsprites(bool b);
     void set_update_sun(bool b);
     void set_ambient_light(const vec4 &v);
     void set_ambient_anim(LightAnimation a);
