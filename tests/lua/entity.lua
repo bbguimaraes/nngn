@@ -27,6 +27,8 @@ local function test_load()
     common.assert_eq(nngn:renderers():n_sprites(), 1)
     if Platform.has_libpng then common.assert_eq(nngn:textures():n(), 2) end
     assert(e:renderer() ~= nil)
+    entity.load(e, nil, {anim = {sprite = {1, 1, {{{0, 0, 0}}}}}})
+    assert(e:animation() ~= nil)
     nngn:remove_entity(e)
 end
 
@@ -74,6 +76,7 @@ end
 
 assert(nngn:set_graphics(Graphics.PSEUDOGRAPH))
 nngn:entities():set_max(3)
+nngn:animations():set_max(1)
 nngn:graphics():resize_textures(2)
 nngn:textures():set_max(2)
 nngn:renderers():set_max_sprites(1)

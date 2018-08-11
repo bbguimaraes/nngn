@@ -33,6 +33,7 @@ local FS = {
     limits = {
         int("textures", 2, 64, 16, 'require("nngn.lib.texture").set_max(%1)'),
         int("entities", 8, 1048576, 1048576, "nngn:entities():set_max(%1)"),
+        int("animations", 8, 65536, 65536, "nngn:animations():set_max(%1)"),
         int(
             "sprites", 8, 65536, 65536,
             "nngn:renderers():set_max_sprites(%1)"),

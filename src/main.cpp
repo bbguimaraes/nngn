@@ -37,6 +37,7 @@
 #include "math/math.h"
 #include "os/platform.h"
 #include "os/socket.h"
+#include "render/animation.h"
 #include "render/render.h"
 #include "timing/fps.h"
 #include "timing/profile.h"
@@ -60,6 +61,7 @@ NNGN_LUA_DECLARE_USER_TYPE(nngn::Input, "Input")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Camera, "Camera")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::MouseInput, "MouseInput")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderers, "Renderers")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Animations, "Animations")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Textures, "Textures")
 
 namespace {
@@ -87,6 +89,7 @@ struct NNGN {
     Input input = {};
     nngn::Camera camera = {};
     nngn::Renderers renderers = {};
+    nngn::Animations animations = {};
     Entities entities = {};
     nngn::Textures textures = {};
     bool init(int argc, const char *const *argv);
@@ -128,6 +131,7 @@ bool NNGN::init(int argc, const char *const *argv) {
     this->input.input.init(this->lua);
     this->input.mouse.init(this->lua);
     this->renderers.init(&this->textures);
+    this->animations.init(&this->math);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::all_of(
@@ -188,6 +192,7 @@ int NNGN::loop(void) {
     if(!ok)
         return 1;
     this->entities.update(this->timing);
+    this->animations.update(this->timing);
     if(this->camera.update(this->timing))
         this->graphics->set_camera_updated();
     if(!this->renderers.update())
@@ -205,6 +210,8 @@ void NNGN::remove_entity(Entity *e) {
     assert(e);
     if(e->renderer)
         this->renderers.remove(e->renderer);
+    if(e->anim)
+        this->animations.remove(e->anim);
     this->entities.remove(e);
 }
 
@@ -221,6 +228,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["mouse_input"] = [](NNGN &nngn) { return &nngn.input.mouse; };
     t["camera"] = accessor<&NNGN::camera>;
     t["renderers"] = accessor<&NNGN::renderers>;
+    t["animations"] = accessor<&NNGN::animations>;
     t["entities"] = accessor<&NNGN::entities>;
     t["textures"] = accessor<&NNGN::textures>;
     t["set_graphics"] = &NNGN::set_graphics;

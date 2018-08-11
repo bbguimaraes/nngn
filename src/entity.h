@@ -14,6 +14,7 @@
 
 namespace nngn {
     struct Camera;
+    struct Animation;
     struct Renderer;
     struct Timing;
 }
@@ -28,12 +29,14 @@ struct Entity {
     float max_v = {};
     nngn::vec3 a = {0, 0, 0};
     nngn::Renderer *renderer = nullptr;
+    nngn::Animation *anim = nullptr;
     nngn::Camera *camera = nullptr;
     bool alive() const { return this->flags.is_set(Flag::ALIVE); }
     bool pos_updated() const { return this->flags.is_set(Flag::POS_UPDATED); }
     void set_pos(nngn::vec3 p);
     void set_vel(nngn::vec3 v);
     void set_renderer(nngn::Renderer *p);
+    void set_animation(nngn::Animation *p);
     void set_camera(nngn::Camera *p);
 };
 

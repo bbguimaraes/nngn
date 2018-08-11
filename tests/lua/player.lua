@@ -10,6 +10,7 @@ local function test_load()
     local e = nngn:entities():add()
     player.load(e)
     common.assert_eq(nngn:entities():name(e), "crono")
+    common.assert_eq(e:animation():sprite():cur_track(), player.FACE.DOWN)
     player.remove(player.add(e))
     common.assert_eq(nngn:entities():n(), 0)
     common.assert_eq(player.n(), 0)
@@ -24,6 +25,28 @@ local function test_remove()
     common.assert_eq(nngn:entities():n(), 0)
     common.assert_eq(player.n(), 0)
     common.assert_eq(camera.following(), nil)
+end
+
+local function test_stop()
+    local e = entity.load(nil, "src/lson/crono.lua")
+    local a = e:animation():sprite()
+    local p = player.add(e)
+    e:set_vel(1, 2, 3)
+    player.stop(p)
+    common.assert_eq({e:vel()}, {0, 0, 0}, common.deep_cmp)
+    a:set_track(player.ANIMATION.WLEFT)
+    player.stop(p)
+    common.assert_eq(a:cur_track(), player.ANIMATION.FLEFT)
+    a:set_track(player.ANIMATION.WRIGHT)
+    player.stop(p)
+    common.assert_eq(a:cur_track(), player.ANIMATION.FRIGHT)
+    a:set_track(player.ANIMATION.WDOWN)
+    player.stop(p)
+    common.assert_eq(a:cur_track(), player.ANIMATION.FDOWN)
+    a:set_track(player.ANIMATION.WUP)
+    player.stop(p)
+    common.assert_eq(a:cur_track(), player.ANIMATION.FUP)
+    player.remove(p)
 end
 
 local function test_next()
@@ -48,34 +71,43 @@ local function test_next()
 end
 
 local function test_move()
-    local e = nngn:entities():add()
+    local e = entity.load(nil, "src/lson/crono.lua")
+    local a = e:animation():sprite()
     local p = player.add(e)
     local v = player.MAX_VEL
     local cmp = function(t) common.assert_eq({e:vel()}, t, common.deep_cmp) end
     player.move(nil, nil, nil, {1, 0, 0, 0})
     cmp{-v, 0, 0}
     common.assert_eq(p.face, player.FACE.LEFT)
+    common.assert_eq(a:cur_track(), player.ANIMATION.WLEFT)
     player.move(nil, nil, nil, {0, 0, 0, 0})
     cmp{0, 0, 0}
     common.assert_eq(p.face, player.FACE.LEFT)
+    common.assert_eq(a:cur_track(), player.ANIMATION.FLEFT)
     player.move(nil, nil, nil, {0, 1, 0, 0})
     cmp{v, 0, 0}
     common.assert_eq(p.face, player.FACE.RIGHT)
+    common.assert_eq(a:cur_track(), player.ANIMATION.WRIGHT)
     player.move(nil, nil, nil, {0, 0, 0, 0})
     cmp{0, 0, 0}
     common.assert_eq(p.face, player.FACE.RIGHT)
+    common.assert_eq(a:cur_track(), player.ANIMATION.FRIGHT)
     player.move(nil, nil, nil, {0, 0, 1, 0})
     cmp{0, -v, 0}
     common.assert_eq(p.face, player.FACE.DOWN)
+    common.assert_eq(a:cur_track(), player.ANIMATION.WDOWN)
     player.move(nil, nil, nil, {0, 0, 0, 0})
     cmp{0, 0, 0}
     common.assert_eq(p.face, player.FACE.DOWN)
+    common.assert_eq(a:cur_track(), player.ANIMATION.FDOWN)
     player.move(nil, nil, nil, {0, 0, 0, 1})
     cmp{0, v, 0}
     common.assert_eq(p.face, player.FACE.UP)
+    common.assert_eq(a:cur_track(), player.ANIMATION.WUP)
     player.move(nil, nil, nil, {0, 0, 0, 0})
     cmp{0, 0, 0}
     common.assert_eq(p.face, player.FACE.UP)
+    common.assert_eq(a:cur_track(), player.ANIMATION.FUP)
     player.remove(p)
 end
 
@@ -130,9 +162,11 @@ nngn:entities():set_max(2)
 nngn:graphics():resize_textures(2)
 nngn:textures():set_max(2)
 nngn:renderers():set_max_sprites(1)
+nngn:animations():set_max(1)
 common.setup_hook(1)
 test_load()
 test_remove()
+test_stop()
 test_move()
 test_move_diag()
 nngn:exit()

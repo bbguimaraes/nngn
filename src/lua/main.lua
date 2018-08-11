@@ -27,4 +27,5 @@ entities = {
             },
         },
     }),
+    entity.load(nil, "src/lson/zelda/fairy0.lua", {pos = {96, 0}}),
 }

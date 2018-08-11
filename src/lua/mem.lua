@@ -25,3 +25,7 @@ print(fmt(
 print(fmt(
     "textures", Graphics.TEXTURE_SIZE,
     nngn:textures():n(), nngn:textures():max()))
+print("animations:")
+print(fmt(
+    "- sprite", Animation.SIZEOF_SPRITE,
+    nngn:animations():n_sprite(), nngn:animations():max_sprite()))

@@ -6,6 +6,19 @@ local utils = require "nngn.lib.utils"
 local FACE <const> = {
     LEFT = 00, RIGHT = 01, DOWN = 02, UP = 03, N = 4,
 }
+local ANIMATION <const> = {
+    FACE   = 0 * FACE.N,
+    FLEFT  = 0 * FACE.N + FACE.LEFT,
+    FRIGHT = 0 * FACE.N + FACE.RIGHT,
+    FDOWN  = 0 * FACE.N + FACE.DOWN,
+    FUP    = 0 * FACE.N + FACE.UP,
+    WALK   = 1 * FACE.N,
+    WLEFT  = 1 * FACE.N + FACE.LEFT,
+    WRIGHT = 1 * FACE.N + FACE.RIGHT,
+    WDOWN  = 1 * FACE.N + FACE.DOWN,
+    WUP    = 1 * FACE.N + FACE.UP,
+    N      = 2 * FACE.N,
+}
 
 local MAX_VEL = camera.MAX_VEL / 4
 local cur
@@ -25,6 +38,12 @@ local function load(e)
     end
     e = e or get_entity()
     entity.load(e, preset, {})
+    local anim = e:animation()
+    if anim then
+        local sprite = anim:sprite()
+        if sprite and sprite:track_count() > 1
+        then sprite:set_track(ANIMATION.FDOWN) end
+    end
 end
 
 local function add(e)
@@ -69,6 +88,13 @@ local function stop(p)
     end
     local e <const> = p.entity
     e:set_vel(0, 0, 0)
+    local a <const> = e:animation()
+    if a then
+        local sprite = a:sprite()
+        if sprite then
+            sprite:set_track(sprite:cur_track() % FACE.N)
+         end
+    end
 end
 
 local function next(inc)
@@ -97,24 +123,36 @@ local function face_for_dir(hor, ver)
     end
 end
 
-local function move(key, press, _, keys)
+local function set_anim_track(e, t)
+    local a = e:animation()
+    if not a then
+        return
+    end
+    local s = a:sprite()
+    if s and s:cur_track() ~= t and t < s:track_count() then
+        s:set_track(t)
+    end
+end
+
+local function move(_, _, _, keys)
     local p = list[cur]
     if not p then
         return
     end
     keys = keys or nngn:input():get_keys{
         string.byte("A"), string.byte("D"),
-        string.byte("S"), string.byte("W"),
-    }
+        string.byte("S"), string.byte("W")}
     local dir = {keys[2] - keys[1], keys[4] - keys[3]}
     local l = math.abs(dir[1]) + math.abs(dir[2])
     local v, face, anim
     if l == 0 then
         v = 0
         face = p.face % FACE.N
+        anim = face
     elseif l == 1 then
         v = MAX_VEL
         face = face_for_dir(table.unpack(dir))
+        anim = face + ANIMATION.WALK
     else
         v = MAX_VEL / math.sqrt(2)
     end
@@ -123,6 +161,9 @@ local function move(key, press, _, keys)
         on_face_change(p, face)
     end
     local e <const> = p.entity
+    if anim then
+        set_anim_track(e, anim)
+    end
     e:set_vel(dir[1] * v, dir[2] * v, 0)
 end
 
@@ -148,6 +189,7 @@ end
 
 return {
     FACE = FACE,
+    ANIMATION = ANIMATION,
     MAX_VEL = MAX_VEL,
     set = function(p) preset = p end,
     n = function() return #list end,
