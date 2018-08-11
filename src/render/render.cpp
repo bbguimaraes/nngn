@@ -94,6 +94,16 @@ void update_sprites_ortho(nngn::Vertex **p, nngn::SpriteRenderer *x) {
         {0, 0, 1}, x->tex, x->uv0, x->uv1);
 }
 
+void update_sprites_orthoz(nngn::Vertex **p, nngn::SpriteRenderer *x) {
+    constexpr auto nl = nngn::Math::sq2_2<float>();
+    x->flags.clear(nngn::Renderer::Flag::UPDATED);
+    const auto pos = x->pos.xy();
+    const auto s = x->size / 2.0f;
+    nngn::Renderers::gen_quad_verts_zsprite(
+        p, pos - s, pos + s, -(s.y + x->z_off),
+        {0, -nl, nl}, x->tex, x->uv0, x->uv1);
+}
+
 void update_sprites_persp(nngn::Vertex **p, nngn::SpriteRenderer *x) {
     x->flags.clear(nngn::Renderer::Flag::UPDATED);
     const auto s = x->size / 2.0f;
@@ -439,6 +449,17 @@ void Renderers::set_perspective(bool p) {
         | Flag::CUBES_UPDATED;
     this->flags.set(Flag::PERSPECTIVE, p);
     this->flags.set(f);
+}
+
+void Renderers::set_zsprites(bool z) {
+    constexpr auto f =
+        Flag::SPRITES_UPDATED
+        | Flag::TRANSLUCENT_UPDATED
+        | Flag::CUBES_UPDATED;
+    const bool old = this->flags.is_set(Flag::ZSPRITES);
+    this->flags.set(Flag::ZSPRITES, z);
+    if(old != z)
+        this->flags.set(f);
 }
 
 bool Renderers::set_graphics(Graphics *g) {
@@ -789,11 +810,14 @@ bool Renderers::update() {
         NNGN_LOG_CONTEXT("sprites");
         const auto vbo = this->sprite_vbo;
         const auto ebo = this->sprite_ebo;
-        return this->flags.is_set(Flag::PERSPECTIVE)
-            ? update_span<::update_sprites_persp, update_indices<6>>(
-                this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6)
-            : update_span<::update_sprites_ortho, update_indices<6>>(
+        if(this->flags.is_set(Flag::ZSPRITES))
+            return update_span<::update_sprites_orthoz, update_indices<6>>(
                 this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
+        if(this->flags.is_set(Flag::PERSPECTIVE))
+            return update_span<::update_sprites_persp, update_indices<6>>(
+                this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
+        return update_span<::update_sprites_ortho, update_indices<6>>(
+            this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
     };
     const auto update_cubes = [this] {
         NNGN_LOG_CONTEXT("cube");

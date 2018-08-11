@@ -35,6 +35,7 @@ class Renderers {
         RECT_UPDATED = 1u << 3,
         SELECTION_UPDATED = 1u << 4,
         PERSPECTIVE = 1u << 5,
+        ZSPRITES = 1u << 6,
     };
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
@@ -82,6 +83,9 @@ public:
     static void gen_quad_verts_persp(
         Vertex **p, vec2 bl, vec2 tr, float y, vec3 norm,
         u32 tex, vec2 uv0, vec2 uv1);
+    static inline void gen_quad_verts_zsprite(
+        Vertex **p, vec2 bl, vec2 tr, float z, vec3 norm,
+        u32 tex, vec2 uv0, vec2 uv1);
     static void gen_cube_verts(Vertex **p, vec3 pos, vec3 size, vec3 color);
     static void gen_cube_verts(
         Vertex **p, vec3 pos, vec3 size,
@@ -94,6 +98,7 @@ public:
     auto max_voxels() const { return this->voxels.capacity(); }
     auto debug() const { return this->m_debug.t; }
     bool perspective() const { return this->flags.is_set(Flag::PERSPECTIVE); }
+    bool zsprites() const { return this->flags.is_set(Flag::ZSPRITES); }
     std::size_t n() const;
     std::size_t n_sprites() const { return this->sprites.size(); }
     std::size_t n_cubes() const { return this->cubes.size(); }
@@ -106,6 +111,7 @@ public:
     bool set_max_colliders(std::size_t n);
     void set_debug(std::underlying_type_t<Debug> d);
     void set_perspective(bool p);
+    void set_zsprites(bool z);
     bool set_graphics(Graphics *g);
     Renderer *load(const sol::stack_table &t);
     void remove(Renderer *p);
@@ -157,6 +163,19 @@ inline void Renderers::gen_quad_verts_persp(
     *p++ = {{tr.x, y, bl.y}, norm, {uv1.x, uv0.y, tex_f}};
     *p++ = {{bl.x, y, tr.y}, norm, {uv0.x, uv1.y, tex_f}};
     *p++ = {{tr.x, y, tr.y}, norm, {uv1.x, uv1.y, tex_f}};
+    *pp = p;
+}
+
+inline void Renderers::gen_quad_verts_zsprite(
+    Vertex **pp, vec2 bl, vec2 tr, float z, vec3 norm,
+    u32 tex, vec2 uv0, vec2 uv1
+) {
+    const auto tex_f = static_cast<float>(tex);
+    auto *p = *pp;
+    *p++ = {{bl.x, bl.y, z}, norm, {uv0.x, uv0.y, tex_f}};
+    *p++ = {{tr.x, bl.y, z}, norm, {uv1.x, uv0.y, tex_f}};
+    *p++ = {{bl.x, tr.y, z + tr.y - bl.y}, norm, {uv0.x, uv1.y, tex_f}};
+    *p++ = {{tr.x, tr.y, z + tr.y - bl.y}, norm, {uv1.x, uv1.y, tex_f}};
     *pp = p;
 }
 
