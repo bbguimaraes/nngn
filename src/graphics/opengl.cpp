@@ -24,6 +24,7 @@ template<> std::unique_ptr<Graphics> graphics_create_backend
 #include <array>
 #include <cstring>
 #include <list>
+#include <numeric>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -57,7 +58,11 @@ enum : u32 {
     CAMERA_UBO_BINDING,
     MAIN_TEX_BINDING = 0,
     FONT_TEX_BINDING,
+    SHADOW_MAP_TEX_BINDING,
+    SHADOW_CUBE_TEX_BINDING,
 };
+
+constexpr auto SHADOW_TEX_FORMAT = GL_DEPTH_COMPONENT32F;
 
 #ifdef GL_VERSION_4_3
 constexpr GLenum NNGN_GL_BUFFER = GL_BUFFER;
@@ -109,6 +114,8 @@ struct GLProgram : OpenGLHandle<GLProgram> {
     bool create(u32 vert, u32 frag);
     bool destroy();
     bool get_uniform_location(const char *name, int *l) const;
+    bool set_uniform(const char *name, int v) const;
+    bool set_uniform(const char *name, GLsizei n, const int *v) const;
     bool bind_ubo(const char *name, u32 binding) const;
 };
 
@@ -128,6 +135,19 @@ struct GLTexArray : OpenGLHandle<GLTexArray> {
     bool destroy();
 };
 
+struct GLShadowMap : public GLTexArray {
+    bool init(u32 size);
+};
+
+struct GLShadowCube : public GLTexArray {
+    bool init(u32 size);
+};
+
+struct GLFramebuffer : OpenGLHandle<GLFramebuffer> {
+    bool create();
+    bool destroy();
+};
+
 struct Pipeline {
     nngn::Graphics::PipelineConfiguration conf = {};
 };
@@ -142,7 +162,9 @@ struct RenderList {
         u32 pipeline = {};
         std::vector<Buffer> buffers = {};
     };
-    std::vector<Stage> normal = {}, overlay = {}, hud = {};
+    std::vector<Stage>
+        depth = {}, normal = {}, overlay = {}, hud = {},
+        shadow_maps = {}, shadow_cubes = {};
 };
 
 class OpenGLBackend final : public nngn::GLFWBackend {
@@ -152,7 +174,11 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     };
     nngn::Flags<Flag> flags = {};
     int maj = 0, min = 0;
+    GLsizei shadow_map_size = SHADOW_MAP_INITIAL_SIZE;
+    GLsizei shadow_cube_size = SHADOW_CUBE_INITIAL_SIZE;
     GLBuffer camera_ubo = {}, camera_hud_ubo = {};
+    std::array<GLBuffer, 7 * nngn::Lighting::MAX_LIGHTS>
+        shadow_camera_ubos = {};
     GLBuffer lights_ubo = {}, no_lights_ubo = {};
     std::list<GLBuffer> stg_buffers = {};
     std::vector<GLBuffer> buffers = std::vector<GLBuffer>(1);
@@ -161,6 +187,9 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     GLint triangle_prog_alpha_loc = -1;
     ::RenderList render_list = {};
     GLTexArray tex = {}, font_tex = {};
+    GLFramebuffer lights_fb = {};
+    GLShadowMap shadow_map = {};
+    std::array<GLShadowCube, nngn::Lighting::MAX_LIGHTS> shadow_cubes = {};
     void resize(int, int) final
         { this->flags |= Flag::RESIZED | Flag::CAMERA_UPDATED; }
     static bool set_obj_name(GLenum type, GLuint obj, std::string_view name);
@@ -208,6 +237,8 @@ public:
     void set_camera_updated() final { this->flags |= Flag::CAMERA_UPDATED; }
     void set_lighting_updated() final
         { this->flags |= Flag::LIGHTING_UPDATED; }
+    bool set_shadow_map_size(u32 s) final;
+    bool set_shadow_cube_size(u32 s) final;
     bool set_n_frames(std::size_t) override { return true; }
     u32 create_pipeline(const PipelineConfiguration &conf) final;
     u32 create_buffer(const BufferConfiguration &conf) final;
@@ -355,6 +386,24 @@ bool GLProgram::get_uniform_location(const char *name, int *l) const {
     return false;
 }
 
+bool GLProgram::set_uniform(const char *name, int v) const {
+    NNGN_LOG_CONTEXT_CF(GLProgram);
+    int l = {};
+    if(!this->get_uniform_location(name, &l))
+        return false;
+    CHECK_RESULT(glUniform1i, l, v);
+    return true;
+}
+
+bool GLProgram::set_uniform(const char *name, GLsizei n, const int *v) const {
+    NNGN_LOG_CONTEXT_CF(GLProgram);
+    int l = {};
+    if(!this->get_uniform_location(name, &l))
+        return false;
+    CHECK_RESULT(glUniform1iv, l, n, v);
+    return true;
+}
+
 bool GLProgram::bind_ubo(const char *name, u32 binding) const {
     if(const auto i = glGetUniformBlockIndex(this->id(), name);
             i != GL_INVALID_INDEX) {
@@ -453,13 +502,24 @@ bool GLTexArray::create(
         GLenum type, GLenum fmt, GLint wrap,
         const nngn::ivec3 &extent, GLsizei mip_levels) {
     CHECK_RESULT(glBindTexture, type, this->id());
-    CHECK_RESULT(glTexStorage3D,
-        type, mip_levels, fmt, extent.x, extent.y, extent.z);
+    if(type != GL_TEXTURE_CUBE_MAP) {
+        CHECK_RESULT(glTexStorage3D,
+            type, mip_levels, fmt, extent.x, extent.y, extent.z);
+    } else {
+        CHECK_RESULT(glTexStorage2D,
+            GL_TEXTURE_CUBE_MAP, 1, fmt, extent.x, extent.y);
+    }
     CHECK_RESULT(glTexParameteri, type, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
     CHECK_RESULT(glTexParameteri, type, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
     CHECK_RESULT(glTexParameteri, type, GL_TEXTURE_WRAP_R, wrap);
     CHECK_RESULT(glTexParameteri, type, GL_TEXTURE_WRAP_S, wrap);
     CHECK_RESULT(glTexParameteri, type, GL_TEXTURE_WRAP_T, wrap);
+#ifdef GL_VERSION_2
+    if(wrap == GL_CLAMP_TO_BORDER) {
+        constexpr float border[] = {1, 1, 1, 1};
+        CHECK_RESULT(glTexParameterfv, type, GL_TEXTURE_BORDER_COLOR, border);
+    }
+#endif
     if(mip_levels > 1)
         CHECK_RESULT(glGenerateMipmap, type);
     return true;
@@ -471,6 +531,39 @@ bool GLTexArray::destroy() {
         return true;
     CHECK_RESULT(glDeleteTextures, 1, &this->id());
     this->id() = 0;
+    return true;
+}
+
+bool GLShadowMap::init(u32 size) {
+    const auto si = static_cast<i32>(size);
+    return GLTexArray::create(
+        GL_TEXTURE_2D_ARRAY, SHADOW_TEX_FORMAT,
+#ifdef GL_VERSION_2
+        GL_CLAMP_TO_BORDER,
+#else
+        GL_CLAMP_TO_EDGE,
+#endif
+        {si, si, nngn::Lighting::MAX_LIGHTS}, 1);
+}
+
+bool GLShadowCube::init(u32 size) {
+    const auto si = static_cast<i32>(size);
+    return GLTexArray::create(
+        GL_TEXTURE_CUBE_MAP, SHADOW_TEX_FORMAT, GL_CLAMP_TO_EDGE,
+        {si, si, 1}, 1);
+}
+
+bool GLFramebuffer::destroy() {
+    if(this->id())
+        CHECK_RESULT(glDeleteFramebuffers, 1, &this->id());
+    return true;
+}
+
+bool GLFramebuffer::create() {
+    CHECK_RESULT(glGenFramebuffers, 1, &this->id());
+    CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, this->id());
+    CHECK_RESULT(glDrawBuffers, 0, nullptr);
+    CHECK_RESULT(glReadBuffer, GL_NONE);
     return true;
 }
 
@@ -554,13 +647,25 @@ bool OpenGLBackend::init_instance() {
     CHECK_RESULT(glClearColor, 0, 0, 0, 0);
     CHECK_RESULT(glEnable, GL_BLEND);
     CHECK_RESULT(glBlendFunc, GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    if(!this->lights_fb.create())
+        return false;
+    CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, 0);
     CHECK_RESULT(glGenTextures, 1, &this->tex.id());
+    if(!this->set_shadow_map_size(static_cast<u32>(this->shadow_map_size)))
+        return false;
+    if(!this->set_shadow_cube_size(static_cast<u32>(this->shadow_cube_size)))
+        return false;
     if(!OpenGLBackend::create_uniform_buffer("camera_ubo"sv,
             sizeof(nngn::CameraUBO), &this->camera_ubo))
         return false;
     if(!OpenGLBackend::create_uniform_buffer("camera_hud_ubo"sv,
             sizeof(nngn::CameraUBO), &this->camera_hud_ubo))
         return false;
+    for(size_t i = 0; i < this->shadow_camera_ubos.size(); ++i)
+        if(!OpenGLBackend::create_uniform_buffer(
+                "shadow_camera_ubos" + std::to_string(i),
+                sizeof(nngn::CameraUBO), &this->shadow_camera_ubos[i]))
+            return false;
     if(!OpenGLBackend::create_uniform_buffer("no_lights_ubo"sv,
             sizeof(nngn::LightsUBO), &this->no_lights_ubo))
         return false;
@@ -570,12 +675,21 @@ bool OpenGLBackend::init_instance() {
     if(!OpenGLBackend::create_uniform_buffer("lights_ubo"sv,
             sizeof(nngn::LightsUBO), &this->lights_ubo))
         return false;
+    const auto light_samplers = []() {
+        std::array<int, nngn::Lighting::MAX_LIGHTS> ret = {};
+        std::iota(
+            ret.begin(), ret.end(),
+            static_cast<u32>(SHADOW_CUBE_TEX_BINDING));
+        return ret;
+    }();
 #define P(x) static_cast<std::size_t>(PipelineConfiguration::Type::x)
     GLProgram
         &triangle_prog = this->programs[P(TRIANGLE)],
         &sprite_prog = this->programs[P(SPRITE)],
         &voxel_prog = this->programs[P(VOXEL)],
-        &font_prog = this->programs[P(FONT)];
+        &font_prog = this->programs[P(FONT)],
+        &triangle_depth_prog = this->programs[P(TRIANGLE_DEPTH)],
+        &sprite_depth_prog = this->programs[P(SPRITE_DEPTH)];
 #undef P
     if(!OpenGLBackend::create_prog(
             "src/glsl/gl/triangle.vert"sv,
@@ -585,12 +699,27 @@ bool OpenGLBackend::init_instance() {
             &triangle_prog))
         return false;
     CHECK_RESULT(glUseProgram, triangle_prog.id());
+    if(!triangle_prog.set_uniform("lights_shadow_map", SHADOW_MAP_TEX_BINDING))
+        return false;
+    if(!triangle_prog.set_uniform(
+            "lights_shadow_cube", light_samplers.size(), light_samplers.data()))
+        return false;
     if(!triangle_prog.get_uniform_location("alpha", &triangle_prog_alpha_loc))
         return false;
     CHECK_RESULT(glUniform1f, triangle_prog_alpha_loc, 1);
     if(!triangle_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
     if(!triangle_prog.bind_ubo("Lights", LIGHTS_UBO_BINDING))
+        return false;
+    if(!OpenGLBackend::create_prog(
+            "src/glsl/gl/triangle_depth.vert"sv,
+            "src/glsl/gl/triangle_depth.frag"sv,
+            nngn::GLSL_GL_TRIANGLE_DEPTH_VERT,
+            nngn::GLSL_GL_TRIANGLE_DEPTH_FRAG,
+            &triangle_depth_prog))
+        return false;
+    CHECK_RESULT(glUseProgram, triangle_depth_prog.id());
+    if(!triangle_depth_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
     if(!OpenGLBackend::create_prog(
             "src/glsl/gl/sprite.vert"sv,
@@ -600,6 +729,11 @@ bool OpenGLBackend::init_instance() {
             &sprite_prog))
         return false;
     CHECK_RESULT(glUseProgram, sprite_prog.id());
+    if(!sprite_prog.set_uniform("lights_shadow_map", SHADOW_MAP_TEX_BINDING))
+        return false;
+    if(!sprite_prog.set_uniform("lights_shadow_cube",
+            light_samplers.size(), light_samplers.data()))
+        return false;
     if(!sprite_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
     if(!sprite_prog.bind_ubo("Lights", LIGHTS_UBO_BINDING))
@@ -612,9 +746,24 @@ bool OpenGLBackend::init_instance() {
             &voxel_prog))
         return false;
     CHECK_RESULT(glUseProgram, voxel_prog.id());
+    if(!voxel_prog.set_uniform("lights_shadow_map", SHADOW_MAP_TEX_BINDING))
+        return false;
+    if(!voxel_prog.set_uniform("lights_shadow_cube",
+            light_samplers.size(), light_samplers.data()))
+        return false;
     if(!voxel_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
     if(!voxel_prog.bind_ubo("Lights", LIGHTS_UBO_BINDING))
+        return false;
+    if(!OpenGLBackend::create_prog(
+            "src/glsl/gl/sprite_depth.vert"sv,
+            "src/glsl/gl/sprite_depth.frag"sv,
+            nngn::GLSL_GL_SPRITE_DEPTH_VERT,
+            nngn::GLSL_GL_SPRITE_DEPTH_FRAG,
+            &sprite_depth_prog))
+        return false;
+    CHECK_RESULT(glUseProgram, sprite_depth_prog.id());
+    if(!sprite_depth_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
     if(!OpenGLBackend::create_prog(
             "src/glsl/gl/font.vert"sv,
@@ -691,6 +840,33 @@ bool OpenGLBackend::create_prog(
             vs_name.data() + "+"s + fs_name.data());
 }
 
+bool OpenGLBackend::set_shadow_map_size(u32 s) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    this->shadow_map_size = static_cast<GLsizei>(s);
+    this->shadow_map.destroy();
+    CHECK_RESULT(glGenTextures, 1, &this->shadow_map.id());
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE0 + SHADOW_MAP_TEX_BINDING);
+    return this->shadow_map.init(s);
+}
+
+bool OpenGLBackend::set_shadow_cube_size(u32 s) {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
+    this->shadow_cube_size = static_cast<GLsizei>(s);
+    static_assert(
+        sizeof(this->shadow_cubes[0]) == sizeof(u32),
+        "cannot create all textures with one command");
+    constexpr auto n = nngn::Lighting::MAX_LIGHTS;
+    CHECK_RESULT(glDeleteTextures, n, &this->shadow_cubes[0].id());
+    CHECK_RESULT(glGenTextures, n, &this->shadow_cubes[0].id());
+    auto binding = GL_TEXTURE0 + SHADOW_CUBE_TEX_BINDING;
+    for(auto &x : this->shadow_cubes) {
+        CHECK_RESULT(glActiveTexture, binding++);
+        if(!x.init(s))
+            return false;
+    }
+    return true;
+}
+
 u32 OpenGLBackend::create_pipeline(const PipelineConfiguration &conf) {
     const auto ret = static_cast<u32>(this->pipelines.size());
     this->pipelines.push_back({conf});
@@ -704,9 +880,12 @@ bool OpenGLBackend::set_render_list(const RenderList &l) {
         for(const auto &s : src)
             dst->emplace_back(s);
     };
+    f(&this->render_list.depth, l.depth);
     f(&this->render_list.normal, l.normal);
     f(&this->render_list.overlay, l.overlay);
     f(&this->render_list.hud, l.hud);
+    f(&this->render_list.shadow_maps, l.shadow_maps);
+    f(&this->render_list.shadow_cubes, l.shadow_cubes);
     return true;
 }
 
@@ -761,9 +940,11 @@ bool OpenGLBackend::create_vao(
         {{{"position", 3}, {"normal", 3}, {"tex_coord", 3}}},
         {{{"position", 3}, {"normal", 3}, {"tex_coord", 3}}},
         {{{"position", 3}, {{}, 3}, {"tex_coord", 3}}},
+        {{{"position", 3}, {{}, 6}, {{}, 0}}},
+        {{{"position", 3}, {{}, 3}, {"tex_coord", 3}}},
     }};
     static constexpr std::array names = {
-        "triangle", "sprite", "voxel", "font",
+        "triangle", "sprite", "voxel", "font", "triangle_depth", "sprite_depth",
     };
     assert(vbo_idx < this->buffers.size());
     assert(ebo_idx < this->buffers.size());
@@ -821,11 +1002,11 @@ bool OpenGLBackend::load_textures(u32 i, u32 n, const std::byte *v) {
     return true;
 }
 
-bool OpenGLBackend::resize_font(uint32_t s) {
+bool OpenGLBackend::resize_font(u32 s) {
     this->font_tex.destroy();
     CHECK_RESULT(glActiveTexture, GL_TEXTURE0 + FONT_TEX_BINDING);
     CHECK_RESULT(glGenTextures, 1, &this->font_tex.id());
-    const auto si = static_cast<int32_t>(s);
+    const auto si = static_cast<i32>(s);
     return this->create_tex_array("font_tex"sv,
         GL_TEXTURE_2D_ARRAY, GL_RGBA8, GL_REPEAT, {si, si, nngn::Font::N},
         static_cast<GLsizei>(nngn::Math::mip_levels(s)),
@@ -878,6 +1059,25 @@ bool OpenGLBackend::render() {
         const auto &ubo = *this->lighting.ubo;
         CHECK_RESULT(glBindBuffer, GL_UNIFORM_BUFFER, this->lights_ubo.id());
         CHECK_RESULT(glBufferSubData, GL_UNIFORM_BUFFER, 0, sizeof(ubo), &ubo);
+        nngn::CameraUBO c = {};
+        auto proj = *this->lighting.dir_proj;
+        auto *dst = this->shadow_camera_ubos.data();
+        const auto update_ubo = [&c, &proj, &dst](const auto &view) {
+            c.proj = proj * view;
+            CHECK_RESULT(glBindBuffer, GL_UNIFORM_BUFFER, (dst++)->id());
+            CHECK_RESULT(glBufferSubData,
+                GL_UNIFORM_BUFFER, 0, sizeof(nngn::CameraUBO), &c);
+            return true;
+        };
+        const auto *dir_views = this->lighting.dir_views;
+        for(size_t i = 0, n = ubo.n_dir; i < n; ++i)
+            update_ubo(*dir_views++);
+        dst = this->shadow_camera_ubos.data() + nngn::Lighting::MAX_LIGHTS;
+        proj = *this->lighting.point_proj;
+        const auto *point_views = this->lighting.point_views;
+        for(size_t i = 0, n = ubo.n_point; i < n; ++i)
+            for(size_t f = 0; f < 6; ++f)
+                update_ubo(*point_views++);
         return true;
     };
     const auto render = [this](auto *l) {
@@ -889,6 +1089,10 @@ bool OpenGLBackend::render() {
                 CHECK_RESULT(glEnable, GL_DEPTH_TEST);
             else
                 CHECK_RESULT(glDisable, GL_DEPTH_TEST);
+            if(pipeline.conf.flags & PFlag::DEPTH_WRITE)
+                CHECK_RESULT(glDepthMask, GL_TRUE);
+            else
+                CHECK_RESULT(glDepthMask, GL_FALSE);
             if(pipeline.conf.flags & PFlag::CULL_BACK_FACES)
                 CHECK_RESULT(glEnable, GL_CULL_FACE);
             else
@@ -919,13 +1123,63 @@ bool OpenGLBackend::render() {
     };
     if(!update_camera() || !update_lighting())
         return false;
+    if(this->lighting.ubo->flags & nngn::LightsUBO::SHADOWS_ENABLED) {
+        CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, this->lights_fb.id());
+        CHECK_RESULT(glViewport,
+            0, 0, this->shadow_map_size, this->shadow_map_size);
+        CHECK_RESULT(glBindBufferRange,
+            GL_UNIFORM_BUFFER, LIGHTS_UBO_BINDING,
+            this->no_lights_ubo.id(), 0, sizeof(nngn::LightsUBO));
+        CHECK_RESULT(glDisable, GL_CULL_FACE);
+        for(size_t i = 0, n = this->lighting.ubo->n_dir; i < n; ++i) {
+            CHECK_RESULT(glBindBufferRange,
+                GL_UNIFORM_BUFFER, CAMERA_UBO_BINDING,
+                this->shadow_camera_ubos[i].id(), 0, sizeof(nngn::CameraUBO));
+            CHECK_RESULT(glFramebufferTextureLayer,
+                GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                this->shadow_map.id(), 0, static_cast<GLint>(i));
+            CHECK_RESULT(glDepthMask, GL_TRUE);
+            CHECK_RESULT(glClear, GL_DEPTH_BUFFER_BIT);
+            if(!render(&render_list.depth))
+                return false;
+        }
+        CHECK_RESULT(glViewport,
+            0, 0, this->shadow_cube_size, this->shadow_cube_size);
+        for(size_t i = 0, n = this->lighting.ubo->n_point; i < n; ++i)
+            for(size_t f = 0; f < 6; ++f) {
+                CHECK_RESULT(glBindBufferRange,
+                    GL_UNIFORM_BUFFER, CAMERA_UBO_BINDING,
+                    this->shadow_camera_ubos[
+                        nngn::Lighting::MAX_LIGHTS + i * 6 + f].id(),
+                    0, sizeof(nngn::CameraUBO));
+                auto face = static_cast<GLenum>(
+                    GL_TEXTURE_CUBE_MAP_POSITIVE_X + f);
+                if(face == GL_TEXTURE_CUBE_MAP_POSITIVE_Y)
+                    face = GL_TEXTURE_CUBE_MAP_NEGATIVE_Y;
+                else if(face == GL_TEXTURE_CUBE_MAP_NEGATIVE_Y)
+                    face = GL_TEXTURE_CUBE_MAP_POSITIVE_Y;
+                CHECK_RESULT(glFramebufferTexture2D,
+                    GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT,
+                    face, this->shadow_cubes[i].id(), 0);
+                CHECK_RESULT(glDepthMask, GL_TRUE);
+                CHECK_RESULT(glClear, GL_DEPTH_BUFFER_BIT);
+                if(!render(&render_list.depth))
+                    return false;
+            }
+    }
+    CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    CHECK_RESULT(glViewport,
+        0, 0,
+        static_cast<GLsizei>(this->camera.screen->x),
+        static_cast<GLsizei>(this->camera.screen->y));
+    CHECK_RESULT(glDepthMask, GL_TRUE);
+    CHECK_RESULT(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     CHECK_RESULT(glBindBufferRange,
         GL_UNIFORM_BUFFER, LIGHTS_UBO_BINDING,
         this->lights_ubo.id(), 0, sizeof(nngn::LightsUBO));
     CHECK_RESULT(
         glBindBufferRange, GL_UNIFORM_BUFFER,
         CAMERA_UBO_BINDING, this->camera_ubo.id(), 0, sizeof(nngn::CameraUBO));
-    CHECK_RESULT(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     const auto &triangle_prog = this->programs[
         static_cast<std::size_t>(PipelineConfiguration::Type::TRIANGLE)];
     CHECK_RESULT(glUseProgram, triangle_prog.id());
@@ -947,6 +1201,9 @@ bool OpenGLBackend::render() {
     CHECK_RESULT(glActiveTexture, GL_TEXTURE0 + MAIN_TEX_BINDING);
     CHECK_RESULT(glBindTexture, GL_TEXTURE_2D_ARRAY, this->font_tex.id());
     if(!render(&render_list.hud))
+        return false;
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D_ARRAY, this->shadow_map.id());
+    if(!render(&render_list.shadow_maps))
         return false;
     CHECK_RESULT(glBindTexture, GL_TEXTURE_2D_ARRAY, this->tex.id());
     CHECK_RESULT(glBindVertexArray, 0);

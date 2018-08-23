@@ -4,6 +4,7 @@
 
 #include "entity.h"
 
+#include "math/math.h"
 #include "timing/timing.h"
 #include "utils/log.h"
 
@@ -16,6 +17,7 @@ const LightsUBO Lighting::NO_LIGHTS_UBO = []() {
     ret.ambient = {1, 1, 1};
     ret.n_dir = 0;
     ret.n_point = 0;
+    ret.flags = 0;
     return ret;
 }();
 
@@ -40,14 +42,34 @@ void Light::set_att(lua_State *L) {
     this->updated = true;
 }
 
-vec3 Light::ortho_view_pos() const {
-    const auto p = this->dir * -512.0f;
-    return {p.x, -p.y, p.z};
+vec3 Light::ortho_view_pos(float far) const {
+    return this->dir * far / -2.0f;
 }
 
-void Light::write_to_ubo_dir(LightsUBO *ubo, size_t i) const {
+mat4 Light::ortho_view(float far) const {
+    return Math::look_at(this->ortho_view_pos(far), {0, 0, 0}, {0, 0, 1});
+}
+
+mat4 Light::persp_view(int face, bool zsprites) const {
+    const auto fz = static_cast<float>(zsprites);
+    const vec3 p =
+        {this->pos.x, (this->pos.y + fz * this->pos.z), this->pos.z};
+    switch(face) {
+    case 0: return Math::look_at(p, p + vec3(1, 0, 0), {0, 1,  0});
+    case 1: return Math::look_at(p, p - vec3(1, 0, 0), {0, 1,  0});
+    case 3: return Math::look_at(p, p + vec3(0, 1, 0), {0, 0, -1});
+    case 2: return Math::look_at(p, p - vec3(0, 1, 0), {0, 0,  1});
+    case 4: return Math::look_at(p, p + vec3(0, 0, 1), {0, 1,  0});
+    case 5: return Math::look_at(p, p - vec3(0, 0, 1), {0, 1,  0});
+    }
+    return mat4(1);
+}
+
+void Light::write_to_ubo_dir(
+        LightsUBO *ubo, size_t i, float far, const mat4 &proj) const {
     ubo->dir.dir[i] = {this->dir, 0};
     ubo->dir.color_spec[i] = {this->color.xyz() * this->color.w, this->spec};
+    ubo->dir.mat[i] = proj * this->ortho_view(far);
 }
 
 void Light::write_to_ubo_point(LightsUBO *ubo, size_t i, bool zsprites) const {
@@ -69,6 +91,11 @@ void Lighting::set_zsprites(bool b) {
     this->flags |= Flag::UPDATED;
 }
 
+void Lighting::set_shadows_enabled(bool b) {
+    this->flags.set(Flag::SHADOWS_ENABLED, b);
+    this->flags |= Flag::UPDATED;
+}
+
 void Lighting::set_ambient_light(const vec4 &v) {
     this->m_ambient_light = v;
     this->flags |= Flag::UPDATED;
@@ -76,6 +103,16 @@ void Lighting::set_ambient_light(const vec4 &v) {
 
 void Lighting::set_ambient_anim(LightAnimation a) {
     this->m_ambient_anim = a;
+}
+
+void Lighting::set_shadow_map_proj_size(float s) {
+    this->m_shadow_map_proj_size = s;
+    this->flags |= Flag::SHADOW_MAPS_UPDATED;
+}
+
+void Lighting::set_shadow_map_far(float f) {
+    this->m_shadow_map_far = f;
+    this->flags |= Flag::SHADOW_MAPS_UPDATED;
 }
 
 Light *Lighting::add_light(Light::Type t) {
@@ -126,16 +163,40 @@ bool Lighting::update(const Timing &t) {
             + std::chrono::duration_cast<Sun::duration>(dt * 3600));
         this->m_sun_light->set_dir(this->m_sun.dir());
     };
+    const auto update_projs = [this]() {
+        constexpr auto a = Math::pi<float>() / 2.0f;
+        const auto n = this->m_shadow_map_near, f = this->m_shadow_map_far;
+        const auto s = this->m_shadow_map_proj_size;
+        this->m_dir_proj = Math::ortho(-s, s, -s, s, n, f);
+        this->m_point_proj = Math::perspective(-a, 1.0f, n, f);
+    };
+    const auto update_views = [this]() {
+        auto *m = this->views.data();
+        for(auto i = this->m_dir_lights.cbegin(), e = i + this->n_dir;
+                i != e; ++i)
+            *m++ = i->ortho_view(this->m_shadow_map_far);
+        m = this->views.data() + MAX_LIGHTS;
+        for(auto i = this->m_point_lights.cbegin(), e = i + this->n_point;
+                i != e; ++i)
+            for(int f = 0; f < 6; ++f)
+                *m++ = i->persp_view(f, this->flags.is_set(Flag::ZSPRITES));
+    };
     const auto update_ubo = [this]() {
-        this->m_ubo.view_pos =
-            {this->view_pos.x, -this->view_pos.y, this->view_pos.z};
+        this->m_ubo.view_pos = this->view_pos;
         this->m_ubo.ambient =
             this->m_ambient_light.xyz() * this->m_ambient_light.w;
         this->m_ubo.n_dir = static_cast<uint32_t>(this->n_dir);
         this->m_ubo.n_point = static_cast<uint32_t>(this->n_point);
-        for(size_t i = 0, n = this->n_dir; i < n; ++i)
-            this->m_dir_lights[i].write_to_ubo_dir(&this->m_ubo, i);
-        for(size_t i = 0, n = this->n_point; i < n; ++i)
+        this->m_ubo.flags = (this->flags & Flag::SHADOWS_ENABLED)
+            ? LightsUBO::Flag::SHADOWS_ENABLED
+            : static_cast<LightsUBO::Flag>(0);
+        const auto n = this->m_shadow_map_near, f = this->m_shadow_map_far;
+        this->m_ubo.depth_transform0 = ((f + n) / (f - n) + 1) * 0.5f;
+        this->m_ubo.depth_transform1 = (2.0f * f * n) / (f - n) * 0.5f;
+        for(size_t i = 0; i < this->n_dir; ++i)
+            this->m_dir_lights[i].write_to_ubo_dir(
+                &this->m_ubo, i, this->m_shadow_map_far, this->m_dir_proj);
+        for(size_t i = 0; i < this->n_point; ++i)
             this->m_point_lights[i].write_to_ubo_point(
                 &this->m_ubo, i, this->flags.is_set(Flag::ZSPRITES));
     };
@@ -169,7 +230,8 @@ bool Lighting::update(const Timing &t) {
         static_cast<bool>(this->flags & Flag::VIEW_UPDATED);
     const bool dir_updated = any_updated(this->m_dir_lights, this->n_dir);
     const bool point_updated = any_updated(this->m_point_lights, this->n_point);
-    updated = updated || view_updated || dir_updated || point_updated;
+    updated = updated || view_updated || dir_updated || point_updated
+        || this->flags & Flag::SHADOW_MAPS_UPDATED;
     if(!updated)
         return false;
     this->flags.clear(Flag::UPDATED | Flag::VIEW_UPDATED);
@@ -177,6 +239,8 @@ bool Lighting::update(const Timing &t) {
         clear_updated(&this->m_dir_lights, this->n_dir);
     if(point_updated)
         clear_updated(&this->m_point_lights, this->n_point);
+    update_projs();
+    update_views();
     update_ubo();
     return true;
 }

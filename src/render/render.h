@@ -65,11 +65,13 @@ class Renderers {
         bb_circle_vbo = {}, bb_circle_ebo = {},
         sphere_vbo = {}, sphere_ebo = {},
         lights_vbo = {}, lights_ebo = {},
-        range_vbo = {}, range_ebo = {};
+        range_vbo = {}, range_ebo = {},
+        depth_vbo = {}, depth_ebo = {},
+        depth_cube_vbo = {}, depth_cube_ebo = {};
 public:
     enum Debug : u8 {
         RECT = 1u << 0, CIRCLE = 1u << 1, BB = 1u << 2, LIGHT = 1u << 3,
-        N_DEBUG = 4,
+        DEPTH = 1u << 4, N_DEBUG = 5,
     };
 private:
     Flags<Debug> m_debug = {};

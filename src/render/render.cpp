@@ -316,11 +316,13 @@ void update_spheres(
         uv[0], uv[1]);
 }
 
+using UpdateLightsData = std::tuple<const nngn::Light*, float>;
+
 template<auto vgen>
 bool update_lights(
     nngn::Graphics *g, u32 vbo, u32 ebo,
     u64 *voff, u64 *eoff, u64 *ei,
-    std::span<const nngn::Light> s
+    std::span<const nngn::Light> s, float shadow_map_far
 ) {
     constexpr auto vsize = 6 * 4 * sizeof(nngn::Vertex);
     constexpr auto esize = 6 * 6 * sizeof(u32);
@@ -328,26 +330,27 @@ bool update_lights(
     const auto eo = std::exchange(*eoff, *eoff + s.size() * esize);
     const auto cur_ei = std::exchange(*ei, *ei + s.size());
     return write_to_buffer<vgen, nngn::Vertex>(
-            g, vbo, vo, s.size(), vsize, nngn::rptr(std::tuple{s.data()}))
+            g, vbo, vo, s.size(), vsize,
+            nngn::rptr(UpdateLightsData{s.data(), shadow_map_far}))
         && write_to_buffer<update_indices_with_base<6 * 6>, u32>(
             g, ebo, eo, s.size(), esize, nngn::rptr(std::tuple{cur_ei}));
 }
 
 void update_dir_lights(
-    const std::tuple<const nngn::Light*> *data, nngn::Vertex *p, u64 i, u64 n
+    const UpdateLightsData *data, nngn::Vertex *p, u64 i, u64 n
 ) {
-    auto [lights] = *data;
+    auto [lights, shadow_map_far] = *data;
     for(n += i; i < n; ++i) {
         const auto &x = lights[i];
         nngn::Renderers::gen_cube_verts(
-            &p, x.ortho_view_pos(), nngn::vec3{8}, x.color.xyz());
+            &p, x.ortho_view_pos(shadow_map_far), nngn::vec3{8}, x.color.xyz());
     }
 }
 
 void update_point_lights(
-    const std::tuple<const nngn::Light*> *data, nngn::Vertex *p, u64 i, u64 n
+    const UpdateLightsData *data, nngn::Vertex *p, u64 i, u64 n
 ) {
-    auto [lights] = *data;
+    auto [lights, _] = *data;
     for(n += i; i < n; ++i) {
         const auto &x = lights[i];
         nngn::Renderers::gen_cube_verts(
@@ -358,6 +361,44 @@ void update_point_lights(
 void update_ranges(nngn::Vertex **p, const nngn::Light *x) {
     nngn::Renderers::gen_cube_verts(
         p, x->pos, nngn::vec3{.2f * x->range()}, x->color.xyz());
+}
+
+bool update_shadow_maps(
+    nngn::Graphics *g, u32 vbo, u32 ebo,
+    nngn::uvec2 offset, nngn::uvec2 size
+) {
+    using data = std::tuple<nngn::uvec2, nngn::uvec2>;
+    constexpr auto vgen = [](
+        void *d, void *vp, u64 y, u64 nw
+    ) {
+        constexpr nngn::vec2 ext(128), pad(ext / 8.0f), comb = ext + pad;
+        auto *p = static_cast<nngn::Vertex*>(vp);
+        auto [off, size_] = *static_cast<data*>(d);
+        const auto off_f = static_cast<nngn::vec2>(off);
+        const auto base_pos = pad
+            + comb * off_f.xy()
+            + comb.y * static_cast<float>(y);
+        auto pos = base_pos;
+        auto tex = static_cast<u32>(y * size_.x);
+        for(const auto e = y + nw; y < e; ++y, pos += comb.y)
+            for(std::size_t x = 0; x < size_.x; ++x, ++tex) {
+                pos.x = base_pos.x + static_cast<float>(x) * comb.x;
+                nngn::Renderers::gen_quad_verts(&p,
+                    pos, pos + ext, 0, {0, 0, 1},
+                    tex, {0, 1}, {1, 0});
+            }
+    };
+    const auto n = nngn::Math::product(size);
+    const bool ok = g->write_to_buffer(
+            vbo, 0, size.y, 4 * size.x * sizeof(nngn::Vertex),
+            rptr(data{offset, size}), vgen)
+        && g->write_to_buffer(
+            ebo, 0, n, 6 * sizeof(u32), {}, update_indices<6>);
+    if(!ok)
+        return false;
+    g->set_buffer_size(vbo, n * 4 * sizeof(nngn::Vertex));
+    g->set_buffer_size(ebo, n * 6 * sizeof(u32));;
+    return true;
 }
 
 }
@@ -454,7 +495,6 @@ void Renderers::set_perspective(bool p) {
 void Renderers::set_zsprites(bool z) {
     constexpr auto f =
         Flag::SPRITES_UPDATED
-        | Flag::TRANSLUCENT_UPDATED
         | Flag::CUBES_UPDATED;
     const bool old = this->flags.is_set(Flag::ZSPRITES);
     this->flags.set(Flag::ZSPRITES, z);
@@ -470,7 +510,9 @@ bool Renderers::set_graphics(Graphics *g) {
         TEXTBOX_MAX = 1,
         SELECTION_MAX = 1024,
         LIGHTS_MAX = 2 * NNGN_MAX_LIGHTS,
-        RANGE_MAX = NNGN_MAX_LIGHTS;
+        RANGE_MAX = NNGN_MAX_LIGHTS,
+        DEPTH_MAX = NNGN_MAX_LIGHTS,
+        DEPTH_CUBE_MAX = 6 * NNGN_MAX_LIGHTS;
     using Pipeline = Graphics::PipelineConfiguration;
     using Stage = Graphics::RenderList::Stage;
     using BufferPair = std::pair<u32, u32>;
@@ -481,22 +523,29 @@ bool Renderers::set_graphics(Graphics *g) {
         triangle_pipeline = {}, sprite_pipeline = {}, voxel_pipeline = {},
         box_pipeline = {}, font_pipeline = {}, line_pipeline = {},
         circle_pipeline = {},
+        triangle_depth_pipeline = {}, sprite_depth_pipeline = {},
         triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
             .type = Pipeline::Type::TRIANGLE,
-            .flags = Pipeline::Flag::DEPTH_TEST,
+            .flags = static_cast<Pipeline::Flag>(
+                Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::DEPTH_WRITE
+                | Pipeline::Flag::CULL_BACK_FACES),
         }))
         && (sprite_pipeline = g->create_pipeline({
             .name = "sprite_pipeline",
             .type = Pipeline::Type::SPRITE,
-            .flags = Pipeline::Flag::DEPTH_TEST,
+            .flags = static_cast<Pipeline::Flag>(
+                Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::DEPTH_WRITE),
         }))
         && (voxel_pipeline = g->create_pipeline({
             .name = "voxel_pipeline",
             .type = Pipeline::Type::VOXEL,
             .flags = static_cast<Pipeline::Flag>(
                 Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::DEPTH_WRITE
                 | Pipeline::Flag::CULL_BACK_FACES),
         }))
         && (box_pipeline = g->create_pipeline({
@@ -515,6 +564,21 @@ bool Renderers::set_graphics(Graphics *g) {
         && (circle_pipeline = g->create_pipeline({
             .name = "circle_pipeline",
             .type = Pipeline::Type::SPRITE,
+        }))
+        && (triangle_depth_pipeline = g->create_pipeline({
+            .name = "triangle_depth_pipeline",
+            .type = Pipeline::Type::TRIANGLE_DEPTH,
+            .flags = static_cast<Pipeline::Flag>(
+                Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::DEPTH_WRITE
+                | Pipeline::Flag::CULL_BACK_FACES),
+        }))
+        && (sprite_depth_pipeline = g->create_pipeline({
+            .name = "sprite_depth_pipeline",
+            .type = Pipeline::Type::SPRITE_DEPTH,
+            .flags = static_cast<Pipeline::Flag>(
+                Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::DEPTH_WRITE),
         }))
         && (triangle_vbo = g->create_buffer({
             .name = "triangle_vbo",
@@ -662,6 +726,26 @@ bool Renderers::set_graphics(Graphics *g) {
             .type = index,
             .size = 36 * RANGE_MAX * sizeof(u32),
         }))
+        && (this->depth_vbo = g->create_buffer({
+            .name = "depth_vbo",
+            .type = vertex,
+            .size = 4 * DEPTH_MAX * sizeof(Vertex),
+        }))
+        && (this->depth_ebo = g->create_buffer({
+            .name = "depth_ebo",
+            .type = index,
+            .size = 6 * DEPTH_MAX * sizeof(u32),
+        }))
+        && (this->depth_cube_vbo = g->create_buffer({
+            .name = "depth_cube_vbo",
+            .type = vertex,
+            .size = 4 * DEPTH_CUBE_MAX * sizeof(Vertex),
+        }))
+        && (this->depth_cube_ebo = g->create_buffer({
+            .name = "depth_cube_ebo",
+            .type = index,
+            .size = 6 * DEPTH_CUBE_MAX * sizeof(u32),
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -677,6 +761,18 @@ bool Renderers::set_graphics(Graphics *g) {
                 memcpy(p, std::span{v});
             })
         && g->set_render_list(Graphics::RenderList{
+            .depth = std::to_array<Stage>({{
+                .pipeline = sprite_depth_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->sprite_vbo, this->sprite_ebo},
+                }),
+            }, {
+                .pipeline = triangle_depth_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->voxel_vbo, this->voxel_ebo},
+                    {this->cube_vbo, this->cube_ebo},
+                }),
+            }}),
             .normal = std::to_array<Stage>({{
                 .pipeline = voxel_pipeline,
                 .buffers = std::to_array<BufferPair>({
@@ -728,6 +824,18 @@ bool Renderers::set_graphics(Graphics *g) {
                 .pipeline = font_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->text_vbo, this->text_ebo},
+                }),
+            }}),
+            .shadow_maps = std::to_array<Stage>({{
+                .pipeline = circle_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->depth_vbo, this->depth_ebo},
+                }),
+            }}),
+            .shadow_cubes = std::to_array<Stage>({{
+                .pipeline = circle_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->depth_cube_vbo, this->depth_cube_ebo},
                 }),
             }}),
         });
@@ -1056,9 +1164,10 @@ bool Renderers::update() {
         std::uint64_t voff = {}, eoff = {};
         std::uint64_t ei = {};
         const bool ok = ::update_lights<update_dir_lights>(
-                this->graphics, vbo, ebo, &voff, &eoff, &ei, dir)
+                this->graphics, vbo, ebo, &voff, &eoff, &ei, dir,
+                this->lighting->shadow_map_far())
             && ::update_lights<update_point_lights>(
-                this->graphics, vbo, ebo, &voff, &eoff, &ei, point);
+                this->graphics, vbo, ebo, &voff, &eoff, &ei, point, {});
         if(!ok)
             return false;
         this->graphics->set_buffer_size(vbo, voff);
@@ -1081,6 +1190,38 @@ bool Renderers::update() {
         }
         return update_span<::update_ranges, update_indices<6 * 6>>(
             this->graphics, v, vbo, ebo, 6 * 4, 6 * 6);
+    };
+    const auto update_shadow_maps = [this] {
+        NNGN_LOG_CONTEXT("shadow maps");
+        const auto vbo = this->depth_vbo;
+        const auto ebo = this->depth_ebo;
+        if(!this->m_debug.is_set(Debug::LIGHT)) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        const auto n = static_cast<unsigned>(
+            this->lighting->dir_lights().size());
+        if(!n) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        return ::update_shadow_maps(this->graphics, vbo, ebo, {}, {n, 1});
+    };
+    const auto update_shadow_cubes = [this] {
+        NNGN_LOG_CONTEXT("shadow cubes");
+        const auto vbo = this->depth_cube_vbo;
+        const auto ebo = this->depth_cube_ebo;
+        if(!this->m_debug.is_set(Debug::LIGHT)) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        const auto n = static_cast<unsigned>(
+            this->lighting->point_lights().size());
+        if(!n) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        return ::update_shadow_maps(this->graphics, vbo, ebo, {0, 1}, {6, n});
     };
     const auto updated = [&flags = this->flags](auto f, const auto &v) {
         return flags.is_set(f)
@@ -1115,7 +1256,8 @@ bool Renderers::update() {
         && update_aabbs() && update_aabb_circles()
         && update_bbs() && update_bb_circles()
         && update_spheres()
-        && update_lights() && update_ranges();
+        && update_lights() && update_ranges()
+        && update_shadow_maps() && update_shadow_cubes();
 }
 
 }

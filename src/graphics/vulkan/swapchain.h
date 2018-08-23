@@ -1,10 +1,12 @@
 #ifndef NNGN_GRAPHICS_VULKAN_SWAPCHAIN_H
 #define NNGN_GRAPHICS_VULKAN_SWAPCHAIN_H
 
+#include <cstdint>
 #include <span>
 #include <tuple>
 
 #include "graphics/graphics.h"
+#include "math/vec2.h"
 
 #include "resource.h"
 #include "vulkan.h"
@@ -38,6 +40,9 @@ public:
     /** Frame buffers for each swap chain image. */
     std::span<const VkFramebuffer> frame_buffers() const
         { return std::span{this->m_frame_buffers}; }
+    /** Frame buffers for each depth pass image. */
+    std::span<const VkFramebuffer> depth_frame_buffers() const
+        { return std::span{this->m_depth_frame_buffers}; }
     std::size_t cur_frame() const { return this->i_frame; }
     /** Changes the presentation mode used on the next \ref recreate. */
     void set_present_mode(VkPresentModeKHR m) { this->present_mode = m; }
@@ -49,8 +54,11 @@ public:
     /** Destroys resources and recreate them. */
     bool recreate(
         const Instance &inst, const Device &dev, std::uint32_t n_images,
-        VkRenderPass render_pass, VkExtent2D extent,
-        VkSurfaceTransformFlagBitsKHR transform);
+        VkRenderPass depth_pass, VkRenderPass render_pass,
+        VkExtent2D extent, VkSurfaceTransformFlagBitsKHR transform,
+        VkExtent2D shadow_map_size, VkExtent2D shadow_cube_size,
+        std::span<const VkImageView> shadow_map,
+        std::span<const VkImageView> shadow_cube);
     /** Acquires an image from the swap chain for rendering. */
     std::pair<PresentContext, VkResult> acquire_img();
 private:
@@ -59,6 +67,11 @@ private:
     bool create_sync_objects(const Instance &inst);
     bool create_frame_buffers(
         const Instance &inst, VkExtent2D extent, VkRenderPass render_pass);
+    bool create_depth_frame_buffers(
+        const Instance &inst, VkRenderPass render_pass,
+        VkExtent2D shadow_map_size, VkExtent2D shadow_cube_size,
+        std::span<const VkImageView> shadow_map,
+        std::span<const VkImageView> shadow_cube);
     void destroy();
     VkSwapchainKHR h = {};
     VkInstance instance = {};
@@ -87,7 +100,7 @@ private:
          */
         std::vector<VkFence> present;
     } fences = {};
-    std::vector<VkFramebuffer> m_frame_buffers = {};
+    std::vector<VkFramebuffer> m_frame_buffers = {}, m_depth_frame_buffers = {};
     std::size_t i_frame = {};
 };
 
