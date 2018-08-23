@@ -285,4 +285,6 @@ NNGN_LUA_PROXY(Graphics,
     "set_n_frames", &Graphics::set_n_frames,
     "set_swap_interval", &Graphics::set_swap_interval,
     "set_cursor_mode", &Graphics::set_cursor_mode,
+    "set_shadow_map_size", &Graphics::set_shadow_map_size,
+    "set_shadow_cube_size", &Graphics::set_shadow_cube_size,
     "resize_textures", &Graphics::resize_textures)

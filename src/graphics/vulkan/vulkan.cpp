@@ -35,6 +35,7 @@ std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void*) {
 
 #include <GLFW/glfw3.h>
 
+#include "const.h"
 #include "font/font.h"
 #include "graphics/glfw.h"
 #include "graphics/shaders.h"
@@ -97,6 +98,10 @@ public:
     Shaders(void) = default;
     ~Shaders(void);
     void init(nngn::Device *dev_) { this->dev = dev_; }
+    bool init(
+        const nngn::Instance &inst,
+        nngn::Graphics::PipelineConfiguration::Type type,
+        std::string_view vname, std::span<const std::uint8_t> vert);
     bool init(
         const nngn::Instance &inst,
         nngn::Graphics::PipelineConfiguration::Type type,
@@ -163,6 +168,7 @@ public:
     VkDeviceSize size(std::size_t n_frames) const;
     u32 offset(std::size_t i) const;
     u32 offset_hud(std::size_t i) const;
+    u32 offset_light(std::size_t i, std::size_t il) const;
     void write(VkBuffer ubo, VkDeviceSize offset) const;
 private:
     static constexpr VkDeviceSize size();
@@ -171,8 +177,10 @@ private:
 struct TextureDescriptorSets : public nngn::DescriptorSets {
     bool init(VkDevice dev);
     void write(
-        VkSampler sampler,
-        VkImageView tex_img_view, VkImageView font_img_view) const;
+        VkSampler sampler, VkSampler shadow_sampler,
+        VkImageView tex_img_view, VkImageView font_img_view,
+        VkImageView shadow_map_img_view,
+        VkImageView shadow_cube_img_view) const;
 };
 
 struct LightingDescriptorSets : UBODescriptorSets {
@@ -180,7 +188,11 @@ struct LightingDescriptorSets : UBODescriptorSets {
     VkDeviceSize size(std::size_t n_frames) const;
     u32 offset(std::size_t i) const;
     u32 offset_no_light(std::size_t n_frames) const;
-    void write(VkBuffer ubo, std::size_t n_frames, VkDeviceSize offset) const;
+    void write(
+        VkBuffer ubo, std::size_t n_frames,
+        VkDeviceSize offset, VkSampler sampler,
+        std::span<const VkImageView> shadow_map_views,
+        std::span<const VkImageView> shadow_cube_views) const;
 };
 
 class TexArray : public nngn::Image {
@@ -199,6 +211,51 @@ private:
     VkImageView img_view = {};
 };
 
+class ShadowMap : public TexArray {
+public:
+    ShadowMap() = default;
+    u32 size() const { return this->m_size; }
+    std::span<const VkImageView> layer_views() const
+        { return this->m_layer_views; }
+    std::span<const VkImageView> frame_views() const
+        { return this->m_frame_views; }
+    void set_size(u32 s) { this->m_size = s; }
+    bool init(
+        VkDevice dev, nngn::DeviceMemory *dev_mem, VkCommandBuffer cmd,
+        std::size_t n_frames, u32 n, VkExtent3D extent);
+    void destroy(VkDevice dev, nngn::DeviceMemory *dev_mem);
+protected:
+    ShadowMap(u32 size_) : m_size(size_) {}
+    bool init(
+        VkDevice dev, nngn::DeviceMemory *dev_mem, VkCommandBuffer cmd,
+        std::size_t n_frames, u32 n, VkExtent3D extent,
+        VkImageCreateFlags flags, VkImageViewType view_type);
+    bool init_layer_views(
+        VkDevice dev, u32 n, u32 n_layers_per_view,
+        VkImageViewType type, VkImageAspectFlags aspects,
+        std::vector<VkImageView> *v);
+private:
+    u32 m_size = nngn::Graphics::SHADOW_MAP_INITIAL_SIZE;
+    std::vector<VkImageView> m_layer_views = {}, m_frame_views = {};
+};
+
+class ShadowCube : public ShadowMap {
+public:
+    NNGN_MOVE_ONLY(ShadowCube)
+    ShadowCube(void) : ShadowMap(nngn::Graphics::SHADOW_CUBE_INITIAL_SIZE) {}
+    ~ShadowCube(void) = default;
+    VkImageView cube_2d_view() const { return this->m_cube_2d_view; }
+    std::span<const VkImageView> frame_views() const
+        { return this->m_frame_views; }
+    bool init(
+        VkDevice dev, nngn::DeviceMemory *dev_mem, VkCommandBuffer cmd,
+        std::size_t n_frames, u32 n, VkExtent3D extent);
+    void destroy(VkDevice dev, nngn::DeviceMemory *dev_mem);
+private:
+    VkImageView m_cube_2d_view = {};
+    std::vector<VkImageView> m_frame_views = {};
+};
+
 struct RenderList {
     struct Stage {
         NNGN_MOVE_ONLY(Stage)
@@ -209,7 +266,10 @@ struct RenderList {
         std::vector<std::pair<u32, u32>> buffers = {};
         u32 conf = {};
     };
-    std::vector<Stage> normal = {}, overlay = {}, hud = {};
+    std::vector<Stage>
+        depth_dir = {}, depth_point = {},
+        normal = {}, overlay = {}, hud = {},
+        shadow_maps = {}, shadow_cubes = {};
 };
 
 class VulkanBackend final : public nngn::GLFWBackend {
@@ -238,7 +298,7 @@ class VulkanBackend final : public nngn::GLFWBackend {
     TextureDescriptorSets texture_descriptor_sets = {};
     LightingDescriptorSets lighting_descriptor_sets = {};
     Shaders shaders = {};
-    VkRenderPass render_pass = {};
+    VkRenderPass depth_pass = {}, render_pass = {};
     VkPipelineCache pipeline_cache = {};
     VkPipelineLayout pipeline_layout = {};
     std::vector<VkPipeline> pipelines = {};
@@ -246,8 +306,10 @@ class VulkanBackend final : public nngn::GLFWBackend {
     std::vector<nngn::CommandPool> cmd_pools = {};
     std::vector<PipelineConfiguration> pipeline_conf = {{}};
     ::RenderList render_list = {};
-    VkSampler sampler = {};
+    VkSampler sampler = {}, shadow_sampler = {};
     TexArray tex = {}, font_tex = {};
+    ShadowMap shadow_map = {};
+    ShadowCube shadow_cube = {};
     u32 font_size = {};
     static void error_callback(void *p)
         { static_cast<VulkanBackend*>(p)->flags.set(Flag::ERROR); };
@@ -264,6 +326,7 @@ class VulkanBackend final : public nngn::GLFWBackend {
     VkCommandBuffer cur_cmd_buffer() const;
     void resize(int, int) final;
     std::tuple<VkPhysicalDevice, u32, u32> choose_device(std::size_t i) const;
+    bool create_depth_pass();
     bool create_render_pass(VkFormat format);
     bool create_pipelines();
     bool recreate_swapchain();
@@ -305,6 +368,8 @@ public:
         { this->camera_descriptor_sets.updated().set(); }
     void set_lighting_updated() final
         { this->lighting_descriptor_sets.updated().set(); }
+    bool set_shadow_map_size(u32 s) final;
+    bool set_shadow_cube_size(u32 s) final;
     u32 create_pipeline(const PipelineConfiguration &conf) final;
     u32 create_buffer(const BufferConfiguration &conf) final;
     bool set_buffer_capacity(u32 b, u64 size) final;
@@ -350,6 +415,19 @@ Shaders::~Shaders() {
         vkDestroyShaderModule(this->dev->id(), vi, nullptr);
         vkDestroyShaderModule(this->dev->id(), fi, nullptr);
     }
+}
+
+bool Shaders::init(
+    const nngn::Instance &inst,
+    nngn::Graphics::PipelineConfiguration::Type type,
+    std::string_view vname, std::span<const std::uint8_t> vert
+) {
+    NNGN_LOG_CONTEXT_CF(Shaders);
+    const auto ret = this->dev->create_shader(inst, vname, vert);
+    if(!ret)
+        return false;
+    this->v[static_cast<std::size_t>(type)].first = ret;
+    return true;
 }
 
 bool Shaders::init(
@@ -461,8 +539,11 @@ bool UBODescriptorSets::init(
 }
 
 constexpr VkDeviceSize CameraDescriptorSets::size() {
-    constexpr std::size_t normal = 1, hud = 1;
-    return normal + hud;
+    constexpr std::size_t
+        normal = 1, hud = 1,
+        n_lights = NNGN_MAX_LIGHTS,
+        lights = n_lights, point_lights = 6 * n_lights;
+    return normal + hud + lights + point_lights;
 }
 
 VkDeviceSize CameraDescriptorSets::size(std::size_t n_frames) const {
@@ -476,6 +557,10 @@ u32 CameraDescriptorSets::offset(std::size_t i) const {
 
 u32 CameraDescriptorSets::offset_hud(std::size_t i) const {
     return static_cast<u32>(this->offset(i) + this->alignment());
+}
+
+u32 CameraDescriptorSets::offset_light(std::size_t i, std::size_t il) const {
+    return static_cast<u32>(this->offset(i) + (2 + il) * this->alignment());
 }
 
 bool CameraDescriptorSets::init(VkDevice dev_, VkDeviceSize min_ubo_align) {
@@ -521,21 +606,25 @@ bool TextureDescriptorSets::init(VkDevice dev_) {
 }
 
 void TextureDescriptorSets::write(
-    VkSampler sampler, VkImageView tex_img_view, VkImageView font_img_view
+    VkSampler sampler, VkSampler shadow_sampler,
+    VkImageView tex_img_view, VkImageView font_img_view,
+    VkImageView shadow_map_img_view, VkImageView shadow_cube_img_view
 ) const {
     NNGN_LOG_CONTEXT_CF(TextureDescriptorSets);
-    std::array<VkDescriptorImageInfo, 2> img_infos = {};
-    std::array<VkWriteDescriptorSet, 2> writes = {};
+    std::array<VkDescriptorImageInfo, 4> img_infos = {};
+    std::array<VkWriteDescriptorSet, 4> writes = {};
     std::uint32_t i = 0;
     const auto add_write = [&img_infos, &writes, &i](
-        auto id, auto img_view, auto sampler_
+        auto id, auto img_view, auto sampler_, bool depth
     ) {
         if(!img_view || !sampler_)
             return;
         img_infos[i] = {
             .sampler = sampler_,
             .imageView = img_view,
-            .imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+            .imageLayout = depth
+                ? VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL
+                : VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
         };
         writes[i] = {
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -547,8 +636,10 @@ void TextureDescriptorSets::write(
         };
         ++i;
     };
-    add_write(this->ids()[0], tex_img_view, sampler);
-    add_write(this->ids()[1], font_img_view, sampler);
+    add_write(this->ids()[0], tex_img_view, sampler, false);
+    add_write(this->ids()[1], font_img_view, sampler, false);
+    add_write(this->ids()[2], shadow_map_img_view, shadow_sampler, true);
+    add_write(this->ids()[3], shadow_cube_img_view, shadow_sampler, true);
     vkUpdateDescriptorSets(this->dev, i, writes.data(), 0, nullptr);
 }
 
@@ -562,6 +653,16 @@ bool LightingDescriptorSets::init(VkDevice dev_, VkDeviceSize min_ubo_align) {
             .descriptorCount = 1,
             .stageFlags =
                 VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+        }, {
+            .binding = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+        }, {
+            .binding = 2,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
         }}));
 }
 
@@ -578,16 +679,24 @@ u32 LightingDescriptorSets::offset_no_light(std::size_t n_frames) const {
 }
 
 void LightingDescriptorSets::write(
-    VkBuffer ubo, std::size_t n_frames, VkDeviceSize offset
+    VkBuffer ubo, std::size_t n_frames,
+    VkDeviceSize offset, VkSampler sampler,
+    std::span<const VkImageView> shadow_map_views,
+    std::span<const VkImageView> shadow_cube_views
 ) const {
     NNGN_LOG_CONTEXT_CF(LightingDescriptorSets);
+    assert(shadow_map_views.size() == n_frames);
+    assert(shadow_cube_views.size() == n_frames);
     const auto n = n_frames + 1;
     std::vector<VkDescriptorBufferInfo> buf_info = {};
+    std::vector<VkDescriptorImageInfo> map_info = {}, cube_info = {};
     std::vector<VkWriteDescriptorSet> writes = {};
     buf_info.reserve(n);
-    writes.reserve(n);
+    map_info.reserve(n);
+    cube_info.reserve(n);
+    writes.reserve(3 * n);
     VkDeviceSize off = offset, align = this->alignment();
-    for(std::size_t i = 0; i < n; ++i, off += align)
+    for(std::size_t i = 0; i < n; ++i, off += align) {
         writes.push_back({
             .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
             .dstSet = this->ids()[i],
@@ -600,6 +709,31 @@ void LightingDescriptorSets::write(
                 .range = sizeof(nngn::LightsUBO),
             }),
         });
+        writes.push_back({
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = this->ids()[i],
+            .dstBinding = 1,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &map_info.emplace_back(VkDescriptorImageInfo{
+                .sampler = sampler,
+                .imageView = shadow_map_views[i % n_frames],
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            }),
+        });
+        writes.push_back({
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = this->ids()[i],
+            .dstBinding = 2,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+            .pImageInfo = &cube_info.emplace_back(VkDescriptorImageInfo{
+                .sampler = sampler,
+                .imageView = shadow_cube_views[i % n_frames],
+                .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            }),
+        });
+    }
     vkUpdateDescriptorSets(
         this->dev, static_cast<u32>(writes.size()), writes.data(), 0, nullptr);
 }
@@ -637,6 +771,94 @@ void TexArray::destroy(VkDevice dev, nngn::DeviceMemory *dev_mem) {
     Image::destroy(dev, dev_mem);
 }
 
+bool ShadowMap::init(
+    VkDevice dev, nngn::DeviceMemory *dev_mem, VkCommandBuffer cmd,
+    std::size_t n_frames, u32 n, VkExtent3D extent
+) {
+    this->destroy(dev, dev_mem);
+    return this->init(
+        dev, dev_mem, cmd, n_frames, n, extent, {},
+        VK_IMAGE_VIEW_TYPE_2D_ARRAY);
+}
+
+bool ShadowMap::init(
+    VkDevice dev, nngn::DeviceMemory *dev_mem, VkCommandBuffer cmd,
+    std::size_t n_frames, u32 n, VkExtent3D extent,
+    VkImageCreateFlags flags, VkImageViewType view_type
+) {
+    const auto n_layers = static_cast<u32>(n_frames * n);
+    return TexArray::init(
+            dev, dev_mem, cmd, flags, DEPTH_FORMAT, extent, 1, n_layers,
+            VK_IMAGE_USAGE_TRANSFER_DST_BIT
+                | VK_IMAGE_USAGE_SAMPLED_BIT
+                | VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+            VK_IMAGE_ASPECT_DEPTH_BIT,
+            VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            view_type,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TRANSFER_BIT,
+            0, VK_ACCESS_TRANSFER_WRITE_BIT)
+        && this->init_layer_views(
+            dev, n_layers, 1, VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+            VK_IMAGE_ASPECT_DEPTH_BIT, &this->m_layer_views)
+        && this->init_layer_views(
+            dev, static_cast<u32>(n_frames), n, VK_IMAGE_VIEW_TYPE_2D_ARRAY,
+            VK_IMAGE_ASPECT_DEPTH_BIT, &this->m_frame_views);
+}
+
+bool ShadowMap::init_layer_views(
+    VkDevice dev, u32 n, u32 n_layers_per_view,
+    VkImageViewType type, VkImageAspectFlags aspects,
+    std::vector<VkImageView> *v
+) {
+    v->resize(n);
+    const auto s = std::span{*v};
+    for(u32 i = 0, l = 0; i < n; ++i, l += n_layers_per_view)
+        if(!this->create_view(
+                dev, type, DEPTH_FORMAT, aspects,
+                1, l, n_layers_per_view, &s[i]))
+            return false;
+    return true;
+}
+
+void ShadowMap::destroy(VkDevice dev, nngn::DeviceMemory *dev_mem) {
+    NNGN_LOG_CONTEXT_CF(ShadowMap);
+    TexArray::destroy(dev, dev_mem);
+    for(auto *const v : {&this->m_layer_views, &this->m_frame_views}) {
+        for(auto x : *v)
+            vkDestroyImageView(dev, x, nullptr);
+        v->clear();
+    }
+}
+
+bool ShadowCube::init(
+    VkDevice dev, nngn::DeviceMemory *dev_mem, VkCommandBuffer cmd,
+    std::size_t n_frames, u32 n, VkExtent3D extent
+) {
+    this->destroy(dev, dev_mem);
+    assert(!(n % 6));
+    const auto n_layers = static_cast<u32>(n_frames * n);
+    return ShadowMap::init(
+            dev, dev_mem, cmd, n_frames, n, extent,
+            VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
+            VK_IMAGE_VIEW_TYPE_CUBE_ARRAY)
+        && this->create_view(
+            dev, VK_IMAGE_VIEW_TYPE_2D_ARRAY, DEPTH_FORMAT,
+            VK_IMAGE_ASPECT_DEPTH_BIT, 1, 0, n_layers, &this->m_cube_2d_view)
+        && this->init_layer_views(
+            dev, static_cast<u32>(n_frames), n, VK_IMAGE_VIEW_TYPE_CUBE_ARRAY,
+            VK_IMAGE_ASPECT_DEPTH_BIT, &this->m_frame_views);
+}
+
+void ShadowCube::destroy(VkDevice dev, nngn::DeviceMemory *dev_mem) {
+    NNGN_LOG_CONTEXT_CF(ShadowCube);
+    ShadowMap::destroy(dev, dev_mem);
+    for(auto x : this->m_frame_views)
+        vkDestroyImageView(dev, x, nullptr);
+    this->m_frame_views.clear();
+    vkDestroyImageView(dev, std::exchange(this->m_cube_2d_view, {}), nullptr);
+}
+
 RenderList::Stage::Stage(const nngn::Graphics::RenderList::Stage &s) :
     conf{s.pipeline}
 {
@@ -659,9 +881,12 @@ VulkanBackend::~VulkanBackend() {
         vkDestroyPipeline(this->dev.id(), x, nullptr);
     vkDestroyPipelineLayout(this->dev.id(), this->pipeline_layout, nullptr);
     vkDestroyPipelineCache(this->dev.id(), this->pipeline_cache, nullptr);
-    vkDestroyRenderPass(this->dev.id(), this->render_pass, nullptr);
-    vkDestroySampler(
-        this->dev.id(), std::exchange(this->sampler, {}), nullptr);
+    for(auto x : {this->depth_pass, this->render_pass})
+        vkDestroyRenderPass(this->dev.id(), x, nullptr);
+    for(auto *const x : {&this->sampler, &this->shadow_sampler})
+        vkDestroySampler(this->dev.id(), std::exchange(*x, {}), nullptr);
+    this->shadow_cube.destroy(this->dev.id(), &this->dev_mem);
+    this->shadow_map.destroy(this->dev.id(), &this->dev_mem);
     this->font_tex.destroy(this->dev.id(), &this->dev_mem);
     this->tex.destroy(this->dev.id(), &this->dev_mem);
     this->ubo.destroy(this->dev.id(), &this->dev_mem);
@@ -813,6 +1038,16 @@ void VulkanBackend::resize(int, int) {
 std::tuple<VkPhysicalDevice, u32, u32> VulkanBackend::choose_device(
     std::size_t i
 ) const {
+    constexpr auto check_features = [](auto d) {
+        VkPhysicalDeviceFeatures f = {};
+        vkGetPhysicalDeviceFeatures(d, &f);
+        if(!f.imageCubeArray) {
+            nngn::Log::l()
+                << "device doesn't support VK_IMAGE_VIEW_TYPE_CUBE_ARRAY\n";
+            return false;
+        }
+        return true;
+    };
     auto &v = this->instance_info.physical_devs;
     std::span<const VkPhysicalDevice> devs = {v};
     const auto sel = i != SIZE_MAX;
@@ -826,6 +1061,8 @@ std::tuple<VkPhysicalDevice, u32, u32> VulkanBackend::choose_device(
         if(!check_support(
                 DEVICE_EXTENSIONS, this->m_device_infos[i].extensions,
                 "device extensions"))
+            continue;
+        if(!check_features(x))
             continue;
         bool found = {};
         u32 graphics_family = {}, present_family = {};
@@ -859,9 +1096,11 @@ bool VulkanBackend::init_device(std::size_t i) {
             ret = {};
         return ret;
     }();
+    VkPhysicalDeviceFeatures features = {};
+    features.imageCubeArray = VK_TRUE;
     bool ok = this->dev.init(
             this->instance, physical_dev, graphics_family, present_family,
-            DEVICE_EXTENSIONS, layers, VkPhysicalDeviceFeatures{})
+            DEVICE_EXTENSIONS, layers, features)
         && this->dev_mem.init(
             this->instance.id(), this->dev.physical_dev(), this->dev.id());
     if(!ok)
@@ -883,6 +1122,12 @@ bool VulkanBackend::init_device(std::size_t i) {
             VK_SAMPLER_MIPMAP_MODE_NEAREST, Graphics::TEXTURE_MIP_LEVELS))
         && this->instance.set_obj_name(
             this->dev.id(), this->sampler, "sampler"sv)
+        && (this->shadow_sampler = this->dev.create_sampler(
+            VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
+            VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE,
+            VK_SAMPLER_MIPMAP_MODE_NEAREST, 1))
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_sampler, "shadow_sampler"sv)
         && this->shaders.init(
             this->instance, PipelineConfiguration::Type::TRIANGLE,
             "src/glsl/vk/triangle.vert.spv"sv,
@@ -907,7 +1152,18 @@ bool VulkanBackend::init_device(std::size_t i) {
             "src/glsl/vk/font.frag.spv"sv,
             nngn::GLSL_VK_FONT_VERT,
             nngn::GLSL_VK_FONT_FRAG)
-        && this->create_render_pass(surface_format.format);
+        && this->shaders.init(
+            this->instance, PipelineConfiguration::Type::TRIANGLE_DEPTH,
+            "src/glsl/vk/triangle_depth.vert.spv"sv,
+            nngn::GLSL_VK_TRIANGLE_DEPTH_VERT)
+        && this->shaders.init(
+            this->instance, PipelineConfiguration::Type::SPRITE_DEPTH,
+            "src/glsl/vk/sprite_depth.vert.spv"sv,
+            "src/glsl/vk/sprite_depth.frag.spv"sv,
+            nngn::GLSL_VK_SPRITE_DEPTH_VERT,
+            nngn::GLSL_VK_SPRITE_DEPTH_FRAG)
+        && this->create_render_pass(surface_format.format)
+        && this->create_depth_pass();
     if(!ok)
         return false;
     const auto descriptor_layouts = std::to_array<VkDescriptorSetLayout>({
@@ -941,6 +1197,61 @@ bool VulkanBackend::init_device(std::size_t i) {
     if(!this->params.flags.is_set(Parameters::Flag::HIDDEN))
         glfwShowWindow(this->w);
     return true;
+}
+
+bool VulkanBackend::create_depth_pass() {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    constexpr VkAttachmentDescription attachment = {
+        .format = DEPTH_FORMAT,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+    };
+    constexpr VkAttachmentReference depth_ref = {
+        .attachment = 0,
+        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    };
+    const VkSubpassDescription subpass = {
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .pDepthStencilAttachment = &depth_ref,
+    };
+    constexpr auto stages =
+        VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT
+        | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+    constexpr auto dependencies = std::to_array<VkSubpassDependency>({{
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        .dstStageMask = stages,
+        .srcAccessMask = VK_ACCESS_SHADER_READ_BIT,
+        .dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+    }, {
+        .srcSubpass = 0,
+        .dstSubpass = VK_SUBPASS_EXTERNAL,
+        .srcStageMask = stages,
+        .dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        .srcAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+        .dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT,
+    }});
+    return LOG_RESULT(vkCreateRenderPass,
+            this->dev.id(),
+            nngn::rptr(nngn::vk_create_info<VkRenderPass>({
+                .attachmentCount = 1,
+                .pAttachments = &attachment,
+                .subpassCount = 1,
+                .pSubpasses = &subpass,
+                .dependencyCount = dependencies.size(),
+                .pDependencies = dependencies.data(),
+            })),
+            nullptr, &this->depth_pass)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->depth_pass, "depth_pass"sv);
 }
 
 bool VulkanBackend::create_render_pass(VkFormat format) {
@@ -1020,8 +1331,11 @@ bool VulkanBackend::recreate_swapchain() {
         std::min(
             info.min_images + 1,
             info.max_images ? info.max_images : UINT32_MAX),
-        this->render_pass,
-        nngn::vk_vec_to_extent(info.cur_extent), info.cur_transform);
+        this->depth_pass, this->render_pass,
+        nngn::vk_vec_to_extent(info.cur_extent), info.cur_transform,
+        {this->shadow_map.size(), this->shadow_map.size()},
+        {this->shadow_cube.size(), this->shadow_cube.size()},
+        this->shadow_map.layer_views(), this->shadow_cube.layer_views());
 }
 
 bool VulkanBackend::update_render_list() {
@@ -1063,12 +1377,18 @@ bool VulkanBackend::update_render_list() {
         .inputRate = VK_VERTEX_INPUT_RATE_VERTEX}});
     const auto vertex_vattrs =
         nngn::vk_vertex_attrs<V, &V::pos, &V::norm, &V::color>();
-    const auto vertex_vinput = nngn::vk_vertex_input(bindings, vertex_vattrs);
+    const auto no_norm_vattrs = nngn::vk_vertex_attrs<V, &V::pos, &V::color>();
+    const auto pos_vattrs = nngn::vk_vertex_attrs<V, &V::pos>();
+    const auto
+        vertex_vinput = nngn::vk_vertex_input(bindings, vertex_vattrs),
+        no_norm_vinput = nngn::vk_vertex_input(bindings, no_norm_vattrs),
+        pos_vinput = nngn::vk_vertex_input(bindings, pos_vattrs);
     constexpr auto
         rast_back_cull = raster_info(VK_CULL_MODE_BACK_BIT),
         rast_no_cull = raster_info(VK_CULL_MODE_NONE);
     constexpr auto
         depth_test = depth_info(true, true),
+        depth_write = depth_info(false, true),
         no_depth = depth_info(false, false);
     constexpr VkPipelineInputAssemblyStateCreateInfo triangle_asm = {
         .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
@@ -1122,18 +1442,17 @@ bool VulkanBackend::update_render_list() {
     VkGraphicsPipelineCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
         .pStages = shader_stages.data(),
-        .pVertexInputState = &vertex_vinput,
         .pViewportState = &viewport_info,
         .pMultisampleState = &ms_info,
         .pColorBlendState = &color_blending_info,
         .pDynamicState = &dyn_state,
         .layout = this->pipeline_layout,
-        .renderPass = this->render_pass,
         .subpass = 0,
         .basePipelineIndex = -1,
     };
     this->pipelines.resize(this->pipeline_conf.size() - 1);
     for(std::size_t i = 1, n = this->pipeline_conf.size(); i < n; ++i) {
+        using Type = PipelineConfiguration::Type;
         using PFlag = PipelineConfiguration::Flag;
         auto &pipeline = this->pipelines[i - 1];
         if(pipeline)
@@ -1142,13 +1461,23 @@ bool VulkanBackend::update_render_list() {
         const auto [vert, frag] = this->shaders.idx(conf.type);
         info.pInputAssemblyState = conf.flags & PFlag::LINE
             ? &line_asm : &triangle_asm;
+        info.pVertexInputState =
+            conf.type == Type::TRIANGLE_DEPTH ? &pos_vinput
+            : conf.type == Type::SPRITE_DEPTH ? &no_norm_vinput
+            : &vertex_vinput;
         info.stageCount = 1 + !!frag;
         info.pRasterizationState = conf.flags & PFlag::CULL_BACK_FACES
             ? &rast_back_cull : &rast_no_cull;
-        info.pDepthStencilState = conf.flags & PFlag::DEPTH_TEST
-            ? &depth_test : &no_depth;
+        info.pDepthStencilState =
+            conf.flags & PFlag::DEPTH_TEST ? &depth_test
+            : conf.flags & PFlag::DEPTH_WRITE ? &depth_write
+            : &no_depth;
         shader_stages[0].module = vert;
         shader_stages[1].module = frag;
+        if(conf.type == Type::TRIANGLE_DEPTH || conf.type == Type::SPRITE_DEPTH)
+            info.renderPass = this->depth_pass;
+        else
+            info.renderPass = this->render_pass;
         const bool ok = LOG_RESULT(vkCreateGraphicsPipelines,
                 this->dev.id(), this->pipeline_cache,
                 1, &info, nullptr, &pipeline)
@@ -1157,8 +1486,10 @@ bool VulkanBackend::update_render_list() {
             return false;
     }
     for(auto *l : {
+        &this->render_list.depth_dir, &this->render_list.depth_point,
         &this->render_list.normal, &this->render_list.overlay,
         &this->render_list.hud,
+        &this->render_list.shadow_maps, &this->render_list.shadow_cubes,
     })
         for(auto &x : *l)
             x.pipeline = pipelines[x.conf - 1];
@@ -1194,6 +1525,16 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
         vkCmdPushConstants(
             b, l, VK_SHADER_STAGE_FRAGMENT_BIT, 0, sizeof(a), &a);
     };
+    const auto depth_fb_idx = [this, i](std::size_t li, bool point) {
+        constexpr auto max = NNGN_MAX_LIGHTS;
+        if(!point)
+            return max * i + li;
+        switch(li % 6) {
+        case 2: ++li; break;
+        case 3: --li; break;
+        }
+        return max * (6 * i + this->n_frames) + li;
+    };
     const auto render = [this, i](
         auto b, const char *name,
         const VkViewport &viewport, VkRect2D scissors,
@@ -1216,6 +1557,48 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
                     b, static_cast<u32>(esize / sizeof(u32)), 1, 0, 0, 0);
             }
         }
+    };
+    const auto record_depth_pass = [
+        this, bind_descriptors, depth_fb_idx, render, i
+    ](auto b, auto li, bool point) {
+        NNGN_LOG_CONTEXT(point ? "depth_point_pass" : "depth_pass");
+        constexpr auto max = NNGN_MAX_LIGHTS;
+        const auto extent = point
+            ? VkExtent2D{this->shadow_cube.size(), this->shadow_cube.size()}
+            : VkExtent2D{this->shadow_map.size(), this->shadow_map.size()};
+        vkCmdBeginRenderPass(
+            b, nngn::rptr(VkRenderPassBeginInfo{
+                .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+                .renderPass = this->depth_pass,
+                .framebuffer = this->swap_chain.depth_frame_buffers()[
+                    depth_fb_idx(li, point)],
+                .renderArea = {.extent = extent},
+                .clearValueCount = 1,
+                .pClearValues =
+                    nngn::rptr(VkClearValue{.depthStencil = {1, 0}}),
+            }),
+            VK_SUBPASS_CONTENTS_INLINE);
+        const auto &camera_desc = this->camera_descriptor_sets;
+        bind_descriptors(
+            b, this->pipeline_layout, "depth", 0,
+            std::array{
+                this->lighting_descriptor_sets.ids()[0],
+                this->camera_descriptor_sets.ids()[0],
+                this->texture_descriptor_sets.ids()[0]},
+            std::array{camera_desc.offset_light(i, point ? max + li : li)});
+        const VkViewport viewport = {
+            .width = static_cast<float>(extent.width),
+            .height = static_cast<float>(extent.height),
+            .minDepth = 0,
+            .maxDepth = 1,
+        };
+        const VkRect2D scissors = {{}, {extent.width, extent.height}};
+        render(
+            b, point ? "depth_point" : "depth_dir", viewport, scissors,
+            point
+                ? this->render_list.depth_point
+                : this->render_list.depth_dir);
+        vkCmdEndRenderPass(b);
     };
     const auto record_render_pass = [
         this, bind_descriptors, push_alpha, render, i, img_idx
@@ -1264,12 +1647,79 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
             std::array{camera_desc.ids()[0], tex_desc.ids()[1]},
             std::array{camera_desc.offset_hud(i)});
         render(b, "hud", viewport, scissors, this->render_list.hud);
+        bind_descriptors(
+            b, this->pipeline_layout, "shadow_maps",
+            2, std::array{tex_desc.ids()[2]}, {});
+        render(
+            b, "shadow_maps", viewport, scissors,
+            this->render_list.shadow_maps);
+        bind_descriptors(
+            b, this->pipeline_layout, "shadow_cubes", 2,
+            std::array{tex_desc.ids()[3]}, {});
+        render(
+            b, "shadow_cubes", viewport, scissors,
+            this->render_list.shadow_cubes);
         vkCmdEndRenderPass(b);
     };
     const auto extent = nngn::vk_vec_to_extent(this->m_surface_info.cur_extent);
     const auto b = this->cmd_pools[i].buffers()[0];
+    const auto &lights = *this->lighting.ubo;
+    if(lights.flags & nngn::LightsUBO::SHADOWS_ENABLED) {
+        for(std::size_t l = 0, nl = lights.n_dir; l < nl; ++l)
+            record_depth_pass(b, l, false);
+        for(std::size_t l = 0, nl = 6_z * lights.n_point; l < nl; ++l)
+            record_depth_pass(b, l, true);
+    }
     record_render_pass(b, extent);
     return LOG_RESULT(vkEndCommandBuffer, b);
+}
+
+bool VulkanBackend::set_shadow_map_size(std::uint32_t s) {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    this->shadow_map.destroy(this->dev.id(), &this->dev_mem);
+    this->shadow_map.set_size(s);
+    return this->shadow_map.init(
+            this->dev.id(), &this->dev_mem, this->cur_cmd_buffer(),
+            this->n_frames, NNGN_MAX_LIGHTS, {s, s, 1})
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_map.id(), "shadow_map"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_map.mem(), "shadow_map_mem"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_map.view(), "shadow_map_view"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_map.layer_views(),
+            "shadow_map_layer_view"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_map.frame_views(),
+            "shadow_map_frame_views"sv)
+        && this->flags.set(Flag::RECREATE_SWAPCHAIN);
+}
+
+bool VulkanBackend::set_shadow_cube_size(std::uint32_t s) {
+    NNGN_LOG_CONTEXT_CF(VulkanBackend);
+    constexpr auto n = 6 * NNGN_MAX_LIGHTS;
+    this->shadow_cube.destroy(this->dev.id(), &this->dev_mem);
+    this->shadow_cube.set_size(s);
+    return this->shadow_cube.init(
+            this->dev.id(), &this->dev_mem, this->cur_cmd_buffer(),
+            this->n_frames, n, {s, s, 1})
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_cube.id(), "shadow_cube"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_cube.mem(), "shadow_cube_mem"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_cube.view(), "shadow_cube_view"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_cube.layer_views(),
+            "shadow_cube_layer_view"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_cube.cube_2d_view(),
+            "shadow_cube_cube_2d_view"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->shadow_cube.frame_views(),
+            "shadow_cube_frame_views"sv)
+        && this->flags.set(Flag::RECREATE_SWAPCHAIN);
 }
 
 void VulkanBackend::copy_buffer(
@@ -1303,9 +1753,13 @@ bool VulkanBackend::set_render_list(const RenderList &l) {
         for(const auto &s : src)
             dst->emplace_back(s);
     };
+    f(&this->render_list.depth_dir, l.depth);
+    f(&this->render_list.depth_point, l.depth);
     f(&this->render_list.normal, l.normal);
     f(&this->render_list.overlay, l.overlay);
     f(&this->render_list.hud, l.hud);
+    f(&this->render_list.shadow_maps, l.shadow_maps);
+    f(&this->render_list.shadow_cubes, l.shadow_cubes);
     return this->update_render_list();
 }
 
@@ -1393,9 +1847,10 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
         | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     const u32
         n_camera_desc = 1,
-        n_tex_desc = 2,
+        n_tex_desc = 4,
         n_light_desc = 1 + static_cast<u32>(n_frames),
-        n_desc = n_camera_desc + n_tex_desc + n_light_desc;
+        n_light_tex_desc = 2 * static_cast<u32>(n_frames + 1),
+        n_desc = n_camera_desc + n_tex_desc + n_light_tex_desc + n_light_desc;
     const VkDeviceSize
         ubo_camera_size = this->camera_descriptor_sets.size(this->n_frames),
         ubo_size = ubo_camera_size
@@ -1417,7 +1872,7 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
                 .descriptorCount = n_camera_desc,
             }, {
                 .type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-                .descriptorCount = n_tex_desc,
+                .descriptorCount = n_tex_desc + n_light_tex_desc,
             }}))
         && this->instance.set_obj_name(
             this->dev.id(), this->descriptor_pool.id(), "descriptor_pool"sv)
@@ -1439,6 +1894,12 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
         && this->instance.set_obj_name(
             this->dev.id(), this->texture_descriptor_sets.ids()[1],
             "font_texture_descriptor_set"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->texture_descriptor_sets.ids()[2],
+            "shadow_map_texture_descriptor_set"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->texture_descriptor_sets.ids()[3],
+            "shadow_cube_texture_descriptor_set"sv)
         && this->lighting_descriptor_sets.reset(
             this->descriptor_pool.id(), n_light_desc)
         && this->instance.set_obj_name(
@@ -1447,14 +1908,21 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
         && this->instance.set_obj_name(
             this->dev.id(),
             this->lighting_descriptor_sets.ids(),
-            "lighting_descriptor_set"sv);
+            "lighting_descriptor_set"sv)
+        && this->set_shadow_map_size(this->shadow_map.size())
+        && this->set_shadow_cube_size(this->shadow_cube.size());
     if(!ok)
         return false;
     this->camera_descriptor_sets.write(this->ubo.id(), 0);
     this->texture_descriptor_sets.write(
-        this->sampler, this->tex.view(), this->font_tex.view());
+        this->sampler, this->shadow_sampler,
+        this->tex.view(), this->font_tex.view(),
+        this->shadow_map.view(), this->shadow_cube.cube_2d_view());
     this->lighting_descriptor_sets.write(
-        this->ubo.id(), this->n_frames, ubo_camera_size);
+        this->ubo.id(), this->n_frames,
+        ubo_camera_size, this->shadow_sampler,
+        this->shadow_map.frame_views(),
+        this->shadow_cube.frame_views());
     this->ubo.memcpy(
         this->dev.id(),
         ubo_camera_size + static_cast<VkDeviceSize>(
@@ -1495,7 +1963,9 @@ bool VulkanBackend::resize_textures(std::uint32_t s) {
     if(!ok)
         return false;
     this->texture_descriptor_sets.write(
-        this->sampler, this->tex.view(), this->font_tex.view());
+        this->sampler, this->shadow_sampler,
+        this->tex.view(), this->font_tex.view(),
+        this->shadow_map.view(), this->shadow_cube.cube_2d_view());
     return true;
 }
 
@@ -1556,7 +2026,9 @@ bool VulkanBackend::resize_font(std::uint32_t s) {
     if(!ok)
         return false;
     this->texture_descriptor_sets.write(
-        this->sampler, this->tex.view(), this->font_tex.view());
+        this->sampler, this->shadow_sampler,
+        this->tex.view(), this->font_tex.view(),
+        this->shadow_map.view(), this->shadow_cube.cube_2d_view());
     this->font_size = s;
     return true;
 }
@@ -1645,7 +2117,27 @@ bool VulkanBackend::render() {
         if(!this->lighting_descriptor_sets.updated()[this->cur_frame])
             return;
         this->lighting_descriptor_sets.updated().reset(this->cur_frame);
+        constexpr auto max_lights = NNGN_MAX_LIGHTS;
         const auto &src = *this->lighting.ubo;
+        const auto align = this->camera_descriptor_sets.alignment();
+        VkDeviceSize off =
+            this->camera_descriptor_sets.offset_light(this->cur_frame, 0);
+        nngn::CameraUBO c = {.view = nngn::mat4{1}};
+        auto proj = CLIP_PROJ * *this->lighting.dir_proj;
+        const auto *dir_views = this->lighting.dir_views;
+        for(std::size_t i = 0; i < src.n_dir; ++i, off += align) {
+            c.proj = proj * *dir_views++;
+            this->ubo.memcpy(this->dev.id(), off, nngn::as_byte_span(&c));
+        }
+        off = this->camera_descriptor_sets.offset_light(
+            this->cur_frame, max_lights);
+        proj = CLIP_PROJ * *this->lighting.point_proj;
+        const auto *point_views = this->lighting.point_views;
+        for(std::size_t i = 0; i < src.n_point; ++i)
+            for(std::size_t f = 0; f < 6; ++f, off += align) {
+                c.proj = proj * *point_views++;
+                this->ubo.memcpy(this->dev.id(), off, nngn::as_byte_span(&c));
+            }
         this->ubo.memcpy(
             this->dev.id(),
             this->camera_descriptor_sets.size(this->n_frames)

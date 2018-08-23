@@ -215,7 +215,9 @@ bool Renderers::set_graphics(Graphics *g) {
         TEXTBOX_MAX = 1,
         SELECTION_MAX = 1024,
         LIGHTS_MAX = 2 * NNGN_MAX_LIGHTS,
-        RANGE_MAX = NNGN_MAX_LIGHTS;
+        RANGE_MAX = NNGN_MAX_LIGHTS,
+        DEPTH_MAX = NNGN_MAX_LIGHTS,
+        DEPTH_CUBE_MAX = 6 * NNGN_MAX_LIGHTS;
     using Pipeline = Graphics::PipelineConfiguration;
     using Stage = Graphics::RenderList::Stage;
     using BufferPair = std::pair<u32, u32>;
@@ -226,22 +228,29 @@ bool Renderers::set_graphics(Graphics *g) {
         triangle_pipeline = {}, sprite_pipeline = {}, voxel_pipeline = {},
         box_pipeline = {}, font_pipeline = {}, line_pipeline = {},
         circle_pipeline = {},
+        triangle_depth_pipeline = {}, sprite_depth_pipeline = {},
         triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
             .type = Pipeline::Type::TRIANGLE,
-            .flags = Pipeline::Flag::DEPTH_TEST,
+            .flags = static_cast<Pipeline::Flag>(
+                Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::DEPTH_WRITE
+                | Pipeline::Flag::CULL_BACK_FACES),
         }))
         && (sprite_pipeline = g->create_pipeline({
             .name = "sprite_pipeline",
             .type = Pipeline::Type::SPRITE,
-            .flags = Pipeline::Flag::DEPTH_TEST,
+            .flags = static_cast<Pipeline::Flag>(
+                Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::DEPTH_WRITE),
         }))
         && (voxel_pipeline = g->create_pipeline({
             .name = "voxel_pipeline",
             .type = Pipeline::Type::VOXEL,
             .flags = static_cast<Pipeline::Flag>(
                 Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::DEPTH_WRITE
                 | Pipeline::Flag::CULL_BACK_FACES),
         }))
         && (box_pipeline = g->create_pipeline({
@@ -260,6 +269,21 @@ bool Renderers::set_graphics(Graphics *g) {
         && (circle_pipeline = g->create_pipeline({
             .name = "circle_pipeline",
             .type = Pipeline::Type::SPRITE,
+        }))
+        && (triangle_depth_pipeline = g->create_pipeline({
+            .name = "triangle_depth_pipeline",
+            .type = Pipeline::Type::TRIANGLE_DEPTH,
+            .flags = static_cast<Pipeline::Flag>(
+                Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::DEPTH_WRITE
+                | Pipeline::Flag::CULL_BACK_FACES),
+        }))
+        && (sprite_depth_pipeline = g->create_pipeline({
+            .name = "sprite_depth_pipeline",
+            .type = Pipeline::Type::SPRITE_DEPTH,
+            .flags = static_cast<Pipeline::Flag>(
+                Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::DEPTH_WRITE),
         }))
         && (triangle_vbo = g->create_buffer({
             .name = "triangle_vbo",
@@ -407,6 +431,26 @@ bool Renderers::set_graphics(Graphics *g) {
             .type = index,
             .size = 36_z * RANGE_MAX * sizeof(u32),
         }))
+        && (this->depth_vbo = g->create_buffer({
+            .name = "depth_vbo",
+            .type = vertex,
+            .size = 4_z * DEPTH_MAX * sizeof(Vertex),
+        }))
+        && (this->depth_ebo = g->create_buffer({
+            .name = "depth_ebo",
+            .type = index,
+            .size = 6_z * DEPTH_MAX * sizeof(u32),
+        }))
+        && (this->depth_cube_vbo = g->create_buffer({
+            .name = "depth_cube_vbo",
+            .type = vertex,
+            .size = 4_z * DEPTH_CUBE_MAX * sizeof(Vertex),
+        }))
+        && (this->depth_cube_ebo = g->create_buffer({
+            .name = "depth_cube_ebo",
+            .type = index,
+            .size = 6_z * DEPTH_CUBE_MAX * sizeof(u32),
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -422,6 +466,18 @@ bool Renderers::set_graphics(Graphics *g) {
                 memcpy(p, std::span{v});
             })
         && g->set_render_list(Graphics::RenderList{
+            .depth = std::to_array<Stage>({{
+                .pipeline = sprite_depth_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->sprite_vbo, this->sprite_ebo},
+                }),
+            }, {
+                .pipeline = triangle_depth_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->voxel_vbo, this->voxel_ebo},
+                    {this->cube_vbo, this->cube_ebo},
+                }),
+            }}),
             .normal = std::to_array<Stage>({{
                 .pipeline = voxel_pipeline,
                 .buffers = std::to_array<BufferPair>({
@@ -473,6 +529,18 @@ bool Renderers::set_graphics(Graphics *g) {
                 .pipeline = font_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->text_vbo, this->text_ebo},
+                }),
+            }}),
+            .shadow_maps = std::to_array<Stage>({{
+                .pipeline = circle_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->depth_vbo, this->depth_ebo},
+                }),
+            }}),
+            .shadow_cubes = std::to_array<Stage>({{
+                .pipeline = circle_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->depth_cube_vbo, this->depth_cube_ebo},
                 }),
             }}),
         });
@@ -821,7 +889,7 @@ bool Renderers::update_debug(
             return this->graphics->set_buffer_size(ebo, 0);
         const auto gen = [this, vbo, ebo](
             u64 *voff, u64 *eoff, u64 *ei,
-            std::span<const Light> s, auto f
+            std::span<const Light> s, float shadow_map_far, auto f
         ) {
             constexpr auto vsize = 6_z * 4_z * sizeof(Vertex);
             constexpr auto esize = 6_z * 6_z * sizeof(u32);
@@ -830,23 +898,34 @@ bool Renderers::update_debug(
             const auto cur_ei = std::exchange(*ei, *ei + s.size());
             return write_to_buffer<decltype(f){}, nngn::Vertex>(
                     this->graphics, vbo, vo, s.size(), vsize,
-                    rptr(std::tuple{s.data()}))
+                    rptr(std::tuple{s.data(), shadow_map_far}))
                 && write_to_buffer<update_quad_indices_base<6 * 6>, u32>(
                     this->graphics, ebo, eo, s.size(), esize,
                     rptr(std::tuple{cur_ei}));
         };
-        constexpr auto vgen = [](
+        constexpr auto vgen_dir = [](
             const auto *data, nngn::Vertex *p, u64 i, u64 nw
         ) {
-            auto [lights] = *data;
+            auto [lights, shadow_map_far] = *data;
+            for(nw += i; i < nw; ++i) {
+                const auto &x = lights[i];
+                Gen::light(&p, x, x.ortho_view_pos(shadow_map_far));
+            }
+        };
+        constexpr auto vgen_point = [](
+            const auto *data, nngn::Vertex *p, u64 i, u64 nw
+        ) {
+            auto [lights, _] = *data;
             for(nw += i; i < nw; ++i) {
                 const auto &x = lights[i];
                 Gen::light(&p, x, x.pos);
             }
         };
         u64 voff = {}, eoff = {}, ei = {};
-        return gen(&voff, &eoff, &ei, dir, vgen)
-            && gen(&voff, &eoff, &ei, point, vgen)
+        return gen(
+                &voff, &eoff, &ei, dir, this->lighting->shadow_map_far(),
+                vgen_dir)
+            && gen(&voff, &eoff, &ei, point, {}, vgen_point)
             && this->graphics->set_buffer_size(vbo, voff)
             && this->graphics->set_buffer_size(ebo, eoff);
     };
@@ -864,6 +943,57 @@ bool Renderers::update_debug(
         return update_span<gen, update_quad_indices<6 * 6>>(
             this->graphics, v, vbo, ebo, 6_z * 4_z, 6_z * 6_z);
     };
+    const auto update_shadow_maps = [this] {
+        const auto gen = [this](
+            const auto *name, auto vbo, auto ebo, auto n,
+            uvec2 offset, uvec2 size
+        ) {
+            NNGN_LOG_CONTEXT(name);
+            if(!(this->m_debug.is_set(Debug::DEBUG_DEPTH) && n))
+                return this->graphics->set_buffer_size(ebo, 0);
+            using data = std::tuple<uvec2, uvec2>;
+            constexpr auto vgen = [](
+                void *d, void *vp, u64 y, u64 nw
+            ) {
+                constexpr vec2 ext(128), pad(ext / 8.0f), comb = ext + pad;
+                auto *p = static_cast<Vertex*>(vp);
+                auto [off, size_] = *static_cast<data*>(d);
+                const auto off_f = static_cast<vec2>(off);
+                const auto base_pos = pad
+                    + comb * off_f.xy()
+                    + comb.y * static_cast<float>(y);
+                auto pos = base_pos;
+                auto tex = static_cast<u32>(y * size_.x);
+                for(const auto e = y + nw; y < e; ++y, pos += comb.y)
+                    for(std::size_t x = 0; x < size_.x; ++x, ++tex) {
+                        pos.x = base_pos.x + static_cast<float>(x) * comb.x;
+                        Gen::quad_vertices(&p,
+                            pos, pos + ext, 0, {0, 0, 1},
+                            tex, {0, 1}, {1, 0});
+                    }
+            };
+            const auto p = Math::product(size);
+            return this->graphics->write_to_buffer(
+                    vbo, 0, size.y, 4_z * size.x * sizeof(Vertex),
+                    rptr(data{offset, size}), vgen)
+                && this->graphics->write_to_buffer(
+                    ebo, 0, p, 6_z * sizeof(u32), {}, update_quad_indices<6>)
+                && this->graphics->set_buffer_size(
+                    vbo, p * 4_z * sizeof(Vertex))
+                && this->graphics->set_buffer_size(
+                    ebo, p * 6_z * sizeof(u32));
+        };
+        const auto n_dir = static_cast<unsigned>(
+            this->lighting->dir_lights().size());
+        const auto n_point = static_cast<unsigned>(
+            this->lighting->point_lights().size());
+        return gen(
+                "shadow_maps", this->depth_vbo, this->depth_ebo,
+                n_dir, {}, {n_dir, 1})
+            && gen(
+                "shadow cubes", this->depth_cube_vbo, this->depth_cube_ebo,
+                n_point, {0, 1}, {6, n_point});
+    };
     const auto update = [
         this,
         enabled = this->m_debug.is_set(Debug::DEBUG_RENDERERS),
@@ -878,7 +1008,8 @@ bool Renderers::update_debug(
         && update_aabbs() && update_aabb_circles()
         && update_bbs() && update_bb_circles()
         && update_coll_spheres()
-        && update_lights() && update_light_ranges();
+        && update_lights() && update_light_ranges()
+        && update_shadow_maps();
 }
 
 }

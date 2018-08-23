@@ -147,6 +147,7 @@ local FS = {
         bool("lighting", false, "nngn.lighting:set_enabled(%1)"),
         bool("lighting Z sprites", false, "nngn.lighting:set_zsprites(%1)"),
         bool("update sun", true, "nngn.lighting:set_update_sun(%1)"),
+        bool("shadows", false, "nngn.lighting:set_shadows_enabled(%1)"),
         float(
             "ambient light", 0, 100, 100, 100,
             "nngn.lighting:set_ambient_light(1, 1, 1, %1)"),
@@ -169,6 +170,21 @@ local FS = {
             "swap_interval", 0, 32, 1,
             "nngn.graphics:set_swap_interval(%1)"),
         int("swap chain length", 1, 16, 4, "nngn.graphics:set_n_frames(%1)"),
+        int(
+            "shadow map size", 1, 4096, 1024,
+            "nngn.graphics:set_shadow_map_size(%1, %1)"),
+        int(
+            "shadow cube size", 1, 4096, 512,
+            "nngn.graphics:set_shadow_cube_size(%1, %1)"),
+        float(
+            "shadow map near", 0, 4096000, 1000, 1000,
+            "nngn.lighting:set_shadow_map_near(%1, %1)"),
+        float(
+            "shadow map far", 0, 4096000, 1024000, 1000,
+            "nngn.lighting:set_shadow_map_far(%1, %1)"),
+        float(
+            "shadow map proj. size", 0, 4096000, 128000, 1000,
+            "nngn.lighting:set_shadow_map_proj_size(%1, %1)"),
     },
 }
 
