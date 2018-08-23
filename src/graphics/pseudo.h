@@ -51,6 +51,8 @@ struct Pseudograph : Graphics {
     void set_lighting(const Lighting&) override {}
     void set_camera_updated() override {}
     void set_lighting_updated() override {}
+    bool set_shadow_map_size(uint32_t) override { return true; }
+    bool set_shadow_cube_size(uint32_t) override { return true; }
     u32 create_pipeline(const PipelineConfiguration&) override { return 1; }
     u32 create_buffer(const BufferConfiguration&) override { return 1; }
     bool set_buffer_capacity(u32, u64) override { return true; }

@@ -304,6 +304,8 @@ void register_graphics(nngn::lua::table_view t) {
     t["set_n_swap_chain_images"] = set_n_swap_chain_images;
     t["set_swap_interval"] = &Graphics::set_swap_interval;
     t["set_cursor_mode"] = &Graphics::set_cursor_mode;
+    t["set_shadow_map_size"] = &Graphics::set_shadow_map_size;
+    t["set_shadow_cube_size"] = &Graphics::set_shadow_cube_size;
     t["resize_textures"] = &Graphics::resize_textures;
 }
 

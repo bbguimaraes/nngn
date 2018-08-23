@@ -63,6 +63,7 @@
  * nngn.graphics:set_cursor_mode(Graphics.CURSOR_MODE_DISABLED)
  * -- Set resource limits.
  * nngn.graphics:resize_textures(8)
+ * nngn.graphics:set_shadow_map_size(512, 512)
  * -- Control v-sync.
  * nngn.graphics:set_swap_interval(0)
  * ```
@@ -96,13 +97,19 @@ namespace nngn {
 
 struct CameraUBO { mat4 proj, view; };
 struct LightsUBO {
-    vec3 view_pos = {};
+    enum Flag : u32 {
+        SHADOWS_ENABLED = NNGN_SHADOWS_ENABLED_BIT,
+    };
+    u32 flags = 0;
+    float depth_transform0 = {}, depth_transform1 = {};
+    alignas(16) vec3 view_pos = {};
     u32 n_dir = 0;
     vec3 ambient = {1, 1, 1};
     u32 n_point = 0;
     struct {
         std::array<vec4, NNGN_MAX_LIGHTS> dir = {};
         std::array<vec4, NNGN_MAX_LIGHTS> color_spec = {};
+        std::array<mat4, NNGN_MAX_LIGHTS> mat = {};
     } dir;
     struct {
         std::array<vec4, NNGN_MAX_LIGHTS> dir = {};
@@ -183,11 +190,12 @@ struct Graphics {
     struct PipelineConfiguration {
         enum Flag : u8 {
             DEPTH_TEST = 1u << 0,
-            CULL_BACK_FACES = 1u << 1,
-            LINE = 1u << 2,
+            DEPTH_WRITE = 1u << 1,
+            CULL_BACK_FACES = 1u << 2,
+            LINE = 1u << 3,
         };
         enum class Type : u8 {
-            TRIANGLE, SPRITE, VOXEL, FONT, MAX,
+            TRIANGLE, SPRITE, VOXEL, FONT, TRIANGLE_DEPTH, SPRITE_DEPTH, MAX,
         };
         const char *name = {};
         Type type = {};
@@ -204,7 +212,9 @@ struct Graphics {
             u32 pipeline = {};
             std::span<const std::pair<u32, u32>> buffers = {};
         };
-        std::span<const Stage> normal = {}, overlay = {}, screen = {};
+        std::span<const Stage>
+            depth = {}, normal = {}, overlay = {}, screen = {},
+            shadow_maps = {}, shadow_cubes = {};
     };
     enum class CursorMode { NORMAL, HIDDEN, DISABLED };
     struct Camera {
@@ -213,12 +223,17 @@ struct Graphics {
     };
     struct Lighting {
         const LightsUBO *ubo = nullptr;
+        const mat4
+            *dir_proj = nullptr, *point_proj = nullptr,
+            *dir_views = nullptr, *point_views = nullptr;
     };
     static constexpr u32
         TEXTURE_EXTENT = NNGN_TEXTURE_EXTENT,
         TEXTURE_EXTENT_LOG2 = std::countr_zero(TEXTURE_EXTENT),
         TEXTURE_SIZE = NNGN_TEXTURE_SIZE,
-        TEXTURE_MIP_LEVELS = Math::mip_levels(TEXTURE_EXTENT);
+        TEXTURE_MIP_LEVELS = Math::mip_levels(TEXTURE_EXTENT),
+        SHADOW_MAP_INITIAL_SIZE = 1024,
+        SHADOW_CUBE_INITIAL_SIZE = 512;
     static_assert(std::popcount(TEXTURE_EXTENT) == 1);
     static std::unique_ptr<Graphics> create(Backend b, const void *params);
     static const char *enum_str(DeviceInfo::Type t);
@@ -285,6 +300,8 @@ struct Graphics {
     virtual void set_lighting(const Lighting &l) = 0;
     virtual void set_camera_updated() = 0;
     virtual void set_lighting_updated() = 0;
+    virtual bool set_shadow_map_size(uint32_t s) = 0;
+    virtual bool set_shadow_cube_size(uint32_t s) = 0;
     // Pipelines
     virtual u32 create_pipeline(const PipelineConfiguration &conf) = 0;
     // Buffers

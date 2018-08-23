@@ -114,6 +114,7 @@ void register_lighting(nngn::lua::table_view t) {
     t["enabled"] = &Lighting::enabled;
     t["zsprites"] = &Lighting::zsprites;
     t["update_sun"] = &Lighting::update_sun;
+    t["shadows_enabled"] = &Lighting::shadows_enabled;
     t["ambient_light"] = get<&Lighting::ambient_light>;
     t["n_dir_lights"] = n_dir_lights;
     t["n_point_lights"] = n_point_lights;
@@ -124,9 +125,13 @@ void register_lighting(nngn::lua::table_view t) {
     t["set_enabled"] = &Lighting::set_enabled;
     t["set_zsprites"] = &Lighting::set_zsprites;
     t["set_update_sun"] = &Lighting::set_update_sun;
+    t["set_shadows_enabled"] = &Lighting::set_shadows_enabled;
     t["set_ambient_light"] = set<&Lighting::set_ambient_light>;
     t["set_ambient_anim"] = set_ambient_anim;
     t["set_sun_light"] = &Lighting::set_sun_light;
+    t["set_shadow_map_proj_size"] = &Lighting::set_shadow_map_proj_size;
+    t["set_shadow_map_near"] = &Lighting::set_shadow_map_near;
+    t["set_shadow_map_far"] = &Lighting::set_shadow_map_proj_size;
     t["add_light"] = &Lighting::add_light;
     t["remove_light"] = &Lighting::remove_light;
 }

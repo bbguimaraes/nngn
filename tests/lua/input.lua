@@ -242,6 +242,15 @@ local function test_input_z()
     assert(not nngn:lighting():zsprites())
 end
 
+local function test_input_s_control()
+    assert(not nngn:lighting():shadows_enabled())
+    local key = string.byte("S")
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(nngn:lighting():shadows_enabled())
+    nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL)
+    assert(not nngn:lighting():shadows_enabled())
+end
+
 local function test_menu_fairy()
     local key_e <const>, key_f <const> = string.byte("EF", 1, -1)
     local p = player.add()
@@ -316,6 +325,7 @@ test_input_l()
 test_input_n()
 test_input_n_alt()
 test_input_z()
+test_input_s_control()
 test_menu_fairy()
 test_menu_light()
 test_menu_flashlight()

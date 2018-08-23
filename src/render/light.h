@@ -8,6 +8,7 @@
 
 #include "graphics/graphics.h"
 #include "math/mat4.h"
+#include "math/vec2.h"
 #include "math/vec3.h"
 #include "utils/flags.h"
 
@@ -41,8 +42,11 @@ struct Light {
     void set_spec(float v);
     void set_cutoff(float v);
     float range() const { return 4.5f / this->att[1]; }
-    vec3 ortho_view_pos() const;
-    void write_to_ubo_dir(LightsUBO *ubo, size_t i) const;
+    vec3 ortho_view_pos(float far) const;
+    mat4 ortho_view(float far) const;
+    mat4 persp_view(int face, bool zsprites) const;
+    void write_to_ubo_dir(
+        LightsUBO *ubo, size_t i, float far, const mat4 &proj) const;
     void write_to_ubo_point(LightsUBO *ubo, size_t i, bool zsprites) const;
 };
 
@@ -52,10 +56,12 @@ public:
 private:
     enum Flag : uint8_t {
         ENABLED = 1u << 0,
-        ZSPRITES = 1u << 1,
-        UPDATE_SUN = 1u << 2,
-        UPDATED = 1u << 3,
-        VIEW_UPDATED = 1u << 4,
+        SHADOWS_ENABLED = NNGN_SHADOWS_ENABLED_BIT,
+        ZSPRITES = 1u << 2,
+        UPDATE_SUN = 1u << 3,
+        UPDATED = 1u << 4,
+        VIEW_UPDATED = 1u << 5,
+        SHADOW_MAPS_UPDATED = 1u << 6,
     };
     Math *math = nullptr;
     Flags<Flag> flags = {Flag::ENABLED | Flag::UPDATE_SUN | Flag::UPDATED};
@@ -65,6 +71,10 @@ private:
     size_t n_dir = 0, n_point = 0;
     std::array<Light, MAX_LIGHTS> m_dir_lights = {}, m_point_lights = {};
     Light *m_sun_light = nullptr;
+    float m_shadow_map_proj_size = 128.0f;
+    float m_shadow_map_near = 1.0f, m_shadow_map_far = 1024.0f;
+    mat4 m_dir_proj = {}, m_point_proj = {};
+    std::array<mat4, 7 * MAX_LIGHTS> views = {};
     LightsUBO m_ubo = {};
     Sun m_sun = {};
 public:
@@ -72,6 +82,8 @@ public:
     bool enabled() const { return this->flags.is_set(Flag::ENABLED); }
     bool zsprites(void) const { return this->flags.is_set(Flag::ZSPRITES); }
     bool update_sun(void) const { return this->flags.is_set(Flag::UPDATE_SUN); }
+    bool shadows_enabled(void) const
+        { return this->flags.is_set(Flag::SHADOWS_ENABLED); }
     const vec4 &ambient_light() const { return this->m_ambient_light; }
     std::span<const Light> dir_lights() const;
     std::span<Light> dir_lights();
@@ -79,14 +91,25 @@ public:
     std::span<Light> point_lights();
     Light *sun_light() { return this->m_sun_light; }
     const Light *sun_light() const { return this->m_sun_light; }
+    float shadow_map_near() const { return this->m_shadow_map_near; }
+    float shadow_map_far() const { return this->m_shadow_map_far; }
+    const mat4 &dir_proj() const { return this->m_dir_proj; }
+    const mat4 &point_proj() const { return this->m_point_proj; }
+    const mat4 &dir_view(size_t i) const { return this->views[i]; }
+    const mat4 &point_view(size_t i, size_t f) const
+        { return this->views[MAX_LIGHTS + i * 6 + f]; }
     const LightsUBO &ubo() const { return this->m_ubo; }
     Sun *sun() { return &this->m_sun; }
     void set_enabled(bool b);
     void set_zsprites(bool b);
     void set_update_sun(bool b);
+    void set_shadows_enabled(bool b);
     void set_ambient_light(const vec4 &v);
     void set_ambient_anim(LightAnimation a);
     void set_sun_light(Light *l) { this->m_sun_light = l; }
+    void set_shadow_map_proj_size(float s);
+    void set_shadow_map_near(float f);
+    void set_shadow_map_far(float f);
     Light *add_light(Light::Type t);
     void remove_light(Light *l);
     bool update(const Timing &t);

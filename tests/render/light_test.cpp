@@ -187,4 +187,82 @@ void LightTest::entity() {
     QCOMPARE(v[3].light->color, vec4(3));
 }
 
+void LightTest::ortho_view() {
+    nngn::Light l;
+    l.type = nngn::Light::Type::DIR;
+    l.dir = {0, 1, 0};
+    const float far = 1024.0f;
+    const auto c = nngn::Math::transpose(nngn::mat4({
+        {1,  0, 0, 0},
+        {0,  0, 1, 0},
+        {0, -1, 0, far/-2.0f},
+        {0,  0, 0, 1}}));
+    nngn::mat4 m = l.ortho_view(far);
+    for(std::size_t y = 0; y < 4; ++y)
+        for(std::size_t x = 0; x < 4; ++x)
+            if(!qFuzzyCompare(m[y][x] + 1, c[y][x] + 1))
+                QCOMPARE(m, c);
+}
+
+void LightTest::persp_view() {
+    const auto check = [](auto &m0, auto &m1) {
+        for(std::size_t y = 0; y < 4; ++y)
+            for(std::size_t x = 0; x < 4; ++x)
+                if(!qFuzzyCompare(m0[y][x] + 1, m1[y][x] + 1))
+                    return false;
+        return true;
+    };
+    nngn::Light l;
+    l.type = nngn::Light::Type::POINT;
+    l.pos = {1, 2, 3};
+    auto c = nngn::Math::transpose(nngn::mat4({
+        { 0, 0, 1,-3},
+        { 0, 1, 0,-2},
+        {-1, 0, 0, 1},
+        { 0, 0, 0, 1}}));
+    nngn::mat4 m = l.persp_view(0, false);
+    if(!check(m, c))
+        QCOMPARE(m, c);
+    c = nngn::Math::transpose(nngn::mat4({
+        { 0, 0,-1, 3},
+        { 0, 1, 0,-2},
+        { 1, 0, 0,-1},
+        { 0, 0, 0, 1}}));
+    m = l.persp_view(1, false);
+    if(!check(m, c))
+        QCOMPARE(m, c);
+    c = nngn::Math::transpose(nngn::mat4({
+        {-1, 0, 0, 1},
+        { 0, 0, 1,-3},
+        { 0, 1, 0,-2},
+        { 0, 0, 0, 1}}));
+    m = l.persp_view(2, false);
+    if(!check(m, c))
+        QCOMPARE(m, c);
+    c = nngn::Math::transpose(nngn::mat4({
+        {-1, 0, 0, 1},
+        { 0, 0,-1, 3},
+        { 0,-1, 0, 2},
+        { 0, 0, 0, 1}}));
+    m = l.persp_view(3, false);
+    if(!check(m, c))
+        QCOMPARE(m, c);
+    c = nngn::Math::transpose(nngn::mat4({
+        {-1, 0, 0, 1},
+        { 0, 1, 0,-2},
+        { 0, 0,-1, 3},
+        { 0, 0, 0, 1}}));
+    m = l.persp_view(4, false);
+    if(!check(m, c))
+        QCOMPARE(m, c);
+    c = nngn::Math::transpose(nngn::mat4({
+        { 1, 0, 0,-1},
+        { 0, 1, 0,-2},
+        { 0, 0, 1,-3},
+        { 0, 0, 0, 1}}));
+    m = l.persp_view(5, false);
+    if(!check(m, c))
+        QCOMPARE(m, c);
+}
+
 QTEST_MAIN(LightTest)

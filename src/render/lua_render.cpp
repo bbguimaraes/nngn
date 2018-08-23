@@ -39,6 +39,7 @@ void register_renderers(nngn::lua::table_view t) {
     t["DEBUG_RENDERERS"] = Renderers::Debug::DEBUG_RENDERERS;
     t["DEBUG_CIRCLE"] = Renderers::Debug::DEBUG_CIRCLE;
     t["DEBUG_BB"] = Renderers::Debug::DEBUG_BB;
+    t["DEBUG_DEPTH"] = Renderers::Debug::DEBUG_DEPTH;
     t["DEBUG_ALL"] = Renderers::Debug::DEBUG_ALL;
     t["max_sprites"] = get<&Renderers::max_sprites>;
     t["max_screen_sprites"] = get<&Renderers::max_screen_sprites>;

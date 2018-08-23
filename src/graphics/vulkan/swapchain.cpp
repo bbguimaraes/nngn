@@ -60,9 +60,13 @@ void SwapChain::init(
 
 void SwapChain::destroy() {
     NNGN_LOG_CONTEXT_CF(SwapChain);
-    for(auto x : this->m_frame_buffers)
-        vkDestroyFramebuffer(this->dev, x, nullptr);
-    this->m_frame_buffers.clear();
+    for(auto *const v : {
+        &this->m_frame_buffers, &this->m_depth_frame_buffers
+    }) {
+        for(auto x : *v)
+            vkDestroyFramebuffer(this->dev, x, nullptr);
+        v->clear();
+    }
     vkDestroyImageView(
         this->dev, std::exchange(this->depth_img_view, {}), nullptr);
     this->depth_img.destroy(this->dev, this->dev_mem);
@@ -74,8 +78,11 @@ void SwapChain::destroy() {
 
 bool SwapChain::recreate(
     const Instance &inst, const Device &d, std::uint32_t n_images,
-    VkRenderPass render_pass, VkExtent2D extent,
-    VkSurfaceTransformFlagBitsKHR transform
+    VkRenderPass depth_pass, VkRenderPass render_pass,
+    VkExtent2D extent, VkSurfaceTransformFlagBitsKHR transform,
+    VkExtent2D shadow_map_size, VkExtent2D shadow_cube_size,
+    std::span<const VkImageView> shadow_map,
+    std::span<const VkImageView> shadow_cube
 ) {
     NNGN_LOG_CONTEXT_CF(SwapChain);
     this->dev = d.id();
@@ -109,7 +116,10 @@ bool SwapChain::recreate(
         && this->create_img_views(inst)
         && this->create_depth_img(inst, extent)
         && this->create_sync_objects(inst)
-        && this->create_frame_buffers(inst, extent, render_pass);
+        && this->create_frame_buffers(inst, extent, render_pass)
+        && this->create_depth_frame_buffers(
+            inst, depth_pass,
+            shadow_map_size, shadow_cube_size, shadow_map, shadow_cube);
 }
 
 bool SwapChain::create_img_views(const Instance &inst) {
@@ -225,6 +235,44 @@ bool SwapChain::create_frame_buffers(
     }
     return inst.set_obj_name(
         dev, std::span{this->m_frame_buffers}, "swapchain_framebuffer"sv);
+}
+
+bool SwapChain::create_depth_frame_buffers(
+    const Instance &inst, VkRenderPass render_pass,
+    VkExtent2D shadow_map_size, VkExtent2D shadow_cube_size,
+    std::span<const VkImageView> shadow_map,
+    std::span<const VkImageView> shadow_cube
+) {
+    NNGN_LOG_CONTEXT_CF(SwapChain);
+    const auto n_map = shadow_map.size(), n_cube = shadow_cube.size();
+    this->m_depth_frame_buffers.resize(n_map + n_cube);
+    auto info = vk_create_info<VkFramebuffer>({
+        .renderPass = render_pass,
+        .attachmentCount = 1,
+        .width = shadow_map_size.width,
+        .height = shadow_map_size.height,
+        .layers = 1,
+    });
+    for(std::size_t i = 0; i < n_map; ++i) {
+        info.pAttachments = &shadow_map[i];
+        CHECK_RESULT(vkCreateFramebuffer,
+            this->dev, &info, nullptr, &this->m_depth_frame_buffers[i]);
+    }
+    info.width = shadow_cube_size.width;
+    info.height = shadow_cube_size.height;
+    for(std::size_t i = 0; i < n_cube; ++i) {
+        info.pAttachments = &shadow_cube[i];
+        CHECK_RESULT(vkCreateFramebuffer,
+            this->dev, &info, nullptr, &this->m_depth_frame_buffers[n_map + i]);
+    }
+    return inst.set_obj_name(
+            this->dev,
+            std::span{this->m_depth_frame_buffers.data(), n_map},
+            "depth_framebuffers"sv)
+        && inst.set_obj_name(
+            this->dev,
+            std::span{this->m_depth_frame_buffers.data() + n_map, n_cube},
+            "depth_cube_framebuffers"sv);
 }
 
 auto SwapChain::acquire_img() -> std::pair<PresentContext, VkResult> {

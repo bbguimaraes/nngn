@@ -16,6 +16,8 @@ private slots:
     void update_point();
     void updated();
     void entity();
+    void ortho_view();
+    void persp_view();
 };
 
 #endif

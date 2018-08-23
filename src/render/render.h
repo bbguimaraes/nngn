@@ -41,7 +41,8 @@ public:
         DEBUG_CIRCLE = 1u << 1,
         DEBUG_BB = 1u << 2,
         DEBUG_LIGHT = 1u << 3,
-        DEBUG_ALL = (1u << 4) - 1,
+        DEBUG_DEPTH = 1u << 4,
+        DEBUG_ALL = (1u << 5) - 1,
     };
     // Initialization
     /** Partially initializes this system.  \see set_graphics */
@@ -141,7 +142,9 @@ private:
         bb_circle_vbo = {}, bb_circle_ebo = {},
         sphere_vbo = {}, sphere_ebo = {},
         lights_vbo = {}, lights_ebo = {},
-        range_vbo = {}, range_ebo = {};
+        range_vbo = {}, range_ebo = {},
+        depth_vbo = {}, depth_ebo = {},
+        depth_cube_vbo = {}, depth_cube_ebo = {};
 };
 
 inline bool Renderers::perspective(void) const {

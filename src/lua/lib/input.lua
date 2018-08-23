@@ -85,12 +85,23 @@ register({
 
 register({
     {"P", Input.SEL_PRESS, resume},
+    {"S", Input.SEL_PRESS | Input.SEL_CTRL, function(key, press, mods)
+        nngn:lighting():set_shadows_enabled(
+            not nngn:lighting():shadows_enabled())
+    end},
 }, paused_input)
 
 register({
     {"A", 0, player.move},
     {"D", 0, player.move},
-    {"S", 0, player.move},
+    {"S", 0, function(key, press, mods)
+        if mods & Input.MOD_CTRL == 0 then
+            player.move(key, press, mods)
+        elseif press then
+            nngn:lighting():set_shadows_enabled(
+                not nngn:lighting():shadows_enabled())
+        end
+    end},
     {"W", 0, player.move},
     {"C", Input.SEL_PRESS, function(_, _, mods)
         if mods & Input.MOD_CTRL == 0 then
