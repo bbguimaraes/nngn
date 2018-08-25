@@ -13,7 +13,7 @@ struct Entity;
 namespace nngn {
 
 struct Renderer {
-    enum Type : u8 { SPRITE = 1, N_TYPES };
+    enum Type : u8 { SPRITE = 1, CUBE, N_TYPES };
     enum Flag : u8 { UPDATED = 1u << 0 };
     Entity *entity = nullptr;
     vec3 pos = {};
@@ -29,6 +29,12 @@ struct SpriteRenderer : Renderer {
     static void uv_coords(
         const uvec2 &uv0, const uvec2 &uv1,
         const uvec2 &scale, vec2 *p);
+    void load(const nngn::lua::table &t);
+};
+
+struct CubeRenderer : Renderer {
+    vec3 color = {1, 1, 1};
+    float size = 0;
     void load(const nngn::lua::table &t);
 };
 

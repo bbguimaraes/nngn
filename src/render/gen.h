@@ -15,9 +15,12 @@ struct Gen {
         u32 tex, vec2 uv0, vec2 uv1);
     static void quad_vertices(
         Vertex **p, vec2 bl, vec2 tr, float z, vec3 color);
+    static void cube_vertices(Vertex **p, vec3 pos, vec3 size, vec3 color);
     // Renderers
     static void sprite(Vertex **p, SpriteRenderer *x);
+    static void cube(Vertex **p, CubeRenderer *x);
     static void sprite_debug(Vertex **p, SpriteRenderer *x);
+    static void cube_debug(Vertex **p, CubeRenderer *x);
 };
 
 inline void Gen::quad_indices(u64 i_64, u64 n, u32 *p) {
@@ -53,6 +56,37 @@ inline void Gen::quad_vertices(
     *pp = p;
 }
 
+inline void Gen::cube_vertices(Vertex **pp, vec3 pos, vec3 size, vec3 color) {
+    const auto s = size / 2.0f;
+    const auto bl = pos - s, tr = pos + s;
+    auto *p = *pp;
+    *p++ = { bl               , color};
+    *p++ = {{bl.x, tr.y, bl.z}, color};
+    *p++ = {{tr.x, bl.y, bl.z}, color};
+    *p++ = {{tr.x, tr.y, bl.z}, color};
+    *p++ = {{bl.x, bl.y, tr.z}, color};
+    *p++ = {{tr.x, bl.y, tr.z}, color};
+    *p++ = {{bl.x, tr.y, tr.z}, color};
+    *p++ = { tr               , color};
+    *p++ = { bl               , color};
+    *p++ = {{bl.x, bl.y, tr.z}, color};
+    *p++ = {{bl.x, tr.y, bl.z}, color};
+    *p++ = {{bl.x, tr.y, tr.z}, color};
+    *p++ = {{tr.x, bl.y, bl.z}, color};
+    *p++ = {{tr.x, tr.y, bl.z}, color};
+    *p++ = {{tr.x, bl.y, tr.z}, color};
+    *p++ = { tr               , color};
+    *p++ = { bl               , color};
+    *p++ = {{tr.x, bl.y, bl.z}, color};
+    *p++ = {{bl.x, bl.y, tr.z}, color};
+    *p++ = {{tr.x, bl.y, tr.z}, color};
+    *p++ = {{bl.x, tr.y, bl.z}, color};
+    *p++ = {{bl.x, tr.y, tr.z}, color};
+    *p++ = {{tr.x, tr.y, bl.z}, color};
+    *p++ = { tr               , color};
+    *pp = p;
+}
+
 inline void Gen::sprite(Vertex **p, SpriteRenderer *x) {
     x->flags.clear(Renderer::Flag::UPDATED);
     const auto pos = x->pos.xy();
@@ -60,6 +94,13 @@ inline void Gen::sprite(Vertex **p, SpriteRenderer *x) {
     Gen::quad_vertices(
         p, pos - s, pos + s, -pos.y - x->z_off,
         x->tex, x->uv0, x->uv1);
+}
+
+inline void Gen::cube(Vertex **p, CubeRenderer *x) {
+    x->flags.clear(Renderer::Flag::UPDATED);
+    Gen::cube_vertices(
+        p, {x->pos.x, x->pos.y, x->pos.z - x->pos.y},
+        vec3{x->size}, x->color);
 }
 
 inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {
@@ -74,6 +115,10 @@ inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {
     bl.y = x->pos.y + x->z_off - s.y;
     tr.y = x->pos.y + x->z_off + s.y;
     Gen::quad_vertices(p, bl, tr, 0, {1, 0, 0});
+}
+
+inline void Gen::cube_debug(Vertex **p, CubeRenderer *x) {
+    Gen::cube_vertices(p, x->pos, vec3{x->size}, {1, 1, 1});
 }
 
 }

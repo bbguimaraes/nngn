@@ -40,12 +40,16 @@ public:
     // Configuration
     auto debug(void) const { return this->m_debug.t; }
     auto max_sprites(void) const { return this->sprites.capacity(); }
+    auto max_cubes(void) const { return this->cubes.capacity(); }
     /** Total number of active renderers. */
     std::size_t n(void) const;
     /** Number of active sprite renderers. */
     std::size_t n_sprites(void) const { return this->sprites.size(); }
+    /** Number of active cube renderers. */
+    std::size_t n_cubes(void) const { return this->cubes.size(); }
     void set_debug(Debug d);
     bool set_max_sprites(std::size_t n);
+    bool set_max_cubes(std::size_t n);
     /**
      * Associates this system with a graphics back end.
      * Must be called before \c update.  It is assumed that the current
@@ -61,19 +65,23 @@ public:
     /** Processes changed renderers/configuration and updates graphics. */
     bool update(void);
 private:
-    bool update_renderers(bool sprites_updated);
-    bool update_debug(bool sprites_updated);
+    bool update_renderers(bool sprites_updated, bool cubes_updated);
+    bool update_debug(bool sprites_updated, bool cubes_updated);
     enum Flag : u8 {
         SPRITES_UPDATED = 1u << 0,
-        DEBUG_UPDATED = 1u << 1,
+        CUBES_UPDATED = 1u << 1,
+        DEBUG_UPDATED = 1u << 2,
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
     std::vector<SpriteRenderer> sprites = {};
+    std::vector<CubeRenderer> cubes = {};
     u32
         sprite_vbo = {}, sprite_ebo = {},
+        cube_vbo = {}, cube_ebo = {},
+        cube_debug_vbo = {}, cube_debug_ebo = {},
         box_vbo = {}, box_ebo = {};
 };
 
