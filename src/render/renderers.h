@@ -16,6 +16,7 @@ struct Renderer {
     enum Type : u8 {
         SPRITE = 1,
         SCREEN_SPRITE,
+        CUBE,
         N_TYPES,
     };
     enum Flag : u8 { UPDATED = 1u << 0 };
@@ -36,6 +37,12 @@ struct SpriteRenderer : Renderer {
     template<typename T, std::size_t N>
     static std::span<float> uv_span(std::array<T, N> *a);
     void load(nngn::lua::table_view t);
+};
+
+struct CubeRenderer : Renderer {
+    vec3 color = {1, 1, 1};
+    float size = 0;
+    void load(const nngn::lua::table &t);
 };
 
 template<typename T, std::size_t N>

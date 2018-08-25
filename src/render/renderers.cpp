@@ -55,4 +55,11 @@ void SpriteRenderer::load(nngn::lua::table_view t) {
     }
 }
 
+void CubeRenderer::load(const nngn::lua::table &t) {
+    NNGN_LOG_CONTEXT_CF(CubeRenderer);
+    this->size = t["size"];
+    if(const auto c = t["color"].get<std::optional<nngn::lua::table>>())
+        read_table(std::span{this->color}, *c);
+}
+
 }

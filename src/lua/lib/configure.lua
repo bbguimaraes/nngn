@@ -31,6 +31,9 @@ local FS = {
         int(
             "sprites", 8, 65536, 65536,
             "nngn:renderers():set_max_sprites(%1)"),
+        int(
+            "cubes", 8, 65536, 65536,
+            "nngn:renderers():set_max_cubes(%1)"),
     },
     camera = {
         bool("ortho./persp.", false, "nngn:camera():set_perspective(%1)"),
