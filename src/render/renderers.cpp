@@ -49,4 +49,11 @@ void SpriteRenderer::load(const sol::stack_table &t) {
     }
 }
 
+void CubeRenderer::load(const sol::stack_table &t) {
+    NNGN_LOG_CONTEXT_CF(CubeRenderer);
+    this->size = t["size"];
+    if(const auto c = t.get<std::optional<sol::table>>("color"))
+        read_table(std::span{this->color}, *c);
+}
+
 }

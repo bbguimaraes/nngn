@@ -8,6 +8,7 @@ require("nngn.lib.graphics").init()
 local N = 2 ^ 10
 nngn.entities:set_max(N + 1)
 nngn.renderers:set_max_sprites(N)
+nngn.renderers:set_max_cubes(N)
 nngn.graphics:resize_textures(3)
 nngn.textures:set_max(3)
 
@@ -19,7 +20,9 @@ local renderers = {{
     scale = {512//32, 512//32},
 }, {
     type = Renderer.SPRITE, size = {16, 16}, tex = tex.tex,
-    scale = {512//16, 512//16}, coords = {2, 0}}}
+    scale = {512//16, 512//16}, coords = {2, 0},
+}, {
+    type = Renderer.CUBE, size = 8, color = {1, 1, 1}}}
 local n_renderers = #renderers
 for i = 1, N do
     local r = nngn.math:rand_int(n_renderers)

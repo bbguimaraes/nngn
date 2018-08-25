@@ -9,6 +9,7 @@
 #include "graphics/graphics.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
+#include "math/vec4.h"
 #include "utils/flags.h"
 
 #include "renderers.h"
@@ -22,14 +23,18 @@ class Textures;
 class Renderers {
     enum Flag : u8 {
         SPRITES_UPDATED = 1u << 0,
-        RECT_UPDATED = 1u << 1,
+        CUBES_UPDATED = 1u << 1,
+        RECT_UPDATED = 1u << 2,
     };
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
     Flags<Flag> flags = {};
     std::vector<SpriteRenderer> sprites = {};
+    std::vector<CubeRenderer> cubes = {};
     u32
         sprite_vbo = {}, sprite_ebo = {},
+        cube_vbo = {}, cube_ebo = {},
+        cube_debug_vbo = {}, cube_debug_ebo = {},
         box_vbo = {}, box_ebo = {};
 public:
     enum Debug : u8 {
@@ -43,12 +48,16 @@ public:
         Vertex **p, vec2 bl, vec2 tr, float z, u32 tex, vec2 uv0, vec2 uv1);
     static void gen_quad_verts(
         Vertex **p, vec2 bl, vec2 tr, float z, vec3 color);
+    static void gen_cube_verts(Vertex **p, vec3 pos, vec3 size, vec3 color);
     void init(Textures *t);
     auto max_sprites() const { return this->sprites.capacity(); }
+    auto max_cubes() const { return this->cubes.capacity(); }
     auto debug() const { return this->m_debug.t; }
     std::size_t n() const;
     std::size_t n_sprites() const { return this->sprites.size(); }
+    std::size_t n_cubes() const { return this->cubes.size(); }
     bool set_max_sprites(std::size_t n);
+    bool set_max_cubes(std::size_t n);
     void set_debug(std::underlying_type_t<Debug> d);
     bool set_graphics(Graphics *g);
     Renderer *load(const sol::stack_table &t);
@@ -87,6 +96,37 @@ inline void Renderers::gen_quad_verts(
     *p++ = {{bl.x, tr.y, z}, {uv0.x, uv1.y, tex_f}};
     *p++ = {{tr,         z}, {uv1.x, uv1.y, tex_f}};
     *pp = p;
+}
+
+inline void Renderers::gen_cube_verts(
+    Vertex **p, vec3 pos, vec3 size, vec3 color
+) {
+    const auto s = size / 2.0f;
+    const auto bl = pos - s, tr = pos + s;
+    *((*p)++) = { bl               , color};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, color};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, color};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, color};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, color};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, color};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, color};
+    *((*p)++) = { tr               , color};
+    *((*p)++) = { bl               , color};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, color};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, color};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, color};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, color};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, color};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, color};
+    *((*p)++) = { tr               , color};
+    *((*p)++) = { bl               , color};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, color};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, color};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, color};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, color};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, color};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, color};
+    *((*p)++) = { tr               , color};
 }
 
 }

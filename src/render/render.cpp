@@ -54,6 +54,13 @@ void update_sprites(nngn::Vertex **p, nngn::SpriteRenderer *x) {
         x->tex, x->uv0, x->uv1);
 }
 
+void update_cubes(nngn::Vertex **p, nngn::CubeRenderer *x) {
+    x->flags.clear(nngn::Renderer::Flag::UPDATED);
+    nngn::Renderers::gen_cube_verts(
+        p, {x->pos.x, x->pos.y, x->pos.z - x->pos.y},
+        nngn::vec3{x->size}, x->color);
+}
+
 void update_boxes(nngn::Vertex **p, nngn::SpriteRenderer *x) {
     const auto pos = x->pos.xy();
     auto s = x->size / 2.0f;
@@ -68,6 +75,10 @@ void update_boxes(nngn::Vertex **p, nngn::SpriteRenderer *x) {
     nngn::Renderers::gen_quad_verts(p, bl, tr, 0, {1, 0, 0});
 }
 
+void update_cube_dbg(nngn::Vertex **p, nngn::CubeRenderer *x) {
+    nngn::Renderers::gen_cube_verts(p, x->pos, nngn::vec3{x->size}, {1, 1, 1});
+}
+
 }
 
 namespace nngn {
@@ -77,7 +88,8 @@ void Renderers::init(Textures *t) {
 }
 
 std::size_t Renderers::n() const {
-    return this->sprites.size();
+    return this->sprites.size()
+        + this->cubes.size();
 }
 
 bool Renderers::set_max_sprites(std::size_t n) {
@@ -88,6 +100,16 @@ bool Renderers::set_max_sprites(std::size_t n) {
         && this->graphics->set_buffer_capacity(this->sprite_ebo, esize)
         && this->graphics->set_buffer_capacity(this->box_vbo, 3 * vsize)
         && this->graphics->set_buffer_capacity(this->box_ebo, 3 * esize);
+}
+
+bool Renderers::set_max_cubes(std::size_t n) {
+    set_capacity(&this->cubes, n);
+    const u64 vsize = 24 * n * sizeof(Vertex);
+    const u64 esize = 36 * n * sizeof(std::uint32_t);
+    return this->graphics->set_buffer_capacity(this->cube_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->cube_ebo, esize)
+        && this->graphics->set_buffer_capacity(this->cube_debug_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->cube_debug_ebo, esize);
 }
 
 void Renderers::set_debug(std::underlying_type_t<Debug> d) {
@@ -151,6 +173,22 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "box_ebo",
             .type = index,
         }))
+        && (this->cube_vbo = g->create_buffer({
+            .name = "cube_vbo",
+            .type = vertex,
+        }))
+        && (this->cube_ebo = g->create_buffer({
+            .name = "cube_ebo",
+            .type = index,
+        }))
+        && (this->cube_debug_vbo = g->create_buffer({
+            .name = "cube_debug_vbo",
+            .type = vertex,
+        }))
+        && (this->cube_debug_ebo = g->create_buffer({
+            .name = "cube_debug_ebo",
+            .type = index,
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -170,6 +208,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .pipeline = triangle_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {triangle_vbo, triangle_ebo},
+                    {this->cube_vbo, this->cube_ebo},
                 }),
             }, {
                 .pipeline = sprite_pipeline,
@@ -181,6 +220,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .pipeline = box_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->box_vbo, this->box_ebo},
+                    {this->cube_debug_vbo, this->cube_debug_ebo},
                 }),
             }}),
         });
@@ -210,6 +250,7 @@ Renderer *Renderers::load(const sol::stack_table &t) {
     };
     switch(const Renderer::Type type = t["type"]) {
     case Renderer::Type::SPRITE: return load_tex(this->sprites, "sprite");
+    case Renderer::Type::CUBE: return load(this->cubes, "cube");
     case Renderer::Type::N_TYPES:
     default:
         Log::l() << "invalid type: " << static_cast<int>(type) << '\n';
@@ -236,6 +277,8 @@ void Renderers::remove(Renderer *p) {
     };
     if(is_in(this->sprites))
         remove_tex(&this->sprites, Flag::SPRITES_UPDATED);
+    if(is_in(this->cubes))
+        remove(&this->cubes, Flag::CUBES_UPDATED);
 }
 
 bool Renderers::update() {
@@ -247,11 +290,24 @@ bool Renderers::update() {
         return update_span<::update_sprites, update_indices<6>>(
             this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
     };
+    const auto update_cubes = [this] {
+        NNGN_LOG_CONTEXT("cube");
+        const auto vbo = this->cube_vbo;
+        const auto ebo = this->cube_ebo;
+        return update_span<::update_cubes, update_indices<6 * 6>>(
+            this->graphics, std::span{this->cubes}, vbo, ebo, 6 * 4, 6 * 6);
+    };
     const auto update_rect = [this] {
         NNGN_LOG_CONTEXT("rect");
         return update_span<::update_boxes, update_indices<3 * 6>>(
             this->graphics, std::span{this->sprites},
             this->box_vbo, this->box_ebo, 3 * 4, 3 * 6);
+    };
+    const auto update_cube_dbg = [this] {
+        NNGN_LOG_CONTEXT("cubes debug");
+        return update_span<::update_cube_dbg, update_indices<6 * 6>>(
+            this->graphics, std::span{this->cubes},
+            this->cube_debug_vbo, this->cube_debug_ebo, 6 * 4, 6 * 6);
     };
     const auto updated = [&flags = this->flags](auto f, const auto &v) {
         return flags.is_set(f)
@@ -263,15 +319,20 @@ bool Renderers::update() {
     const auto sprites_updated = updated(Flag::SPRITES_UPDATED, this->sprites);
     if(sprites_updated && !update_sprites())
         return false;
+    const auto cubes_updated = updated(Flag::CUBES_UPDATED, this->cubes);
+    if(cubes_updated && !update_cubes())
+        return false;
     const auto rect_enabled = this->m_debug & Debug::RECT;
     const auto rect_updated = this->flags.check_and_clear(Flag::RECT_UPDATED)
-        || sprites_updated;
+        || sprites_updated || cubes_updated;
     if(rect_updated) {
         if(rect_enabled) {
-            if(!update_rect())
+            if(!update_rect() || !update_cube_dbg())
                 return false;
-        } else
+        } else {
             this->graphics->set_buffer_size(this->box_ebo, 0);
+            this->graphics->set_buffer_size(this->cube_debug_ebo, 0);
+        }
     }
     return true;
 }
