@@ -5,7 +5,8 @@ noinst_HEADERS += \
 	%reldir%/log.h \
 	%reldir%/pointer_flag.h \
 	%reldir%/scoped.h \
-	%reldir%/utils.h
+	%reldir%/utils.h \
+	%reldir%/vector.h
 nngn_SOURCES += \
 	%reldir%/flags.cpp \
 	%reldir%/log.cpp

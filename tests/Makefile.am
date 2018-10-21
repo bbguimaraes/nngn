@@ -5,7 +5,8 @@ endif
 
 check_HEADERS += \
 	%reldir%/luastate_test.h \
-	%reldir%/registry.h
+	%reldir%/registry.h \
+	%reldir%/tests.h
 
 %canon_reldir%_luastate_CPPFLAGS = $(check_CPPFLAGS)
 %canon_reldir%_luastate_CXXFLAGS = $(check_CXXFLAGS)

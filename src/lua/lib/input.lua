@@ -29,7 +29,7 @@ register({
     {Input.KEY_ESC, Input.SEL_PRESS, function() nngn:exit() end},
     {"I", Input.SEL_PRESS | Input.SEL_CTRL, function(_, _, mods)
         local m = 1
-        if mods & Input.SHIFT ~= 0 then m = -1 end
+        if mods & Input.MOD_SHIFT ~= 0 then m = -1 end
         nngn.graphics:set_swap_interval(nngn.graphics:swap_interval() + m)
     end},
 }, input, paused_input)

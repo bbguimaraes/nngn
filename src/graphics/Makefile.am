@@ -6,4 +6,5 @@ nngn_SOURCES += \
 	%reldir%/glfw.cpp \
 	%reldir%/graphics.cpp \
 	%reldir%/lua_graphics.cpp \
+	%reldir%/opengl.cpp \
 	%reldir%/pseudo.cpp

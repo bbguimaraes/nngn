@@ -11,7 +11,8 @@ std::unique_ptr<Graphics> Graphics::create(Backend b, const void *params) {
     switch(b) {
 #define C(T) case T: return graphics_create_backend<T>(params);
     C(Backend::PSEUDOGRAPH)
-    C(Backend::GLFW_BACKEND)
+    C(Backend::OPENGL_BACKEND)
+    C(Backend::OPENGL_ES_BACKEND)
 #undef C
     }
     Log::l()

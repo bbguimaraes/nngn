@@ -5,9 +5,8 @@
 
 namespace nngn {
 
-class GLFWBackend final : public Graphics {
+class GLFWBackend : public Graphics {
     int m_swap_interval = 1;
-    GLFWwindow *w = nullptr;
     struct CallbackData {
         Graphics *p = {};
         key_callback_f key_cb = {};
@@ -17,11 +16,16 @@ class GLFWBackend final : public Graphics {
         void *mouse_button_cb_data = {};
         void *mouse_move_cb_data = {};
     } callback_data = {};
+protected:
+    GLFWwindow *w = nullptr;
+    Parameters params = {};
+    bool create_window();
 public:
     NNGN_NO_COPY(GLFWBackend)
     GLFWBackend() = default;
-    ~GLFWBackend() final;
-    bool init() final;
+    explicit GLFWBackend(const Parameters &p) : params(p) {}
+    ~GLFWBackend() override;
+    bool init_glfw();
     bool window_closed() const final;
     int swap_interval() const final { return this->m_swap_interval; }
     void set_swap_interval(int i) final;
@@ -34,7 +38,7 @@ public:
         void *data, mouse_move_callback_f f) override;
     void resize(int, int) final {}
     void poll_events() const final;
-    bool render() final;
+    bool render() override;
 };
 
 }

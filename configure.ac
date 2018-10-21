@@ -15,11 +15,14 @@ NNGN_BIN=nngn
 case "$CXX" in *em++*) NNGN_BIN=${NNGN_BIN}.js;; esac
 AC_SUBST([NNGN_BIN])
 
-AC_ARG_WITH([glfw],
-  [AS_HELP_STRING([--with-glfw], [enable the GLFW graphics backend])],
-  [DEPS="$DEPS glfw3"
-   AC_DEFINE([NNGN_PLATFORM_HAS_GLFW], [1], [Define if you have GLFW])],
-  [])
+AC_ARG_WITH([opengl],
+    [AS_HELP_STRING([--with-opengl], [enable the OpenGL graphics backend])],
+    [], [])
+AS_IF([test "x$with_opengl" == xyes],
+    [DEPS="$DEPS glfw3 gl glew"
+     AC_DEFINE([NNGN_PLATFORM_HAS_GLFW], [1], [Define if you have GLFW])
+     AC_DEFINE([NNGN_PLATFORM_HAS_OPENGL], [1], [Define if you have OpenGL])],
+    [])
 
 ENABLE_TESTS=no
 AC_ARG_ENABLE([tests],

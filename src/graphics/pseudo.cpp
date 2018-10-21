@@ -12,7 +12,7 @@
 namespace nngn {
 
 
-bool Pseudograph::render() {
+bool Pseudograph::vsync() {
     constexpr auto t = std::chrono::milliseconds(1000) / 60.0f;
     std::this_thread::sleep_for(t);
     return true;
