@@ -30,7 +30,8 @@ PREDEFINED += DOXYGEN
 # Enable all platform definitions.
 PREDEFINED = \
     HAVE_TERMIOS_H \
-    NNGN_PLATFORM_HAS_GLFW
+    NNGN_PLATFORM_HAS_GLFW \
+    NNGN_PLATFORM_HAS_OPENGL
 
 # TODO remove when Doxygen 1.9.3 is available
 PREDEFINED += decltype(x)=

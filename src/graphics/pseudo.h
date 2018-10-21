@@ -6,7 +6,9 @@
 namespace nngn {
 
 struct Pseudograph : Graphics {
+    Version version() const override { return {0, 0, 0, "no backend"}; }
     bool init() override { return true; }
+    bool error() override { return false; }
     bool window_closed() const override { return false; }
     int swap_interval() const override { return 1; }
     void set_swap_interval(int) override {}
@@ -17,7 +19,8 @@ struct Pseudograph : Graphics {
     void set_mouse_move_callback(void*, mouse_move_callback_f) override {}
     void resize(int, int) override {}
     void poll_events() const override {}
-    bool render() override;
+    bool render() override { return true; }
+    bool vsync() override;
 };
 
 }

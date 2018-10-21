@@ -7,3 +7,5 @@ nngn_SOURCES += \
 	%reldir%/graphics.cpp \
 	%reldir%/lua_graphics.cpp \
 	%reldir%/pseudo.cpp
+
+include %reldir%/opengl/Makefile.am

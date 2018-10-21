@@ -8,6 +8,7 @@ pkgs.mkShell {
     pkgs.ccache
     pkgs.clang_12
     pkgs.gcc11
+    pkgs.glew
     pkgs.glfw
     pkgs.lua5_4
     pkgs.qt5.qtbase

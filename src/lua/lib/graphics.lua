@@ -1,12 +1,20 @@
 local input = require "nngn.lib.input"
 
 local BACK_ENDS <const> = {
-    glfw = {Graphics.GLFW_BACKEND},
+    opengl_es = {
+        Graphics.OPENGL_ES_BACKEND,
+        Graphics.opengl_params{maj = 3, min = 1, debug = Platform.debug},
+    },
+    opengl = {
+        Graphics.OPENGL_BACKEND,
+        Graphics.opengl_params{maj = 4, min = 2, debug = Platform.debug},
+    },
     pseudograph = {Graphics.PSEUDOGRAPH},
 }
 
 local BACK_END_LIST <const> = {
-    BACK_ENDS.glfw,
+    BACK_ENDS.opengl_es,
+    BACK_ENDS.opengl,
     BACK_ENDS.pseudograph,
 }
 
@@ -26,7 +34,8 @@ local function init(backends)
 end
 
 return {
-    GLFW = BACK_ENDS.glfw,
+    OPENGL_ES = BACK_ENDS.opengl_es,
+    OPENGL = BACK_ENDS.opengl,
     PSEUDOGRAPH = BACK_ENDS.pseudograph,
     init = init,
 }

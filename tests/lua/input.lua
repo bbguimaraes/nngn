@@ -18,6 +18,13 @@ local function test_input_i()
     local key = string.byte("I")
     common.assert_eq(nngn:graphics():swap_interval(), 1)
     assert(nngn:input():key_callback(key, Input.KEY_PRESS, Input.MOD_CTRL))
+    common.assert_eq(nngn:graphics():swap_interval(), 2)
+    assert(nngn:input():key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT))
+    common.assert_eq(nngn:graphics():swap_interval(), 1)
+    assert(nngn:input():key_callback(
+        key, Input.KEY_PRESS, Input.MOD_CTRL | Input.MOD_SHIFT))
+    common.assert_eq(nngn:graphics():swap_interval(), 0)
 end
 
 local function test_input_p()
@@ -30,10 +37,13 @@ local function test_input_p()
     common.assert_eq(group(), deref(input.input))
 end
 
-nngn:set_graphics(Graphics.PSEUDOGRAPH)
+local opengl = nngn:set_graphics(
+    Graphics.OPENGL_ES_BACKEND,
+    Graphics.opengl_params{maj = 3, min = 1, hidden = true})
+if not opengl then nngn:set_graphics(Graphics.PSEUDOGRAPH) end
 input.install()
 common.setup_hook(1)
 test_get_keys()
-test_input_i()
+if opengl then test_input_i() end
 test_input_p()
 nngn:exit()
