@@ -10,6 +10,8 @@ pkgs=(
     lua
     # tools
     qt5-charts
+    # gl
+    glew
 )
 root=build/root
 pacstrap -cd "$root/" --needed "${pkgs[@]}"

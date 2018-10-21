@@ -6,6 +6,7 @@ pkgs.mkShell {
   ];
   buildInputs = [
     pkgs.gcc11
+    pkgs.glew
     pkgs.glfw
     pkgs.lua5_4
     pkgs.qt5.qtbase

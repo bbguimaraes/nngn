@@ -102,11 +102,13 @@ be enabled by passing extra flags to the `configure` script.
 See [scripts/container.sh](./scripts/container.sh) for an example script that
 creates a container with all the build dependencies.
 
-#### `--with-glfw`
+#### `--with-opengl`
 
-Enables the graphical user interface.  Requires:
+Enables the OpenGL graphics backend.  Requires:
 
 - `glfw` (3.3): portable GUI library
+- `gl` (4.5, 3.1es): graphics library
+- `glew` (2.1.0): OpenGL extension loading library
 
 #### Tests
 

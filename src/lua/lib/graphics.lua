@@ -1,7 +1,14 @@
 local input = require "nngn.lib.input"
 
 local function default_backends()
-    return {{Graphics.GLFW_BACKEND}, {Graphics.PSEUDOGRAPH}}
+    local debug = Platform.DEBUG
+    return {{
+        Graphics.OPENGL_ES_BACKEND,
+        Graphics.opengl_params{maj = 3, min = 1, debug = debug},
+    }, {
+        Graphics.OPENGL_BACKEND,
+        Graphics.opengl_params{maj = 4, min = 2, debug = debug},
+    }, {Graphics.PSEUDOGRAPH}}
 end
 
 local function init(backends)

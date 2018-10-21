@@ -1,25 +1,13 @@
 #include "os/platform.h"
 #include "utils/log.h"
 
-#include "glfw.h"
-
-#ifndef NNGN_PLATFORM_HAS_GLFW
-
-namespace nngn {
-
-template<> std::unique_ptr<Graphics> graphics_create_backend
-        <Graphics::Backend::GLFW_BACKEND>(const void*) {
-    Log::l() << "compiled without GLFW support\n";
-    return {};
-}
-
-}
-
-#else
+#ifdef NNGN_PLATFORM_HAS_GLFW
 
 #include <GLFW/glfw3.h>
 
 #include "utils/ranges.h"
+
+#include "glfw.h"
 
 static_assert(
     nngn::is_adjacent(
@@ -29,11 +17,9 @@ static_assert(
             GLFW_CURSOR_DISABLED,
         }}));
 
-namespace nngn {
+#include "glfw.h"
 
-template<> std::unique_ptr<Graphics> graphics_create_backend
-        <Graphics::Backend::GLFW_BACKEND>(const void*)
-    { return std::make_unique<GLFWBackend>(); }
+namespace nngn {
 
 GLFWBackend::~GLFWBackend() {
     if(this->w)
@@ -41,12 +27,16 @@ GLFWBackend::~GLFWBackend() {
     glfwTerminate();
 }
 
-bool GLFWBackend::init() {
+bool GLFWBackend::init_glfw(void) const {
     NNGN_LOG_CONTEXT_CF(GLFWBackend);
-    glfwSetErrorCallback([](int, const char *description)
-        { Log::l() << "glfw: " << description << std::endl; });
-    if(!glfwInit())
-        return false;
+    if(this->params.flags.is_set(Parameters::Flag::DEBUG))
+        glfwSetErrorCallback([](int, const char *description)
+            { nngn::Log::l() << "glfw: " << description << std::endl; });
+    return glfwInit();
+}
+
+bool GLFWBackend::create_window() {
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
     constexpr int initial_width = 800, initial_height = 600;
     if(!(this->w = glfwCreateWindow(
             initial_width, initial_height, "", nullptr, nullptr)))
@@ -58,7 +48,6 @@ bool GLFWBackend::init() {
             static_cast<const CallbackData*>(glfwGetWindowUserPointer(cw))
                 ->p->resize(width, height);
     });
-    glfwShowWindow(this->w);
     return true;
 }
 

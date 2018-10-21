@@ -13,6 +13,21 @@
 
 namespace nngn {
 
+template<typename T>
+class owning_view {
+public:
+    constexpr owning_view(const T&) = delete;
+    constexpr explicit owning_view(T &r) :
+        b{std::ranges::begin(r)}, e{std::ranges::end(r)} {}
+    constexpr explicit owning_view(T &&r) : owning_view{r} {}
+    constexpr auto begin(void) const { return this->b; }
+    constexpr auto begin(void) { return this->b; }
+    constexpr auto end(void) const { return this->e; }
+    constexpr auto end(void) { return this->e; }
+private:
+    std::ranges::iterator_t<T> b, e;
+};
+
 template<typename V>
 void set_capacity(V *v, size_t n) {
     if(n < v->capacity())
@@ -64,6 +79,23 @@ constexpr void fill_with_pattern(I f, I l, O df, O dl) {
         return *i++;
     });
 }
+
+}
+
+namespace std::ranges {
+
+#ifdef DOXYGEN
+template<typename T> inline constexpr bool enable_view;
+template<typename T> inline constexpr bool enable_borrowed_range;
+#endif
+
+/** Makes \ref nngn::owning_view implement `std::ranges::view`. */
+template<typename T>
+inline constexpr bool enable_view<nngn::owning_view<T>> = true;
+
+/** Makes \ref nngn::owning_view implement `std::ranges::borrowed_range`. */
+template<typename T>
+inline constexpr bool enable_borrowed_range<nngn::owning_view<T>> = true;
 
 }
 

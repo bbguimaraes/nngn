@@ -132,12 +132,11 @@ int NNGN::loop(void) {
     if(this->flags.is_set(Flag::EXIT) || this->graphics->window_closed())
         return 0;
     this->timing.update();
-    bool ok = true;
-    ok = ok && this->input.input.update();
-    ok = ok && this->schedule.update();
-    ok = ok && this->socket.process(
-        [&l = this->lua](auto s) { l.dostring(s); });
-    ok = ok && this->graphics->render();
+    const bool ok = this->input.input.update()
+        && this->schedule.update()
+        && this->socket.process([&l = this->lua](auto s) { l.dostring(s); })
+        && this->graphics->render()
+        && this->graphics->vsync();
     if(!ok)
         return 1;
     nngn::Profile::swap();

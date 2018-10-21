@@ -32,7 +32,8 @@ nngn_js_LDFLAGS = \
 	-s ASSERTIONS=2 -s DEMANGLE_SUPPORT=1 -s ALLOW_MEMORY_GROWTH=1 \
 	-s EXPORTED_FUNCTIONS='["_main","_lua"]' \
 	-s EXPORTED_RUNTIME_METHODS='["ccall","cwrap"]' \
-	-s USE_GLFW=3 \
+	-s USE_GLFW=3 -s FULL_ES2=1 -s FULL_ES3=1 \
+	-s USE_WEBGL2=1 -s MIN_WEBGL_VERSION=2 -s MAX_WEBGL_VERSION=2 \
 	--source-map-base / \
 	--embed-file $(srcdir)/src/lua/@src/lua
 nngn_js_LDADD = $(DEPS_LIBS)
