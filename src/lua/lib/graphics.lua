@@ -1,6 +1,10 @@
 local input = require "nngn.lib.input"
 
 local BACK_ENDS <const> = {
+    vulkan = {
+        Graphics.VULKAN_BACKEND,
+        Graphics.vulkan_params{debug = Platform.debug},
+    },
     opengl_es = {
         Graphics.OPENGL_ES_BACKEND,
         Graphics.opengl_params{maj = 3, min = 1, debug = Platform.debug},
@@ -13,6 +17,7 @@ local BACK_ENDS <const> = {
 }
 
 local BACK_END_LIST <const> = {
+    BACK_ENDS.vulkan,
     BACK_ENDS.opengl_es,
     BACK_ENDS.opengl,
     BACK_ENDS.pseudograph,
@@ -34,6 +39,7 @@ local function init(backends)
 end
 
 return {
+    VULKAN = BACK_ENDS.vulkan,
     OPENGL_ES = BACK_ENDS.opengl_es,
     OPENGL = BACK_ENDS.opengl,
     PSEUDOGRAPH = BACK_ENDS.pseudograph,

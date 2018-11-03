@@ -8,13 +8,15 @@ noinst_HEADERS += \
 	%reldir%/fn.h \
 	%reldir%/literals.h \
 	%reldir%/log.h \
+	%reldir%/macros.h \
 	%reldir%/pointer_flag.h \
 	%reldir%/pp.h \
 	%reldir%/ranges.h \
 	%reldir%/regexp.h \
 	%reldir%/scoped.h \
 	%reldir%/tuple.h \
-	%reldir%/utils.h
+	%reldir%/utils.h \
+	%reldir%/types.h
 nngn_SOURCES += \
 	%reldir%/concepts.cpp \
 	%reldir%/concepts/fundamental.cpp \
@@ -27,6 +29,7 @@ nngn_SOURCES += \
 	%reldir%/ranges.cpp \
 	%reldir%/regexp.cpp \
 	%reldir%/tuple.cpp \
+	%reldir%/types.cpp \
 	%reldir%/utils.cpp
 
 include %reldir%/alloc/Makefile.am

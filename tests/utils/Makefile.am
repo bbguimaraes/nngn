@@ -3,14 +3,19 @@ check_PROGRAMS += \
 	%reldir%/flags \
 	%reldir%/log \
 	%reldir%/scoped \
-	%reldir%/utils
+	%reldir%/utils \
+	%reldir%/types
 endif
 
 check_HEADERS += \
 	%reldir%/flags_test.h \
 	%reldir%/log_test.h \
 	%reldir%/scoped_test.h \
-	%reldir%/utils_test.h
+	%reldir%/utils_test.h \
+	%reldir%/types_test.h
+
+dist_check_DATA += \
+	%reldir%/utils_test.txt
 
 %canon_reldir%_flags_CPPFLAGS = $(check_CPPFLAGS)
 %canon_reldir%_flags_CXXFLAGS = $(check_CXXFLAGS)
@@ -38,7 +43,16 @@ check_HEADERS += \
 %canon_reldir%_utils_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_utils_LDADD = $(check_LDADD)
 %canon_reldir%_utils_SOURCES = \
+	src/utils/log.cpp \
+	src/utils/utils.cpp \
 	%reldir%/utils_test.cpp \
 	%reldir%/utils_test.moc.cpp
+
+%canon_reldir%_types_CPPFLAGS = $(check_CPPFLAGS)
+%canon_reldir%_types_CXXFLAGS = $(check_CXXFLAGS)
+%canon_reldir%_types_LDADD = $(check_LDADD)
+%canon_reldir%_types_SOURCES = \
+	%reldir%/types_test.cpp \
+	%reldir%/types_test.moc.cpp
 
 include %reldir%/alloc/Makefile.am

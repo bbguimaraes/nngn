@@ -17,6 +17,7 @@ AM_CXXFLAGS = \
 AM_CXXFLAGS += -Wno-gnu-zero-variadic-macro-arguments
 AM_CXXFLAGS += -Wno-string-conversion
 
+BUILT_SOURCES =
 noinst_HEADERS =
 
 bin_PROGRAMS = @NNGN_BIN@
@@ -63,6 +64,7 @@ CLEANFILES =
 	check-programs \
 	clean-docs \
 	docs \
+	shaders \
 	tidy \
 	tools
 
@@ -89,6 +91,7 @@ TIDY_IGNORE =
 $(TIDY_IGNORE):
 	@true
 
+shaders: $(SHADERS)
 tools: $(TOOLS_BIN)
 
 include $(srcdir)/src/Makefile.am

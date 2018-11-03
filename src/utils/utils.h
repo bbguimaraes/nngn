@@ -3,12 +3,16 @@
 
 #include <bit>
 #include <cassert>
+#include <cstring>
 #include <functional>
 #include <span>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
+#include <vector>
 
+#include "concepts.h"
 #include "concepts/fundamental.h"
 
 #define FWD(...) std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
@@ -129,11 +133,63 @@ inline constexpr auto ptr_diff(const auto *lhs, const auto *rhs) {
     return byte_cast<const char*>(lhs) - byte_cast<const char*>(rhs);
 }
 
+/** Compares the address of two pointers. */
+inline constexpr bool ptr_cmp(const auto *p0, const auto *p1)
+    { return static_cast<const void*>(p0) == static_cast<const void*>(p1); }
+
+/** Similar to the stdlib's \c offsetof, but using member data pointers. */
+template<standard_layout T>
+std::size_t offsetof_ptr(auto T::*p) {
+    T t = {};
+    return static_cast<std::size_t>(ptr_diff(&(t.*p), &t));
+}
+
+inline auto as_bytes(const void *p) { return static_cast<const std::byte*>(p); }
+inline auto as_bytes(void *p) { return static_cast<std::byte*>(p); }
+
+inline std::span<const std::byte> as_byte_span(const auto *x)
+    { return {as_bytes(x), sizeof(*x)}; }
+inline std::span<std::byte> as_byte_span(auto *x)
+    { return {as_bytes(x), sizeof(*x)}; }
+
+inline constexpr bool str_less(const char *lhs, const char *rhs) {
+    if(!std::is_constant_evaluated())
+        return std::strcmp(lhs, rhs) < 0;
+    while(*lhs && *rhs && *lhs == *rhs)
+        ++lhs, ++rhs;
+    return *rhs && (!*lhs || *lhs < *rhs);
+}
+
 template<typename T>
 constexpr auto set_bit(T t, T mask, bool value) {
     assert(std::popcount(mask) == 1);
     return t ^ ((t ^ -T{value}) & mask);
 }
+
+template<member_pointer auto p>
+struct mem_obj {
+    template<typename T>
+    requires requires (T t) { {t.*p}; }
+    constexpr decltype(auto) operator()(const T &t)
+        { return t.*p; }
+};
+
+template<member_pointer auto p>
+struct member_less {
+    template<typename T>
+    requires requires (T t) { {t.*p}; }
+    constexpr bool operator()(const T &lhs, const T &rhs)
+        { return lhs.*p < rhs.*p; }
+};
+
+/**
+ * Allows passing an rvalue pointer to a function.
+ * E.g. <tt>takes_ptr(rptr(Obj{}))</tt>.
+ */
+constexpr decltype(auto) rptr(auto &&r) { return &r; }
+
+bool read_file(std::string_view filename, std::string *ret);
+bool read_file(std::string_view filename, std::vector<std::byte> *ret);
 
 }
 

@@ -31,6 +31,19 @@ inline constexpr owning_view<T>::owning_view(T &r) :
     e{std::move(std::ranges::end(r))}
 {}
 
+template<typename T>
+struct range_to {
+    template<std::ranges::range R>
+    friend auto operator|(R &&r, range_to) {
+        T ret = {};
+        if constexpr(std::ranges::sized_range<R>)
+            ret.reserve(std::ranges::size(FWD(r)));
+        for(auto &&x : FWD(r))
+            ret.push_back(x);
+        return ret;
+    }
+};
+
 /* TODO libc++
 constexpr auto enumerate(std::ranges::range auto &&r, auto i = std::size_t{}) {
     return std::views::transform(
