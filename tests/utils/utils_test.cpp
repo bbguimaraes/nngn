@@ -1,6 +1,31 @@
+#include <cstring>
+#include <filesystem>
+
+#include "utils/log.h"
 #include "utils/pointer_flag.h"
+#include "utils/utils.h"
+
+#include "tests/tests.h"
 
 #include "utils_test.h"
+
+void UtilsTest::read_file() {
+    std::filesystem::path f = "utils_test.txt";
+    if(const char *d = std::getenv("srcdir"))
+        f = d / ("tests" / ("utils" / f));
+    std::string ret;
+    if(!nngn::read_file(f.c_str(), &ret))
+        QFAIL(std::strerror(errno));
+    QCOMPARE(ret.c_str(), "test\n");
+}
+
+void UtilsTest::read_file_err() {
+    const auto ret = nngn::Log::capture(
+        []() { QCOMPARE(nngn::read_file("\0", nullptr), false); });
+    const auto expected =
+        std::string("read_file: : ") + std::strerror(ENOENT) + '\n';
+    QCOMPARE(ret, expected);
+}
 
 void UtilsTest::pointer_flag() {
     auto p = this;

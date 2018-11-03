@@ -8,8 +8,10 @@ nngn_SOURCES += \
 	%reldir%/main.cpp
 
 EXTRA_DIST += \
+	%reldir%/glsl \
 	%reldir%/lua
 
+include %reldir%/glsl/Makefile.am
 include %reldir%/graphics/Makefile.am
 include %reldir%/input/Makefile.am
 include %reldir%/math/Makefile.am

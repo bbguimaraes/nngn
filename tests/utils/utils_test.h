@@ -6,7 +6,9 @@
 class UtilsTest : public QObject {
     Q_OBJECT
 private slots:
+    void read_file();
     void pointer_flag();
+    void read_file_err();
 };
 
 #endif

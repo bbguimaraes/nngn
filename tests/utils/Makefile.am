@@ -12,6 +12,9 @@ check_HEADERS += \
 	%reldir%/scoped_test.h \
 	%reldir%/utils_test.h
 
+dist_check_DATA += \
+	%reldir%/utils_test.txt
+
 %canon_reldir%_flags_CPPFLAGS = $(check_CPPFLAGS)
 %canon_reldir%_flags_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_flags_LDADD = $(check_LDADD)
@@ -38,5 +41,7 @@ check_HEADERS += \
 %canon_reldir%_utils_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_utils_LDADD = $(check_LDADD)
 %canon_reldir%_utils_SOURCES = \
+	src/utils/log.cpp \
+	src/utils/utils.cpp \
 	%reldir%/utils_test.cpp \
 	%reldir%/utils_test.moc.cpp

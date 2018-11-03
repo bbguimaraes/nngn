@@ -8,5 +8,7 @@ pkgs.mkShell {
     pkgs.lua5_3
     pkgs.qt5.qtbase
     pkgs.qt5.qtcharts
+    pkgs.vulkan-headers
+    pkgs.vulkan-loader
   ];
 }

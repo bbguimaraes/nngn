@@ -26,7 +26,7 @@ GLFWBackend::~GLFWBackend() {
     glfwTerminate();
 }
 
-bool GLFWBackend::init_glfw() {
+bool GLFWBackend::init_glfw() const {
     NNGN_LOG_CONTEXT_CF(GLFWBackend);
     if(this->params.flags.is_set(Parameters::Flag::DEBUG))
         glfwSetErrorCallback([](int, const char *description)

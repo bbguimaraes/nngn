@@ -15,6 +15,7 @@ AM_CXXFLAGS = \
 	-Wwrite-strings -Wno-missing-field-initializers
 AM_LDFLAGS = -fuse-ld=gold -Wl,--threads,--preread-archive-symbols
 
+BUILT_SOURCES =
 noinst_HEADERS =
 
 bin_PROGRAMS = @NNGN_BIN@
@@ -60,6 +61,7 @@ CLEANFILES =
 	check-programs \
 	clean-docs \
 	docs \
+	shaders \
 	tidy \
 	tools
 
@@ -80,6 +82,7 @@ TIDY_IGNORE =
 $(TIDY_IGNORE):
 	@true
 
+shaders: $(SHADERS)
 tools: $(TOOLS_BIN)
 
 include $(srcdir)/src/Makefile.am

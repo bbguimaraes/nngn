@@ -38,6 +38,7 @@ The following `configure` options are relevant when targeting WebAssembly:
 
 - `--disable-tests`
 - `--disable-tools`
+- `--without-vulkan`
 
 ### dependencies
 
@@ -60,6 +61,14 @@ Enables the OpenGL graphics backend.  Requires:
 - `glfw` (3.3): portable GUI library
 - `gl` (4.5, 3.1es): graphics library
 - `glew` (2.1.0): OpenGL extension loading library
+
+#### `--with-vulkan`
+
+Enables the Vulkan graphics backend.  Requires:
+
+- `glfw` (3.3): portable GUI library
+- `vulkan` (1.1.130): graphics library
+- `glslang` (11.1.0): GLSL compiler
 
 #### tests
 

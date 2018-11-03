@@ -12,6 +12,9 @@ pkgs=(
     qt5-charts
     # gl
     glew
+    # vk
+    shaderc vulkan-headers vulkan-icd-loader vulkan-intel
+    vulkan-validation-layers xxd
 )
 root=build/root
 pacstrap -cd "$root/" --needed "${pkgs[@]}"

@@ -3,8 +3,11 @@
 
 #include <bit>
 #include <cassert>
+#include <cstring>
 #include <string>
 #include <string_view>
+
+#include "concepts.h"
 
 #define FWD(...) std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
 
@@ -46,11 +49,43 @@ constexpr decltype(auto) cast(U &&x) {
         return reinterpret_cast<T>(FWD(x));
 }
 
+inline constexpr bool str_less(const char *lhs, const char *rhs) {
+    if(!std::is_constant_evaluated())
+        return std::strcmp(lhs, rhs) < 0;
+    while(*lhs && *rhs && *lhs == *rhs)
+        ++lhs, ++rhs;
+    return *rhs && (!*lhs || *lhs < *rhs);
+}
+
 template<typename T>
 constexpr auto set_bit(T t, T mask, bool value) {
     assert(std::popcount(mask) == 1);
     return t ^ ((t ^ -T{value}) & mask);
 }
+
+template<member_pointer auto p>
+struct mem_obj {
+    template<typename T>
+    requires requires (T t) { {t.*p}; }
+    constexpr decltype(auto) operator()(const T &t)
+        { return t.*p; }
+};
+
+template<member_pointer auto p>
+struct member_less {
+    template<typename T>
+    requires requires (T t) { {t.*p}; }
+    constexpr bool operator()(const T &lhs, const T &rhs)
+        { return lhs.*p < rhs.*p; }
+};
+
+/**
+ * Allows passing an rvalue pointer to a function.
+ * E.g. <tt>takes_ptr(rptr(Obj{}))</tt>.
+ */
+constexpr decltype(auto) rptr(auto &&r) { return &r; }
+
+bool read_file(std::string_view filename, std::string *ret);
 
 }
 
