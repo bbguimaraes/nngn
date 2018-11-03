@@ -4,6 +4,10 @@ noinst_HEADERS += \
 nngn_SOURCES += \
 	%reldir%/main.cpp
 
+EXTRA_DIST += \
+	%reldir%/glsl
+
+include %reldir%/glsl/Makefile.am
 include %reldir%/graphics/Makefile.am
 include %reldir%/input/Makefile.am
 include %reldir%/lua/Makefile.am

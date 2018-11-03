@@ -30,6 +30,8 @@ std::unique_ptr<Graphics> graphics_create_backend<backend_es>(const void*) {
 
 #else
 
+#include <cstring>
+
 #include "graphics/glfw.h"
 #include "timing/profile.h"
 #include "utils/flags.h"
@@ -52,8 +54,31 @@ class OpenGLBackend final : public nngn::GLFWBackend {
 public:
     OpenGLBackend(const OpenGLParameters &params, bool es);
     Version version() const final;
-    bool init() final;
+    bool init_backend() final;
+    bool init_instance() final;
+    bool init_device() final { return true; }
+    bool init_device(std::size_t) final { return true; }
+    std::size_t n_extensions() const final;
+    std::size_t n_layers() const final { return 0; }
+    std::size_t n_devices() const final { return 1; }
+    std::size_t n_device_extensions(std::size_t) const final { return 0; }
+    std::size_t n_queue_families(std::size_t) const final { return 0; }
+    std::size_t n_present_modes() const final { return 0; }
+    std::size_t n_heaps(std::size_t) const final { return 0; }
+    std::size_t n_memory_types(std::size_t, std::size_t) const final
+        { return 0; }
+    std::size_t selected_device() const final { return 0; }
+    void extensions(Extension*) const final;
+    void layers(Layer*) const final {}
+    void device_infos(DeviceInfo*) const final;
+    void device_extensions(std::size_t, Extension*) const final {}
+    void queue_families(std::size_t, QueueFamily*) const final {}
+    SurfaceInfo surface_info() const final { return {}; }
+    void present_modes(PresentMode*) const final {}
+    void heaps(std::size_t, MemoryHeap*) const final {}
+    void memory_types(std::size_t, std::size_t, MemoryType*) const final {}
     bool error() final { return this->flags.is_set(Flag::CALLBACK_ERROR); }
+    bool set_n_frames(std::size_t) override { return true; }
     bool render() final;
     bool vsync() final;
 };
@@ -74,10 +99,13 @@ auto OpenGLBackend::version() const -> Version {
     return {0, 0, 0, "error"};
 }
 
-bool OpenGLBackend::init() {
+bool OpenGLBackend::init_backend() {
     NNGN_LOG_CONTEXT_CF(OpenGLBackend);
-    if(!this->init_glfw())
-        return false;
+    return this->init_glfw();
+}
+
+bool OpenGLBackend::init_instance() {
+    NNGN_LOG_CONTEXT_CF(OpenGLBackend);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, this->maj);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, this->min);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
@@ -122,6 +150,30 @@ bool OpenGLBackend::init() {
     if(!this->params.flags.is_set(Parameters::Flag::HIDDEN))
         glfwShowWindow(this->w);
     return true;
+}
+
+std::size_t OpenGLBackend::n_extensions() const {
+    GLint ret = {};
+    CHECK_RESULT(glGetIntegerv, GL_NUM_EXTENSIONS, &ret);
+    return static_cast<std::size_t>(ret);
+}
+
+void OpenGLBackend::extensions(Extension *p) const {
+    constexpr auto size = std::tuple_size<decltype(Extension::name)>::value - 1;
+    const auto n = this->n_extensions();
+    for(std::size_t i = 0; i < n; ++i) {
+        const auto *name = reinterpret_cast<const char*>(
+            glGetStringi(GL_EXTENSIONS, static_cast<GLuint>(i)));
+        std::strncpy(p[i].name.data(), name, size);
+    }
+}
+
+void OpenGLBackend::device_infos(DeviceInfo *p) const {
+    constexpr auto size =
+        std::tuple_size<decltype(DeviceInfo::name)>::value - 1;
+    const auto *name = reinterpret_cast<const char*>(
+        glGetString(GL_RENDERER));
+    std::strncpy(p->name.data(), name, size);
 }
 
 bool OpenGLBackend::render() {

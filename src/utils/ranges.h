@@ -28,6 +28,19 @@ private:
     std::ranges::iterator_t<T> b, e;
 };
 
+template<typename T>
+struct range_to {
+    template<std::ranges::range R>
+    friend auto operator|(R &&r, range_to) {
+        T ret = {};
+        if constexpr(std::ranges::sized_range<R>)
+            ret.reserve(std::ranges::size(FWD(r)));
+        for(auto &&x : FWD(r))
+            ret.push_back(x);
+        return ret;
+    }
+};
+
 template<typename V>
 void set_capacity(V *v, size_t n) {
     if(n < v->capacity())

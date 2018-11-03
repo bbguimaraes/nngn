@@ -10,6 +10,9 @@ namespace nngn {
 template<typename T>
 concept trivial = std::is_trivial_v<T>;
 
+template<typename T>
+concept standard_layout = std::is_standard_layout_v<T>;
+
 template<typename D, typename B>
 concept derived_from =
 #ifdef _LIBCPP_VERSION

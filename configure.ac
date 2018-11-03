@@ -7,6 +7,7 @@ AC_CONFIG_HEADERS([src/config.h])
 # Checks for programs.
 AC_PROG_CXX
 AC_PROG_CC
+AC_PROG_CPP
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
@@ -25,6 +26,17 @@ AS_IF([test "x$with_opengl" == xyes],
      AC_DEFINE([NNGN_PLATFORM_HAS_GLFW], [1], [Define if you have GLFW])
      AC_DEFINE([NNGN_PLATFORM_HAS_OPENGL], [1], [Define if you have OpenGL])],
     [])
+
+AC_ARG_WITH([vulkan],
+    [AS_HELP_STRING([--with-vulkan], [enable the Vulkan graphics backend])],
+    [], [])
+AS_IF([test "x$with_vulkan" == xyes],
+    [DEPS="$DEPS glfw3 vulkan"
+     GLSLANG=glslangValidator
+     AC_DEFINE([NNGN_PLATFORM_HAS_GLFW], [1], [Define if you have GLFW])
+     AC_DEFINE([NNGN_PLATFORM_HAS_VULKAN], [1], [Define if you have Vulkan])],
+    [GLSLANG=:])
+AC_SUBST([GLSLANG])
 
 # Non-essential configuration options.
 ENABLE_TESTS=no
@@ -77,6 +89,8 @@ AC_CHECK_FUNCS([setenv signal])
 AC_CHECK_FUNCS([socket],
     AC_DEFINE([NNGN_PLATFORM_HAS_SOCKETS], [1], [Define if you have sockets]))
 
+AC_CONFIG_COMMANDS(src/glsl/gl/mkdir)
+AC_CONFIG_COMMANDS(src/glsl/vk/mkdir)
 AC_CONFIG_COMMANDS(tools/bin/mkdir)
 
 AC_CONFIG_FILES([Makefile])
