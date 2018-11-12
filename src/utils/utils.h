@@ -3,7 +3,9 @@
 
 #include <bit>
 #include <cassert>
+#include <cstddef>
 #include <cstring>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -63,6 +65,14 @@ std::size_t offsetof_ptr(auto T::*p) {
         static_cast<const char*>(static_cast<const void*>(&(t.*p)))
             - static_cast<const char*>(static_cast<const void*>(&t)));
 }
+
+inline auto as_bytes(const void *p) { return static_cast<const std::byte*>(p); }
+inline auto as_bytes(void *p) { return static_cast<std::byte*>(p); }
+
+inline std::span<const std::byte> as_byte_span(const auto *x)
+    { return {as_bytes(x), sizeof(*x)}; }
+inline std::span<std::byte> as_byte_span(auto *x)
+    { return {as_bytes(x), sizeof(*x)}; }
 
 inline constexpr bool str_less(const char *lhs, const char *rhs) {
     if(!std::is_constant_evaluated())

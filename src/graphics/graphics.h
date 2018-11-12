@@ -8,6 +8,7 @@
 #include <string>
 #include <tuple>
 
+#include "math/mat4.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
 #include "utils/def.h"
@@ -20,6 +21,7 @@ struct GLFWwindow;
 
 namespace nngn {
 
+struct CameraUBO { mat4 proj, view; };
 struct Vertex { vec3 pos, color; };
 
 struct Graphics {

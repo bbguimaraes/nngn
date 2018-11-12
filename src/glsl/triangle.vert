@@ -1,4 +1,5 @@
 #include "common.h"
+#include "camera_ubo.h"
 
 LAYOUT(location = 0) in vec3 position;
 LAYOUT(location = 1) in vec3 color;
@@ -11,6 +12,6 @@ out gl_PerVertex {
 #endif
 
 void main() {
-    gl_Position = vec4(position, 1);
+    gl_Position = camera.proj_view * vec4(position, 1);
     frag_color = color;
 }
