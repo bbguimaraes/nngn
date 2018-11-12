@@ -1,5 +1,6 @@
 noinst_HEADERS += \
 	%reldir%/cmd_pool.h \
+	%reldir%/descriptor.h \
 	%reldir%/device.h \
 	%reldir%/handle.h \
 	%reldir%/instance.h \
@@ -12,6 +13,7 @@ noinst_HEADERS += \
 	%reldir%/vulkan.h
 nngn_SOURCES += \
 	%reldir%/cmd_pool.cpp \
+	%reldir%/descriptor.cpp \
 	%reldir%/device.cpp \
 	%reldir%/instance.cpp \
 	%reldir%/memory.cpp \

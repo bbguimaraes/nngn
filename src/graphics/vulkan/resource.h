@@ -4,6 +4,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 #include "utils/log.h"
 
@@ -45,6 +46,9 @@ public:
         VkDevice dev, DeviceMemory *dev_mem,
         VkDeviceSize size, VkBufferUsageFlags usage);
     void destroy(VkDevice dev, DeviceMemory *dev_mem);
+    void fill(
+        VkDevice dev, VkDeviceSize off, VkDeviceSize n, VkDeviceSize stride,
+        std::span<const std::byte> s) const;
 private:
     VkDeviceMemory hm = {};
 };
