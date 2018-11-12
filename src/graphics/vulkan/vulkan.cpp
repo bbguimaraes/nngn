@@ -36,10 +36,12 @@ std::unique_ptr<Graphics> graphics_create_backend<Backend>(const void*) {
 
 #include "graphics/glfw.h"
 #include "graphics/shaders.h"
+#include "math/math.h"
 #include "timing/profile.h"
 #include "utils/flags.h"
 
 #include "cmd_pool.h"
+#include "descriptor.h"
 #include "device.h"
 #include "instance.h"
 #include "memory.h"
@@ -73,6 +75,15 @@ constexpr VkSurfaceFormatKHR SURFACE_FORMAT = {
 constexpr auto PRESENT_MODE = nngn::Graphics::PresentMode::FIFO;
 /** Flags used to create all command pools. */
 constexpr auto CMD_POOL_FLAGS = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
+/** Maximum number of concurrent frames. */
+constexpr std::size_t MAX_FRAMES = 32;
+
+/** Adjusts depth values in clip space. */
+const auto CLIP_PROJ = nngn::Math::transpose(nngn::mat4(
+    1,  0,  0,  0,
+    0,  1,  0,  0,
+    0,  0, .5, .5,
+    0,  0,  0,  1));
 
 class Shaders {
 public:
@@ -127,6 +138,29 @@ private:
     std::size_t n_frames = {};
 };
 
+class UBODescriptorSets : public nngn::DescriptorSets {
+public:
+    VkDeviceSize alignment() const { return this->m_alignment; }
+    const std::bitset<MAX_FRAMES> &updated() const { return this->m_updated; }
+    std::bitset<MAX_FRAMES> &updated() { return this->m_updated; }
+    bool init(
+        VkDevice dev, VkDeviceSize size, VkDeviceSize min_ubo_align,
+        std::span<const VkDescriptorSetLayoutBinding> bindings);
+private:
+    VkDeviceSize m_alignment = {};
+    std::bitset<MAX_FRAMES> m_updated = {};
+};
+
+class CameraDescriptorSets : public UBODescriptorSets {
+public:
+    bool init(VkDevice dev, VkDeviceSize min_ubo_align);
+    VkDeviceSize size(std::size_t n_frames) const;
+    std::uint32_t offset(std::size_t i) const;
+    void write(VkBuffer ubo, VkDeviceSize offset) const;
+private:
+    static constexpr VkDeviceSize size();
+};
+
 struct RenderList {
     struct Stage {
         NNGN_MOVE_ONLY(Stage)
@@ -160,6 +194,9 @@ class VulkanBackend final : public nngn::GLFWBackend {
     std::size_t cur_frame = {}, n_frames = {};
     nngn::StagingBuffer stg_buffer = {};
     Buffers buffers = {};
+    nngn::DedicatedBuffer ubo = {};
+    nngn::DescriptorPool descriptor_pool = {};
+    CameraDescriptorSets camera_descriptor_sets = {};
     Shaders shaders = {};
     VkRenderPass render_pass = {};
     VkPipelineCache pipeline_cache = {};
@@ -352,6 +389,60 @@ void Buffers::copy(
         vkCmdCopyBuffer(cmd, src, dst_b.id(), 1, &copy);
 }
 
+bool UBODescriptorSets::init(
+    VkDevice dev_, VkDeviceSize size, VkDeviceSize min_ubo_align,
+    std::span<const VkDescriptorSetLayoutBinding> bindings
+) {
+    if(!DescriptorSets::init(dev_, bindings))
+        return false;
+    this->m_alignment = nngn::Math::round_up(size, min_ubo_align);
+    return true;
+}
+
+constexpr VkDeviceSize CameraDescriptorSets::size() {
+    constexpr std::size_t normal = 1;
+    return normal;
+}
+
+VkDeviceSize CameraDescriptorSets::size(std::size_t n_frames) const {
+    return CameraDescriptorSets::size() * this->alignment() * n_frames;
+}
+
+u32 CameraDescriptorSets::offset(std::size_t i) const {
+    return static_cast<u32>(
+        CameraDescriptorSets::size() * this->alignment() * i);
+}
+
+bool CameraDescriptorSets::init(VkDevice dev_, VkDeviceSize min_ubo_align) {
+    NNGN_LOG_CONTEXT_CF(CameraDescriptorSets);
+    constexpr auto stage = VK_SHADER_STAGE_VERTEX_BIT;
+    return UBODescriptorSets::init(
+        dev_, sizeof(nngn::CameraUBO), min_ubo_align,
+        std::to_array<VkDescriptorSetLayoutBinding>({{
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+            .descriptorCount = 1,
+            .stageFlags = stage,
+        }}));
+}
+
+void CameraDescriptorSets::write(VkBuffer ubo, VkDeviceSize offset) const {
+    NNGN_LOG_CONTEXT_CF(CameraDescriptorSets);
+    vkUpdateDescriptorSets(
+        this->dev, 1,
+        nngn::rptr(VkWriteDescriptorSet{
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = this->ids()[0],
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+            .pBufferInfo = nngn::rptr(VkDescriptorBufferInfo{
+                .buffer = ubo,
+                .offset = offset,
+                .range = sizeof(nngn::CameraUBO)}),
+        }),
+        0, nullptr);
+}
 
 RenderList::Stage::Stage(const nngn::Graphics::RenderList::Stage &s) :
     conf{s.pipeline}
@@ -376,6 +467,7 @@ VulkanBackend::~VulkanBackend() {
     vkDestroyPipelineLayout(this->dev.id(), this->pipeline_layout, nullptr);
     vkDestroyPipelineCache(this->dev.id(), this->pipeline_cache, nullptr);
     vkDestroyRenderPass(this->dev.id(), this->render_pass, nullptr);
+    this->ubo.destroy(this->dev.id(), &this->dev_mem);
 }
 
 auto VulkanBackend::version() const -> Version
@@ -576,16 +668,29 @@ bool VulkanBackend::init_device(std::size_t i) {
         this->instance, this->dev.id(), &this->dev_mem, 1u << 20);
     this->buffers.init(this->dev.id(), &this->dev_mem);
     this->shaders.init(&this->dev);
-    ok = this->shaders.init(
+    this->descriptor_pool.init(this->dev.id());
+    VkPhysicalDeviceProperties prop = {};
+    vkGetPhysicalDeviceProperties(physical_dev, &prop);
+    ok = this->camera_descriptor_sets.init(
+            this->dev.id(), prop.limits.minUniformBufferOffsetAlignment)
+        && this->shaders.init(
             this->instance, PipelineConfiguration::Type::TRIANGLE,
             "src/glsl/vk/triangle.vert.spv"sv,
             "src/glsl/vk/triangle.frag.spv"sv,
             nngn::GLSL_VK_TRIANGLE_VERT,
             nngn::GLSL_VK_TRIANGLE_FRAG)
-        && this->create_render_pass(surface_format.format)
-        && LOG_RESULT(
+        && this->create_render_pass(surface_format.format);
+    if(!ok)
+        return false;
+    const auto descriptor_layouts = std::to_array<VkDescriptorSetLayout>({
+        this->camera_descriptor_sets.layout(),
+    });
+    ok = LOG_RESULT(
             vkCreatePipelineLayout, this->dev.id(),
-            nngn::rptr(nngn::vk_create_info<VkPipelineLayout>({})),
+            nngn::rptr(nngn::vk_create_info<VkPipelineLayout>({
+                .setLayoutCount = static_cast<u32>(descriptor_layouts.size()),
+                .pSetLayouts = descriptor_layouts.data(),
+            })),
             nullptr, &this->pipeline_layout)
         && this->instance.set_obj_name(
             this->dev.id(), this->pipeline_layout, "pipeline_layout"sv)
@@ -776,6 +881,17 @@ bool VulkanBackend::update_render_list() {
 bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
     const auto i = this->cur_frame;
+    constexpr auto bind_descriptors = [](
+        auto b, auto l, const char *name, std::uint32_t first_set,
+        std::span<const VkDescriptorSet> dv,
+        std::span<const std::uint32_t> ov
+    ) {
+        NNGN_LOG_CONTEXT(name);
+        vkCmdBindDescriptorSets(
+            b, VK_PIPELINE_BIND_POINT_GRAPHICS, l, first_set,
+            static_cast<std::uint32_t>(dv.size()), dv.data(),
+            static_cast<std::uint32_t>(ov.size()), ov.data());
+    };
     const auto render = [this, i](
         auto b, const char *name,
         const VkViewport &viewport, VkRect2D scissors,
@@ -799,7 +915,9 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
             }
         }
     };
-    const auto record_render_pass = [this, render, img_idx](
+    const auto record_render_pass = [
+        this, bind_descriptors, render, i, img_idx
+    ](
         auto b, const auto extent
     ) {
         NNGN_LOG_CONTEXT("render_pass");
@@ -823,6 +941,11 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
             .maxDepth = 1,
         };
         const VkRect2D scissors = {{}, {width, height}};
+        const auto &camera_desc = this->camera_descriptor_sets;
+        bind_descriptors(
+            b, this->pipeline_layout, "normal", 0,
+            std::array{camera_desc.ids()[0]},
+            std::array{camera_desc.offset(i)});
         render(b, "normal", viewport, scissors, this->render_list.normal);
         vkCmdEndRenderPass(b);
     };
@@ -922,10 +1045,45 @@ bool VulkanBackend::set_n_frames(std::size_t n) {
     }
     for(auto &x : std::span{this->cmd_pools}.subspan(0, n_pools))
         x.reset();
+    this->ubo.destroy(this->dev.id(), &this->dev_mem);
     this->n_frames = n;
     this->cur_frame = 0;
     if(!VulkanBackend::begin_cmd(this->cur_cmd_buffer()))
         return false;
+    constexpr auto host_mem =
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT
+        | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
+    const u32
+        n_camera_desc = 1,
+        n_desc = n_camera_desc;
+    const VkDeviceSize
+        ubo_camera_size = this->camera_descriptor_sets.size(this->n_frames),
+        ubo_size = ubo_camera_size;
+    bool ok = this->ubo.init<host_mem>(
+            this->dev.id(), &this->dev_mem, ubo_size,
+            VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->ubo.id(), "ubo"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->ubo.mem(), "ubo_mem"sv)
+        && this->descriptor_pool.reset()
+        && this->descriptor_pool.recreate(
+            n_desc, std::to_array<VkDescriptorPoolSize>({{
+                .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC,
+                .descriptorCount = n_camera_desc,
+            }}))
+        && this->instance.set_obj_name(
+            this->dev.id(), this->descriptor_pool.id(), "descriptor_pool"sv)
+        && this->camera_descriptor_sets.reset(this->descriptor_pool.id(), 1)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->camera_descriptor_sets.layout(),
+            "camera_descriptor_set_layout"sv)
+        && this->instance.set_obj_name(
+            this->dev.id(), this->camera_descriptor_sets.ids()[0],
+            "camera_descriptor_set"sv);
+    if(!ok)
+        return false;
+    this->camera_descriptor_sets.write(this->ubo.id(), 0);
     this->frame_fences.resize(this->n_frames);
     std::ranges::fill(this->frame_fences, VkFence{});
     this->stg_buffer.resize(this->n_frames);
@@ -944,6 +1102,19 @@ void VulkanBackend::set_swap_interval(int i) {
 bool VulkanBackend::render() {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
     NNGN_PROFILE_CONTEXT(render);
+    const auto update_camera = [this] {
+        constexpr auto far = 2048.0f;
+        const auto extent =
+            static_cast<nngn::vec2>(this->m_surface_info.cur_extent) / 2.0f;
+        this->ubo.fill(
+            this->dev.id(), 0, this->n_frames,
+            this->camera_descriptor_sets.alignment(),
+            nngn::as_byte_span(nngn::rptr(nngn::CameraUBO{
+                .proj = CLIP_PROJ * nngn::Math::ortho(
+                    -extent.x, extent.x, -extent.y, extent.y, 0.0f, far),
+                .view = nngn::Math::look_at<float>(
+                    {0, 0, far / 2}, {}, {0, 1, 0})})));
+    };
     const auto cmd = this->cur_cmd_buffer();
     const auto queue = this->dev.graphics_queue();
     if(this->flags.is_set(Flag::RECREATE_SWAPCHAIN))
@@ -965,6 +1136,7 @@ bool VulkanBackend::render() {
     }
     if(auto f = std::exchange(this->frame_fences[this->cur_frame], ctx.fence))
         vkWaitForFences(this->dev.id(), 1, &f, VK_TRUE, UINT64_MAX);
+    update_camera();
     if(!this->create_cmd_buffer(ctx.img_idx))
         return false;
     vkResetFences(this->dev.id(), 1, &ctx.fence);

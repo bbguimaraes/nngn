@@ -34,6 +34,20 @@ void Buffer::destroy(VkDevice dev) {
 
 }
 
+void DedicatedBuffer::fill(
+    VkDevice dev, VkDeviceSize off, VkDeviceSize n, VkDeviceSize stride,
+    std::span<const std::byte> s
+) const {
+    assert(stride <= s.size());
+    assert(off + n * stride <= this->capacity());
+    void *vp = {};
+    vkMapMemory(dev, this->hm, off, s.size(), 0, &vp);
+    auto p = static_cast<std::byte*>(vp);
+    for(auto *const e = p + n * s.size(); p < e; p += stride)
+        std::memcpy(p, s.data(), s.size());
+    vkUnmapMemory(dev, this->hm);
+}
+
 void DedicatedBuffer::destroy(
     VkDevice dev, nngn::DeviceMemory *dev_mem
 ) {

@@ -40,6 +40,7 @@ std::unique_ptr<Graphics> graphics_create_backend<backend_es>(const void*) {
 
 #include "graphics/glfw.h"
 #include "graphics/shaders.h"
+#include "math/math.h"
 #include "timing/profile.h"
 #include "utils/flags.h"
 #include "utils/literals.h"
@@ -57,6 +58,10 @@ using namespace nngn::literals;
 using nngn::u8, nngn::i32, nngn::u32, nngn::u64;
 
 namespace {
+
+enum : u32 {
+    CAMERA_UBO_BINDING,
+};
 
 constexpr auto N_PROGRAMS =
     static_cast<std::size_t>(nngn::Graphics::PipelineConfiguration::Type::MAX);
@@ -86,12 +91,15 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     };
     nngn::Flags<Flag> flags = {};
     int maj = 0, min = 0;
+    nngn::GLBuffer camera_ubo = {};
     std::list<nngn::GLBuffer> stg_buffers = {};
     std::vector<nngn::GLBuffer> buffers = std::vector<nngn::GLBuffer>(1);
     std::vector<Pipeline> pipelines = {{}};
     std::array<nngn::GLProgram, N_PROGRAMS> programs = {};
     ::RenderList render_list = {};
     void resize(int, int) final { this->flags |= Flag::RESIZED; }
+    static bool create_uniform_buffer(
+        std::string_view name, u64 size, nngn::GLBuffer *b);
     bool create_vao(
         u32 vbo, u32 ebo, PipelineConfiguration::Type type, nngn::VAO *vao);
 public:
@@ -208,6 +216,9 @@ bool OpenGLBackend::init_instance() {
 #endif
     CHECK_RESULT(glClearColor, 0, 0, 0, 0);
     CHECK_RESULT(glEnable, GL_CULL_FACE);
+    if(!OpenGLBackend::create_uniform_buffer("camera_ubo"sv,
+            sizeof(nngn::CameraUBO), &this->camera_ubo))
+        return false;
 #define P(x) static_cast<std::size_t>(PipelineConfiguration::Type::x)
     nngn::GLProgram
         &triangle_prog = this->programs[P(TRIANGLE)];
@@ -215,6 +226,12 @@ bool OpenGLBackend::init_instance() {
     if(!triangle_prog.create(
             "src/glsl/gl/triangle.vert"sv, "src/glsl/gl/triangle.frag"sv,
             nngn::GLSL_GL_TRIANGLE_VERT, nngn::GLSL_GL_TRIANGLE_FRAG))
+        return false;
+    CHECK_RESULT(glUseProgram, triangle_prog.id());
+    CHECK_RESULT(
+        glBindBufferRange, GL_UNIFORM_BUFFER,
+        CAMERA_UBO_BINDING, this->camera_ubo.id(), 0, sizeof(nngn::CameraUBO));
+    if(!triangle_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
     if(!this->params.flags.is_set(Parameters::Flag::HIDDEN))
         glfwShowWindow(this->w);
@@ -243,6 +260,13 @@ void OpenGLBackend::device_infos(DeviceInfo *p) const {
     const auto *name = reinterpret_cast<const char*>(
         glGetString(GL_RENDERER));
     std::strncpy(p->name.data(), name, size);
+}
+
+bool OpenGLBackend::create_uniform_buffer(
+    std::string_view name, u64 size, nngn::GLBuffer *b
+) {
+    return b->create(GL_UNIFORM_BUFFER, size, GL_DYNAMIC_DRAW)
+        && nngn::gl_set_obj_name(NNGN_GL_BUFFER, b->id(), name);
 }
 
 u32 OpenGLBackend::create_pipeline(const PipelineConfiguration &conf) {
@@ -354,6 +378,16 @@ bool OpenGLBackend::render() {
         int width = {}, height = {};
         glfwGetFramebufferSize(this->w, &width, &height);
         glViewport(0, 0, width, height);
+        constexpr auto far = 2048.0f;
+        const auto width_f = static_cast<float>(width) / 2.0f;
+        const auto height_f = static_cast<float>(height) / 2.0f;
+        const nngn::CameraUBO c = {
+            .proj = nngn::Math::ortho(
+                -width_f, width_f, -height_f, height_f, 0.0f, far),
+            .view = nngn::Math::look_at<float>(
+                    {0, 0, far / 2}, {}, {0, 1, 0})};
+        CHECK_RESULT(glBindBuffer, GL_UNIFORM_BUFFER, this->camera_ubo.id());
+        CHECK_RESULT(glBufferSubData, GL_UNIFORM_BUFFER, 0, sizeof(c), &c);
     }
     const auto render = [this](auto *l) {
         for(auto &x : *l) {
@@ -383,7 +417,7 @@ bool OpenGLBackend::render() {
     };
     const auto render_pass = [this, render] {
         nngn::GLDebugGroup group = {"color"sv};
-        CHECK_RESULT(glClear, GL_COLOR_BUFFER_BIT);
+        CHECK_RESULT(glClear, GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         return render(&render_list.normal);
     };
     auto prof = nngn::Profile::context<nngn::Profile>(

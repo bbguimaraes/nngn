@@ -97,9 +97,9 @@ bool Renderers::set_graphics(Graphics *g) {
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
             [](void*, void *p, u64, u64) {
                 const auto v = std::array<nngn::Vertex, TRIANGLE_MAX>{{
-                    {{ 0.0f,  0.5f, 0}, {1, 0, 0}},
-                    {{-0.5f, -0.5f, 0}, {0, 1, 0}},
-                    {{ 0.5f, -0.5f, 0}, {0, 0, 1}}}};
+                    {{   0,  150, 0}, {1, 0, 0}},
+                    {{-200, -150, 0}, {0, 1, 0}},
+                    {{ 200, -150, 0}, {0, 0, 1}}}};
                 memcpy(p, std::span{v});
             },
             [](void*, void *p, u64, u64) {
