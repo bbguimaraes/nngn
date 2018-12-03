@@ -1,18 +1,22 @@
 if ENABLE_TOOLS
 bin_PROGRAMS += \
+	%reldir%/bin/camera_server \
 	%reldir%/bin/configure \
 	%reldir%/bin/inspect \
 	%reldir%/bin/launcher \
 	%reldir%/bin/plot \
-	%reldir%/bin/timeline
+	%reldir%/bin/timeline \
+	%reldir%/bin/websocket
 endif
 
 EXTRA_PROGRAMS += \
+	%reldir%/bin/camera_server \
 	%reldir%/bin/configure \
 	%reldir%/bin/inspect \
 	%reldir%/bin/launcher \
 	%reldir%/bin/plot \
-	%reldir%/bin/timeline
+	%reldir%/bin/timeline \
+	%reldir%/bin/websocket
 
 noinst_HEADERS += \
 	%reldir%/launcher/window.h \
@@ -29,6 +33,8 @@ noinst_HEADERS += \
 	%reldir%/plot/worker.h \
 	%reldir%/timeline/graph.h \
 	%reldir%/timeline/worker.h
+
+%canon_reldir%_bin_camera_server_SOURCES = tools/camera_server/main.rs
 
 %canon_reldir%_bin_configure_CPPFLAGS = $(AM_CPPFLAGS) $(QT_DEPS_CFLAGS)
 %canon_reldir%_bin_configure_CXXFLAGS = $(AM_CXXFLAGS) -fPIC
@@ -99,6 +105,15 @@ noinst_HEADERS += \
 	%reldir%/timeline/worker.cpp \
 	%reldir%/timeline/worker.moc.cpp
 
+%canon_reldir%_bin_websocket_SOURCES = tools/websocket.rs
+
+%reldir%/bin/websocket$(EXEEXT): %reldir%/websocket.rs
+	rustc -o $@ $^
+%reldir%/bin/camera_server$(EXEEXT): %reldir%/camera_server/main.rs
+	rustc -o $@ $^
+
 CLEANFILES += \
 	%reldir%/*.moc.cpp \
-	%reldir%/*/*.moc.cpp
+	%reldir%/*/*.moc.cpp \
+	%reldir%/bin/camera_server \
+	%reldir%/bin/websocket
