@@ -9,7 +9,7 @@ pkgs=(
     # lua
     lua
     # tools
-    qt5-charts
+    qt5-charts rust
     # gl
     glew
     # vk

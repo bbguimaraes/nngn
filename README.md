@@ -159,8 +159,8 @@ The following sanitizers have been tested:
 
 #### Tools
 
-Buildings auxiliary tools requires `Qt5Widgets`, `QtNetwork`, and `Qt5Charts`
-and can be enabled with the `--enable-tools` flag.
+Buildings auxiliary tools requires `Qt5Widgets`, `QtNetwork`, `Qt5Charts`, and
+`rustc` (1.41.1) and can be enabled with the `--enable-tools` flag.
 
 #### FreeBSD
 

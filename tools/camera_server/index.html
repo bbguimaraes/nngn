@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+body {
+    padding: 1em;
+}
+main {
+    width: 100%;
+    display: block;
+}
+main button, main progress {
+    display: block;
+    width: 100%;
+    margin-top: 2em;
+    margin-bottom: 2em;
+}
+button {
+    padding: 1em;
+}
+        </style>
+    </head>
+    <body>
+        <main>
+            <button id=bstart>start</button>
+            <button id=bstop>stop</button>
+            <progress id=xbar max=360></progress>
+            <progress id=ybar max=180></progress>
+            <progress id=zbar max=360></progress>
+            <div id=d0></div>
+            <br />
+            <div id=d1></div>
+        </main>
+        <script>
+            const OPEN = 1;
+            const URL = "ws://" + window.location.host;
+            const xoff = -180 + 90, yoff = 180, zoff = 90;
+            let ws = null;
+            let f = e => {
+                let v = [e.beta, e.gamma, e.alpha];
+                xbar.value = v[0];
+                ybar.value = v[1];
+                zbar.value = v[2];
+                d0.innerHTML = v.join("<br/>");
+                v[0] += xoff;
+                v[1] += yoff;
+                v[2] += zoff;
+                d1.innerHTML = v.join("<br/>");
+                ws.send(v.join(" ") + "\n");
+            };
+            bstart.addEventListener("click", _ => {
+                if(ws !== null)
+                    return;
+                ws = new WebSocket(URL)
+                ws.onmessage = console.log;
+                ws.onerror = console.error;
+                window.addEventListener("deviceorientation", f);
+            });
+            bstop.addEventListener("click", _ => {
+                if(ws === null)
+                    return;
+                window.removeEventListener("deviceorientation", f);
+                ws.close();
+                ws = null;
+            });
+        </script>
+    </body>
+</html>
