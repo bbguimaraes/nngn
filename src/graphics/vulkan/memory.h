@@ -57,6 +57,17 @@ public:
     bool alloc(
         VkBuffer b, MemoryAllocation *alloc,
         VkDeviceMemory *mem, VkDeviceSize *offset);
+    /** Allocates device memory from a type for a given image. */
+    template<VkMemoryPropertyFlags f>
+    bool alloc(VkImage img, VkDeviceMemory *p);
+    /**
+     * Allocates device memory from a type for a given image.
+     * Device memory may come from a pool.
+     */
+    template<VkMemoryPropertyFlags f>
+    bool alloc(
+        VkImage img, MemoryAllocation *alloc,
+        VkDeviceMemory *mem, VkDeviceSize *offset);
     /** Deallocates a block of device memory. */
     void dealloc(VkDeviceMemory mem);
     /** Deallocates a block of memory from an allocation pool (if necessary). */
@@ -147,6 +158,23 @@ bool DeviceMemory::alloc(
 ) {
     VkMemoryRequirements req;
     vkGetBufferMemoryRequirements(this->dev, b, &req);
+    return this->alloc<f>(&req, alloc, mem, offset);
+}
+
+template<VkMemoryPropertyFlags f>
+bool DeviceMemory::alloc(VkImage img, VkDeviceMemory *p) {
+    VkMemoryRequirements req;
+    vkGetImageMemoryRequirements(this->dev, img, &req);
+    return this->alloc<f>(&req, p);
+}
+
+template<VkMemoryPropertyFlags f>
+bool DeviceMemory::alloc(
+    VkImage img, MemoryAllocation *alloc,
+    VkDeviceMemory *mem, VkDeviceSize *offset
+) {
+    VkMemoryRequirements req;
+    vkGetImageMemoryRequirements(this->dev, img, &req);
     return this->alloc<f>(&req, alloc, mem, offset);
 }
 

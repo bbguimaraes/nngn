@@ -6,11 +6,13 @@
 
 #include "graphics/graphics.h"
 
+#include "resource.h"
 #include "vulkan.h"
 
 namespace nngn {
 
 class Device;
+class DeviceMemory;
 class Instance;
 
 /** Presentation swap chain and associated objects. */
@@ -41,7 +43,8 @@ public:
     void set_present_mode(VkPresentModeKHR m) { this->present_mode = m; }
     void set_surface(VkSurfaceKHR s) { this->m_surface = s; }
     void init(
-        VkInstance inst, VkSurfaceFormatKHR format,
+        VkInstance inst, DeviceMemory *dev_mem,
+        VkSurfaceFormatKHR format, VkFormat depth_format,
         VkPresentModeKHR mode);
     /** Destroys resources and recreate them. */
     bool recreate(
@@ -52,6 +55,7 @@ public:
     std::pair<PresentContext, VkResult> acquire_img();
 private:
     bool create_img_views(const Instance &inst);
+    bool create_depth_img(const Instance &inst, VkExtent2D extent);
     bool create_sync_objects(const Instance &inst);
     bool create_frame_buffers(
         const Instance &inst, VkExtent2D extent, VkRenderPass render_pass);
@@ -60,9 +64,13 @@ private:
     VkInstance instance = {};
     VkSurfaceKHR m_surface = {};
     VkDevice dev = {};
+    DeviceMemory *dev_mem = {};
     VkSurfaceFormatKHR format = {};
     VkPresentModeKHR present_mode = {};
     std::vector<VkImageView> m_img_views = {};
+    VkFormat depth_format = {};
+    Image depth_img = {};
+    VkImageView depth_img_view = {};
     struct {
         /** Signaled when an image has been acquired and rendering can begin. */
         std::vector<VkSemaphore> render;
