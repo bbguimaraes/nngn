@@ -63,5 +63,62 @@ void Buffer::destroy(
     dev_mem->dealloc(this->ha);
 }
 
+void Image::destroy(VkDevice dev, DeviceMemory *dev_mem) {
+    vkDestroyImage(dev, std::exchange(this->h, {}), nullptr);
+    if(this->hm)
+        dev_mem->dealloc(std::exchange(this->hm, {}));
+}
+
+bool Image::init(
+    VkDevice dev,
+    VkImageCreateFlags flags, VkImageType type, VkFormat format,
+    VkExtent3D extent, std::uint32_t mip_levels, std::uint32_t n_layers,
+    VkSampleCountFlagBits n_samples, VkImageTiling tiling,
+    VkImageUsageFlags usage
+) {
+    assert(!this->h);
+    return LOG_RESULT(
+        vkCreateImage, dev,
+        rptr(vk_create_info<VkImage>({
+            .flags = flags,
+            .imageType = type,
+            .format = format,
+            .extent = extent,
+            .mipLevels = mip_levels,
+            .arrayLayers = n_layers,
+            .samples = n_samples,
+            .tiling = tiling,
+            .usage = usage,
+            .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+            .queueFamilyIndexCount = 0,
+            .pQueueFamilyIndices = {},
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        })),
+        nullptr, &this->h);
+}
+
+bool Image::create_view(
+    VkDevice dev, VkImageViewType type, VkFormat format,
+    VkImageAspectFlags aspect_flags,
+    std::uint32_t mip_levels, std::uint32_t base_layer,
+    std::uint32_t n_layers, VkImageView *p
+) const {
+    NNGN_LOG_CONTEXT_CF(Image);
+    return LOG_RESULT(
+        vkCreateImageView, dev,
+        rptr(vk_create_info<VkImageView>({
+            .image = this->h,
+            .viewType = type,
+            .format = format,
+            .subresourceRange = {
+                .aspectMask = aspect_flags,
+                .levelCount = mip_levels,
+                .baseArrayLayer = base_layer,
+                .layerCount = n_layers,
+            },
+        })),
+        nullptr, p);
+}
+
 }
 #endif

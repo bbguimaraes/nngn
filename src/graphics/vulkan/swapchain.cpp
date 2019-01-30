@@ -47,11 +47,14 @@ SwapChain::~SwapChain() {
 }
 
 void SwapChain::init(
-    VkInstance inst, VkSurfaceFormatKHR format_, VkPresentModeKHR mode
+    VkInstance inst, DeviceMemory *dev_mem_,
+    VkSurfaceFormatKHR format_, VkFormat depth_format_, VkPresentModeKHR mode
 ) {
     NNGN_LOG_CONTEXT_CF(SwapChain);
     this->instance = inst;
+    this->dev_mem = dev_mem_;
     this->format = format_;
+    this->depth_format = depth_format_;
     this->present_mode = mode;
 }
 
@@ -60,6 +63,9 @@ void SwapChain::destroy() {
     for(auto x : this->m_frame_buffers)
         vkDestroyFramebuffer(this->dev, x, nullptr);
     this->m_frame_buffers.clear();
+    vkDestroyImageView(
+        this->dev, std::exchange(this->depth_img_view, {}), nullptr);
+    this->depth_img.destroy(this->dev, this->dev_mem);
     for(auto x : this->m_img_views)
         vkDestroyImageView(this->dev, x, nullptr);
     this->m_img_views.clear();
@@ -101,6 +107,7 @@ bool SwapChain::recreate(
     }
     return LOG_RESULT(vkCreateSwapchainKHR, d.id(), &info, nullptr, &this->h)
         && this->create_img_views(inst)
+        && this->create_depth_img(inst, extent)
         && this->create_sync_objects(inst)
         && this->create_frame_buffers(inst, extent, render_pass);
 }
@@ -136,6 +143,27 @@ bool SwapChain::create_img_views(const Instance &inst) {
             nullptr, &this->m_img_views[i]);
     return inst.set_obj_name(
         dev, std::span{this->m_img_views}, "swapchain_img_view"sv);
+}
+
+bool SwapChain::create_depth_img(const Instance &inst, VkExtent2D extent) {
+    constexpr std::uint32_t mip_levels = 1, n_layers = 1, base_layer = 0;
+    NNGN_LOG_CONTEXT_CF(SwapChain);
+    return this->depth_img.init<VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT>(
+            this->dev, this->dev_mem, 0, VK_IMAGE_TYPE_2D, this->depth_format,
+            {extent.width, extent.height, 1}, mip_levels, n_layers,
+            VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_TILING_OPTIMAL,
+            VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
+                | VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT)
+        && inst.set_obj_name(
+            this->dev, this->depth_img.id(), "depth_img"sv)
+        && inst.set_obj_name(
+            this->dev, this->depth_img.mem(), "depth_img_mem"sv)
+        && this->depth_img.create_view(
+            this->dev, VK_IMAGE_VIEW_TYPE_2D, this->depth_format,
+            VK_IMAGE_ASPECT_DEPTH_BIT, mip_levels, base_layer, n_layers,
+            &this->depth_img_view)
+        && inst.set_obj_name(
+            this->dev, this->depth_img_view, "depth_img_view"sv);
 }
 
 bool SwapChain::create_sync_objects(const Instance &inst) {
@@ -178,18 +206,20 @@ bool SwapChain::create_frame_buffers(
 ) {
     NNGN_LOG_CONTEXT_CF(SwapChain);
     const auto n = this->m_img_views.size();
-    VkFramebufferCreateInfo info = {
+    auto attachments =
+        std::to_array<VkImageView>({{}, this->depth_img_view});
+    const VkFramebufferCreateInfo info = {
         .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
         .renderPass = render_pass,
-        .attachmentCount = 1,
-        .pAttachments = {},
+        .attachmentCount = attachments.size(),
+        .pAttachments = attachments.data(),
         .width = extent.width,
         .height = extent.height,
         .layers = 1,
     };
     this->m_frame_buffers.resize(n);
     for(std::size_t i = 0; i < n; ++i) {
-        info.pAttachments = &this->m_img_views[i];
+        attachments[0] = this->m_img_views[i];
         CHECK_RESULT(vkCreateFramebuffer,
             dev, &info, nullptr, &this->m_frame_buffers[i]);
     }

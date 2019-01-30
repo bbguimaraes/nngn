@@ -69,6 +69,8 @@ static_assert(std::ranges::is_sorted(VALIDATION_LAYERS, nngn::str_less));
 constexpr VkSurfaceFormatKHR SURFACE_FORMAT = {
     .format = VK_FORMAT_B8G8R8A8_UNORM,
     .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR};
+/** Preferred depth image format. */
+constexpr auto DEPTH_FORMAT = VK_FORMAT_D32_SFLOAT;
 /** Preferred swap chain present mode. */
 constexpr auto PRESENT_MODE = nngn::Graphics::PresentMode::FIFO;
 /** Flags used to create all command pools. */
@@ -153,7 +155,7 @@ class CameraDescriptorSets : public UBODescriptorSets {
 public:
     bool init(VkDevice dev, VkDeviceSize min_ubo_align);
     VkDeviceSize size(std::size_t n_frames) const;
-    std::uint32_t offset(std::size_t i) const;
+    u32 offset(std::size_t i) const;
     void write(VkBuffer ubo, VkDeviceSize offset) const;
 private:
     static constexpr VkDeviceSize size();
@@ -648,7 +650,7 @@ bool VulkanBackend::init_device(std::size_t i) {
     const auto surface_format =
         this->m_surface_info.find_format(SURFACE_FORMAT);
     this->swap_chain.init(
-        this->instance.id(), surface_format,
+        this->instance.id(), &this->dev_mem, surface_format, DEPTH_FORMAT,
         this->m_surface_info.find_present_mode(PRESENT_MODE));
     const auto layers = [this]() {
         std::span<const char *const> ret = {VALIDATION_LAYERS};
@@ -708,7 +710,7 @@ bool VulkanBackend::init_device(std::size_t i) {
 
 bool VulkanBackend::create_render_pass(VkFormat format) {
     NNGN_LOG_CONTEXT_CF(VulkanBackend);
-    const VkAttachmentDescription color = {
+    const auto attachments = std::to_array<VkAttachmentDescription>({{
         .format = format,
         .samples = VK_SAMPLE_COUNT_1_BIT,
         .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -717,31 +719,49 @@ bool VulkanBackend::create_render_pass(VkFormat format) {
         .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
         .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
         .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-    };
-    const VkAttachmentReference color_ref = {
+    }, {
+        .format = DEPTH_FORMAT,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+    }});
+    constexpr VkAttachmentReference color_ref = {
         .attachment = 0,
         .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    };
+    constexpr VkAttachmentReference depth_ref = {
+        .attachment = 1,
+        .layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
     };
     const VkSubpassDescription subpass = {
         .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
         .colorAttachmentCount = 1,
         .pColorAttachments = &color_ref,
+        .pDepthStencilAttachment = &depth_ref,
     };
     constexpr VkSubpassDependency dependency = {
         .srcSubpass = VK_SUBPASS_EXTERNAL,
         .dstSubpass = 0,
-        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .srcStageMask =
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+            | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+        .dstStageMask =
+            VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
+            | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
         .srcAccessMask = 0,
         .dstAccessMask =
-            VK_ACCESS_COLOR_ATTACHMENT_READ_BIT
-            | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+            VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT
+            | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
     };
     return LOG_RESULT(vkCreateRenderPass,
             this->dev.id(),
             nngn::rptr(nngn::vk_create_info<VkRenderPass>({
-                .attachmentCount = 1,
-                .pAttachments = &color,
+                .attachmentCount = attachments.size(),
+                .pAttachments = attachments.data(),
                 .subpassCount = 1,
                 .pSubpasses = &subpass,
                 .dependencyCount = 1,
@@ -813,6 +833,15 @@ bool VulkanBackend::update_render_list() {
         .rasterizationSamples = VK_SAMPLE_COUNT_1_BIT,
         .minSampleShading = 1.0f,
     };
+    constexpr VkPipelineDepthStencilStateCreateInfo depth_info = {
+        .sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+        .depthTestEnable = VK_TRUE,
+        .depthWriteEnable = VK_TRUE,
+        .depthCompareOp = VK_COMPARE_OP_LESS,
+        .depthBoundsTestEnable = VK_FALSE,
+        .minDepthBounds = 0,
+        .maxDepthBounds = 1,
+    };
     constexpr VkPipelineColorBlendAttachmentState color_blend_att = {
         .srcColorBlendFactor = VK_BLEND_FACTOR_ONE,
         .dstColorBlendFactor = VK_BLEND_FACTOR_ZERO,
@@ -847,6 +876,7 @@ bool VulkanBackend::update_render_list() {
         .pViewportState = &viewport_info,
         .pRasterizationState = &rasterize_info,
         .pMultisampleState = &ms_info,
+        .pDepthStencilState = &depth_info,
         .pColorBlendState = &color_blending_info,
         .pDynamicState = &dyn_state,
         .layout = this->pipeline_layout,
@@ -928,9 +958,12 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
                 .renderPass = this->render_pass,
                 .framebuffer = this->swap_chain.frame_buffers()[img_idx],
                 .renderArea = {.extent = extent},
-                .clearValueCount = 1,
-                .pClearValues =
-                     nngn::rptr(VkClearValue{.color = {{0, 0, 0, 1}}})}),
+                .clearValueCount = 2,
+                .pClearValues = std::to_array<VkClearValue>({
+                    {.color = {{0, 0, 0, 1}}},
+                    {.depthStencil = {1, 0}},
+                }).data(),
+            }),
             VK_SUBPASS_CONTENTS_INLINE);
         const auto width = this->m_surface_info.cur_extent.x;
         const auto height = this->m_surface_info.cur_extent.y;

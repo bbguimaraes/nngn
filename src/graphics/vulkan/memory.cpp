@@ -80,8 +80,7 @@ bool allocate(
 
 void dealloc(void *p, nngn::MemoryAllocation alloc) {
     vmaFreeMemory(
-        static_cast<VmaAllocator>(p),
-        reinterpret_cast<VmaAllocation>(alloc));
+        static_cast<VmaAllocator>(p), reinterpret_cast<VmaAllocation>(alloc));
 }
 #else // !NNGN_PLATFORM_HAS_VMA
 bool init_allocator(VkInstance, VkPhysicalDevice, VkDevice dev, void**p) {
