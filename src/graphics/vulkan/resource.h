@@ -64,6 +64,34 @@ private:
     MemoryAllocation ha = {};
 };
 
+struct Image {
+public:
+    VkImage id() const { return this->h; }
+    VkDeviceMemory mem() const { return this->hm; }
+    void destroy(VkDevice dev, DeviceMemory *dev_mem);
+    template<VkMemoryPropertyFlags f>
+    bool init(
+        VkDevice dev, DeviceMemory *dev_mem,
+        VkImageCreateFlags flags, VkImageType type, VkFormat format,
+        VkExtent3D extent, std::uint32_t mip_levels, std::uint32_t n_layers,
+        VkSampleCountFlagBits n_samples, VkImageTiling tiling,
+        VkImageUsageFlags usage);
+    bool create_view(
+        VkDevice dev, VkImageViewType type, VkFormat format,
+        VkImageAspectFlags aspect_flags,
+        std::uint32_t mip_levels, std::uint32_t base_layer,
+        std::uint32_t n_layers, VkImageView *p) const;
+private:
+    bool init(
+        VkDevice dev,
+        VkImageCreateFlags flags, VkImageType type, VkFormat format,
+        VkExtent3D extent, std::uint32_t mip_levels, std::uint32_t n_layers,
+        VkSampleCountFlagBits n_samples, VkImageTiling tiling,
+        VkImageUsageFlags usage);
+    VkImage h = {};
+    VkDeviceMemory hm = {};
+};
+
 template<VkMemoryPropertyFlags f>
 bool DedicatedBuffer::init(
     VkDevice dev, DeviceMemory *dev_mem,
@@ -96,6 +124,22 @@ bool Buffer::init(
     vkBindBufferMemory(dev, this->id(), mem, off);
     this->set_capacity(size);
     return true;
+}
+
+template<VkMemoryPropertyFlags f>
+bool Image::init(
+    VkDevice dev, DeviceMemory *dev_mem,
+    VkImageCreateFlags flags, VkImageType type, VkFormat format,
+    VkExtent3D extent, std::uint32_t mip_levels, std::uint32_t n_layers,
+    VkSampleCountFlagBits n_samples, VkImageTiling tiling,
+    VkImageUsageFlags usage
+) {
+    NNGN_LOG_CONTEXT_CF(Image);
+    return this->init(
+            dev, flags, type, format, extent, mip_levels, n_layers, n_samples,
+            tiling, usage)
+        && dev_mem->alloc<f>(this->h, &this->hm)
+        && (vkBindImageMemory(dev, this->h, this->hm, 0), true);
 }
 
 }

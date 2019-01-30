@@ -216,6 +216,7 @@ bool OpenGLBackend::init_instance() {
 #endif
     CHECK_RESULT(glClearColor, 0, 0, 0, 0);
     CHECK_RESULT(glEnable, GL_CULL_FACE);
+    CHECK_RESULT(glEnable, GL_DEPTH_TEST);
     if(!OpenGLBackend::create_uniform_buffer("camera_ubo"sv,
             sizeof(nngn::CameraUBO), &this->camera_ubo))
         return false;
