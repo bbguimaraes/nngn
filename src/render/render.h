@@ -56,6 +56,7 @@ public:
     bool zsprites(void) const { return this->flags.is_set(Flag::ZSPRITES); }
     auto max_sprites(void) const { return this->sprites.capacity(); }
     auto max_screen_sprites(void) const;
+    auto max_translucent(void) const { return this->translucent.capacity(); }
     auto max_cubes(void) const { return this->cubes.capacity(); }
     auto max_voxels(void) const { return this->voxels.capacity(); }
     /** Total number of active renderers. */
@@ -64,6 +65,8 @@ public:
     std::size_t n_sprites(void) const { return this->sprites.size(); }
     /** Number of active screen sprite renderers. */
     std::size_t n_screen_sprites(void) const { return this->sprites.size(); }
+    /** Number of active translucent sprite renderers. */
+    std::size_t n_translucent(void) const { return this->translucent.size(); }
     /** Number of active cube renderers. */
     std::size_t n_cubes(void) const { return this->cubes.size(); }
     /** Number of active voxel renderers. */
@@ -74,6 +77,7 @@ public:
     void set_zsprites(bool z);
     bool set_max_sprites(std::size_t n);
     bool set_max_screen_sprites(std::size_t n);
+    bool set_max_translucent(std::size_t n);
     bool set_max_cubes(std::size_t n);
     bool set_max_voxels(std::size_t n);
     bool set_max_text(std::size_t n);
@@ -96,20 +100,21 @@ public:
     bool update(void);
 private:
     bool update_renderers(
-        bool sprites_updated, bool screen_sprites_updated, bool cubes_updated,
-        bool voxels_updated);
+        bool sprites_updated, bool screen_sprites_updated,
+        bool translucent_updated, bool cubes_updated, bool voxels_updated);
     bool update_debug(
         bool sprites_updated, bool screen_sprites_updated, bool cubes_updated,
         bool voxels_updated);
-    enum Flag : u8 {
+    enum Flag : u16 {
         SPRITES_UPDATED = 1u << 0,
         SCREEN_SPRITES_UPDATED = 1u << 1,
-        CUBES_UPDATED = 1u << 2,
-        VOXELS_UPDATED = 1u << 3,
-        DEBUG_UPDATED = 1u << 4,
-        SELECTION_UPDATED = 1u << 5,
-        PERSPECTIVE = 1u << 6,
-        ZSPRITES = 1u << 7,
+        TRANSLUCENT_UPDATED = 1u << 2,
+        CUBES_UPDATED = 1u << 3,
+        VOXELS_UPDATED = 1u << 4,
+        DEBUG_UPDATED = 1u << 5,
+        SELECTION_UPDATED = 1u << 6,
+        PERSPECTIVE = 1u << 7,
+        ZSPRITES = 1u << 8,
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
@@ -123,10 +128,12 @@ private:
     const Map *map = nullptr;
     std::vector<SpriteRenderer> sprites = {};
     std::vector<SpriteRenderer> screen_sprites = {};
+    std::vector<SpriteRenderer> translucent = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
     std::unordered_set<const Renderer*> selections = {};
     u32
+        translucent_vbo = {}, translucent_ebo = {},
         sprite_vbo = {}, sprite_ebo = {},
         sprite_debug_vbo = {}, sprite_debug_ebo = {},
         screen_sprite_vbo = {}, screen_sprite_ebo = {},

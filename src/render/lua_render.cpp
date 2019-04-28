@@ -30,6 +30,7 @@ void register_renderer(nngn::lua::table_view t) {
     t["SIZEOF_VOXEL"] = nngn::narrow<lua_Integer>(sizeof(nngn::VoxelRenderer));
     t["SPRITE"] = Renderer::Type::SPRITE;
     t["SCREEN_SPRITE"] = Renderer::Type::SCREEN_SPRITE;
+    t["TRANSLUCENT"] = Renderer::Type::TRANSLUCENT;
     t["CUBE"] = Renderer::Type::CUBE;
     t["VOXEL"] = Renderer::Type::VOXEL;
     t["z_off"] = z_off;
@@ -51,11 +52,13 @@ void register_renderers(nngn::lua::table_view t) {
     t["n"] = get<&Renderers::n>;
     t["n_sprites"] = get<&Renderers::n_sprites>;
     t["n_screen_sprites"] = get<&Renderers::n_screen_sprites>;
+    t["n_translucent"] = get<&Renderers::n_translucent>;
     t["n_cubes"] = get<&Renderers::n_cubes>;
     t["n_voxels"] = get<&Renderers::n_voxels>;
     t["selected"] = &Renderers::selected;
     t["set_max_sprites"] = set<&Renderers::set_max_sprites>;
     t["set_max_screen_sprites"] = set<&Renderers::set_max_screen_sprites>;
+    t["set_max_translucent"] = set<&Renderers::set_max_translucent>;
     t["set_max_cubes"] = set<&Renderers::set_max_cubes>;
     t["set_max_voxels"] = set<&Renderers::set_max_voxels>;
     t["set_max_text"] = set<&Renderers::set_max_text>;

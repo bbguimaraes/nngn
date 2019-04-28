@@ -105,7 +105,7 @@ struct RenderList {
     };
     std::vector<Stage>
         depth = {}, map_ortho = {}, map_persp = {},
-        normal = {}, overlay = {}, screen = {},
+        normal = {}, no_light = {}, overlay = {}, screen = {},
         shadow_maps = {}, shadow_cubes = {};
 };
 
@@ -493,6 +493,7 @@ bool OpenGLBackend::set_render_list(const RenderList &l) {
     f(&this->render_list.map_ortho, l.map_ortho);
     f(&this->render_list.map_persp, l.map_persp);
     f(&this->render_list.normal, l.normal);
+    f(&this->render_list.no_light, l.no_light);
     f(&this->render_list.overlay, l.overlay);
     f(&this->render_list.screen, l.screen);
     f(&this->render_list.shadow_maps, l.shadow_maps);
@@ -817,16 +818,18 @@ bool OpenGLBackend::render() {
             static_cast<std::size_t>(PipelineConfiguration::Type::TRIANGLE)];
         CHECK_RESULT(glUseProgram, triangle_prog.id());
         CHECK_RESULT(glUniform1f, this->triangle_prog_alpha_loc, 1);
-        return render(&render_list.normal);
+        if(!render(&render_list.normal))
+            return false;
+        CHECK_RESULT(
+            glBindBufferRange, GL_UNIFORM_BUFFER, LIGHTS_UBO_BINDING,
+            this->no_lights_ubo.id(), 0, sizeof(nngn::LightsUBO));
+        return render(&render_list.no_light);
     };
     const auto overlay_pass = [this, &render] {
         NNGN_ANON_DECL(nngn::GLDebugGroup{"overlay"sv});
         CHECK_RESULT(glDepthMask, GL_TRUE);
         CHECK_RESULT(glClear, GL_DEPTH_BUFFER_BIT);
         CHECK_RESULT(glDepthMask, GL_FALSE);
-        CHECK_RESULT(
-            glBindBufferRange, GL_UNIFORM_BUFFER, LIGHTS_UBO_BINDING,
-            this->no_lights_ubo.id(), 0, sizeof(nngn::LightsUBO));
         const auto &triangle_prog = this->programs[
             static_cast<std::size_t>(PipelineConfiguration::Type::TRIANGLE)];
         CHECK_RESULT(glUseProgram, triangle_prog.id());

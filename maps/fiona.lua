@@ -58,6 +58,7 @@ local function init()
         t.pos = {0, -24}
         t.collider.flags = (t.collider.flags or 0) | Collider.SOLID
         t.collider.m = Math.INFINITY
+        t.renderer.type = Renderer.TRANSLUCENT
         table.insert(entities, entity.load(nil, nil, t))
         local e = entities[#entities]
         table.insert(entities, entity.load(nil, nil, {
@@ -90,6 +91,7 @@ local function on_collision(e0, e1)
         local t = dofile("src/lson/heros_grave_torch.lua")
         t.collider.flags = (t.collider.flags or 0) | Collider.SOLID
         t.collider.m = Math.INFINITY
+        t.renderer.type = Renderer.TRANSLUCENT
         entity.load(torch, nil, t)
         table.insert(entities, entity.load(nil, nil, {
             pos = {0, -8, 32}, parent = torch,

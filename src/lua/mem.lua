@@ -18,6 +18,9 @@ print(fmt(
     "- sprites", Renderer.SIZEOF_SPRITE,
     nngn:renderers():n_sprites(), nngn:renderers():max_sprites()))
 print(fmt(
+    "- translucent", Renderer.SIZEOF_TRANSLUCENT,
+    nngn:renderers():n_translucent(), nngn:renderers():max_translucent()))
+print(fmt(
     "- cubes", Renderer.SIZEOF_CUBE,
     nngn:renderers():n_cubes(), nngn:renderers():max_cubes()))
 print(fmt(

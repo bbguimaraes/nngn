@@ -214,7 +214,7 @@ struct Graphics {
         };
         std::span<const Stage>
             depth = {}, map_ortho = {}, map_persp = {},
-            normal = {}, overlay = {}, screen = {},
+            normal = {}, no_light = {}, overlay = {}, screen = {},
             shadow_maps = {}, shadow_cubes = {};
     };
     enum class CursorMode { NORMAL, HIDDEN, DISABLED };

@@ -310,6 +310,7 @@ nngn:graphics():resize_textures(4)
 nngn:textures():set_max(4)
 nngn:renderers():set_max_sprites(6)
 nngn:renderers():set_max_screen_sprites(10)
+nngn:renderers():set_max_translucent(1)
 nngn:animations():set_max(3)
 nngn:colliders():set_max_colliders(4)
 player.set{

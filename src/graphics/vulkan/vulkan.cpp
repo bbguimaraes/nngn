@@ -266,7 +266,7 @@ struct RenderList {
     };
     std::vector<Stage>
         depth_dir = {}, depth_point = {}, map_ortho = {}, map_persp = {},
-        normal = {}, overlay = {}, screen = {},
+        normal = {}, no_light = {}, overlay = {}, screen = {},
         shadow_maps = {}, shadow_cubes = {};
 };
 
@@ -1489,8 +1489,8 @@ bool VulkanBackend::update_render_list() {
     for(auto *l : {
         &this->render_list.depth_dir, &this->render_list.depth_point,
         &this->render_list.map_ortho, &this->render_list.map_persp,
-        &this->render_list.normal, &this->render_list.overlay,
-        &this->render_list.screen,
+        &this->render_list.normal, &this->render_list.no_light,
+        &this->render_list.overlay, &this->render_list.screen,
         &this->render_list.shadow_maps, &this->render_list.shadow_cubes,
     })
         for(auto &x : *l)
@@ -1664,6 +1664,7 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
         bind_descriptors(
             b, this->pipeline_layout, "no_light", 0,
             std::array{light_desc.ids()[this->n_frames]}, {});
+        render(b, "no_light", viewport, scissors, this->render_list.no_light);
         push_alpha(b, this->pipeline_layout, .5);
         render(b, "overlay", viewport, scissors, this->render_list.overlay);
         vkCmdClearAttachments(
@@ -1785,6 +1786,7 @@ bool VulkanBackend::set_render_list(const RenderList &l) {
     f(&this->render_list.map_ortho, l.map_ortho);
     f(&this->render_list.map_persp, l.map_persp);
     f(&this->render_list.normal, l.normal);
+    f(&this->render_list.no_light, l.no_light);
     f(&this->render_list.overlay, l.overlay);
     f(&this->render_list.screen, l.screen);
     f(&this->render_list.shadow_maps, l.shadow_maps);

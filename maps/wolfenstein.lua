@@ -176,7 +176,7 @@ local function init()
         table.insert(entities, entity.load(nil, nil, {
             pos = t[1],
             renderer = {
-                type = Renderer.SPRITE, tex = tex.tex,
+                type = Renderer.TRANSLUCENT, tex = tex.tex,
                 size = t[2], scale = t[3], coords = t[4], z_off = t[5],
             },
         }))

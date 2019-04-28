@@ -16,6 +16,7 @@ struct Renderer {
     enum Type : u8 {
         SPRITE = 1,
         SCREEN_SPRITE,
+        TRANSLUCENT,
         CUBE,
         VOXEL,
         N_TYPES,
