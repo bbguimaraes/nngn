@@ -55,12 +55,15 @@ public:
     bool perspective(void) const;
     bool zsprites(void) const { return this->flags.is_set(Flag::ZSPRITES); }
     auto max_sprites(void) const { return this->sprites.capacity(); }
+    auto max_translucent(void) const { return this->translucent.capacity(); }
     auto max_cubes(void) const { return this->cubes.capacity(); }
     auto max_voxels(void) const { return this->voxels.capacity(); }
     /** Total number of active renderers. */
     std::size_t n(void) const;
     /** Number of active sprite renderers. */
     std::size_t n_sprites(void) const { return this->sprites.size(); }
+    /** Number of active translucent sprite renderers. */
+    std::size_t n_translucent(void) const { return this->translucent.size(); }
     /** Number of active cube renderers. */
     std::size_t n_cubes(void) const { return this->cubes.size(); }
     /** Number of active voxel renderers. */
@@ -70,6 +73,7 @@ public:
     void set_perspective(bool p);
     void set_zsprites(bool z);
     bool set_max_sprites(std::size_t n);
+    bool set_max_translucent(std::size_t n);
     bool set_max_cubes(std::size_t n);
     bool set_max_voxels(std::size_t n);
     bool set_max_text(std::size_t n);
@@ -92,17 +96,19 @@ public:
     bool update(void);
 private:
     bool update_renderers(
-        bool sprites_updated, bool cubes_updated, bool voxes_updated);
+        bool sprites_updated, bool translucent_updated, bool cubes_updated,
+        bool voxes_updated);
     bool update_debug(
         bool sprites_updated, bool cubes_updated, bool voxes_updated);
     enum Flag : u8 {
         SPRITES_UPDATED = 1u << 0,
-        CUBES_UPDATED = 1u << 1,
-        VOXELS_UPDATED = 1u << 2,
-        DEBUG_UPDATED = 1u << 3,
-        SELECTION_UPDATED = 1u << 4,
-        PERSPECTIVE = 1u << 5,
-        ZSPRITES = 1u << 6,
+        TRANSLUCENT_UPDATED = 1u << 1,
+        CUBES_UPDATED = 1u << 2,
+        VOXELS_UPDATED = 1u << 3,
+        DEBUG_UPDATED = 1u << 4,
+        SELECTION_UPDATED = 1u << 5,
+        PERSPECTIVE = 1u << 6,
+        ZSPRITES = 1u << 7,
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
@@ -115,10 +121,12 @@ private:
     const Lighting *lighting = nullptr;
     const Map *map = nullptr;
     std::vector<SpriteRenderer> sprites = {};
+    std::vector<SpriteRenderer> translucent = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
     std::unordered_set<const Renderer*> selections = {};
     u32
+        translucent_vbo = {}, translucent_ebo = {},
         sprite_vbo = {}, sprite_ebo = {},
         cube_vbo = {}, cube_ebo = {},
         cube_debug_vbo = {}, cube_debug_ebo = {},

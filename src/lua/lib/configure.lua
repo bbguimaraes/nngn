@@ -40,6 +40,9 @@ local FS = {
             "sprites", 8, 65536, 65536,
             "nngn.renderers:set_max_sprites(%1)"),
         int(
+            "translucent", 8, 128, 128,
+            "nngn.renderers:set_max_translucent(%1)"),
+        int(
             "cubes", 8, 65536, 65536,
             "nngn.renderers:set_max_cubes(%1)"),
         int(

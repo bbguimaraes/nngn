@@ -13,7 +13,7 @@ struct Entity;
 namespace nngn {
 
 struct Renderer {
-    enum Type : u8 { SPRITE = 1, CUBE, VOXEL, N_TYPES };
+    enum Type : u8 { SPRITE = 1, TRANSLUCENT, CUBE, VOXEL, N_TYPES };
     enum Flag : u8 { UPDATED = 1u << 0 };
     Entity *entity = nullptr;
     vec3 pos = {};

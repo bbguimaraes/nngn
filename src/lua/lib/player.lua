@@ -309,6 +309,7 @@ local function fairy(p, show)
         local e <const> = p.entity
         local t = dofile("src/lson/fairy2.lua")
         t.pos = {-8, 16, 0}
+        t.renderer.type = Renderer.TRANSLUCENT
         t.renderer.z_off = -40
         t.parent = e
         d.fairy = entity.load(nil, nil, t)
@@ -349,6 +350,7 @@ local function fire(show)
         local pos <const> = face_vec(p, 16)
         pos[2] = pos[2] + p.entity:renderer():z_off() + 8
         t.pos = pos
+        t.renderer.type = Renderer.TRANSLUCENT
         t.parent = p.entity
         d.vel = face_vec(p, MAX_VEL * 8)
         d.vel[3] = 0

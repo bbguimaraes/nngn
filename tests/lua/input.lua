@@ -286,6 +286,7 @@ nngn.entities:set_max(3)
 nngn.graphics:resize_textures(3)
 nngn.textures:set_max(3)
 nngn.renderers:set_max_sprites(3)
+nngn.renderers:set_max_translucent(1)
 nngn.animations:set_max(3)
 nngn.colliders:set_max_colliders(4)
 player.set{"src/lson/crono.lua", "src/lson/link.lua", "src/lson/link_sh.lua"}
