@@ -31,12 +31,13 @@ class Textbox;
 class Renderers {
     enum Flag : u8 {
         SPRITES_UPDATED = 1u << 0,
-        CUBES_UPDATED = 1u << 1,
-        VOXELS_UPDATED = 1u << 2,
-        RECT_UPDATED = 1u << 3,
-        SELECTION_UPDATED = 1u << 4,
-        PERSPECTIVE = 1u << 5,
-        ZSPRITES = 1u << 6,
+        TRANSLUCENT_UPDATED = 1u << 1,
+        CUBES_UPDATED = 1u << 2,
+        VOXELS_UPDATED = 1u << 3,
+        RECT_UPDATED = 1u << 4,
+        SELECTION_UPDATED = 1u << 5,
+        PERSPECTIVE = 1u << 6,
+        ZSPRITES = 1u << 7,
     };
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
@@ -48,10 +49,12 @@ class Renderers {
     const Map *map = nullptr;
     Flags<Flag> flags = {};
     std::vector<SpriteRenderer> sprites = {};
+    std::vector<SpriteRenderer> translucent = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
     std::unordered_set<const Renderer*> selections = {};
     u32
+        translucent_vbo = {}, translucent_ebo = {},
         sprite_vbo = {}, sprite_ebo = {},
         cube_vbo = {}, cube_ebo = {},
         cube_debug_vbo = {}, cube_debug_ebo = {},
@@ -105,10 +108,12 @@ public:
     bool zsprites() const { return this->flags.is_set(Flag::ZSPRITES); }
     std::size_t n() const;
     std::size_t n_sprites() const { return this->sprites.size(); }
+    std::size_t n_translucent() const { return this->translucent.size(); }
     std::size_t n_cubes() const { return this->cubes.size(); }
     std::size_t n_voxels() const { return this->voxels.size(); }
     bool selected(const Renderer *p) const;
     bool set_max_sprites(std::size_t n);
+    bool set_max_translucent(std::size_t n);
     bool set_max_cubes(std::size_t n);
     bool set_max_voxels(std::size_t n);
     bool set_max_text(std::size_t n);

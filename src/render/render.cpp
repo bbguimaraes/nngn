@@ -421,6 +421,7 @@ void Renderers::init(
 
 std::size_t Renderers::n() const {
     return this->sprites.size()
+        + this->translucent.size()
         + this->cubes.size()
         + this->voxels.size();
 }
@@ -433,6 +434,14 @@ bool Renderers::set_max_sprites(std::size_t n) {
         && this->graphics->set_buffer_capacity(this->sprite_ebo, esize)
         && this->graphics->set_buffer_capacity(this->box_vbo, 3 * vsize)
         && this->graphics->set_buffer_capacity(this->box_ebo, 3 * esize);
+}
+
+bool Renderers::set_max_translucent(std::size_t n) {
+    set_capacity(&this->translucent, n);
+    return this->graphics->set_buffer_capacity(
+            this->translucent_vbo, 4 * n * sizeof(Vertex))
+        && this->graphics->set_buffer_capacity(
+            this->translucent_ebo, 6 * n * sizeof(u32));
 }
 
 bool Renderers::set_max_cubes(std::size_t n) {
@@ -489,6 +498,7 @@ void Renderers::set_debug(std::underlying_type_t<Debug> d) {
 void Renderers::set_perspective(bool p) {
     constexpr auto f =
         Flag::SPRITES_UPDATED
+        | Flag::TRANSLUCENT_UPDATED
         | Flag::CUBES_UPDATED;
     this->flags.set(Flag::PERSPECTIVE, p);
     this->flags.set(f);
@@ -497,6 +507,7 @@ void Renderers::set_perspective(bool p) {
 void Renderers::set_zsprites(bool z) {
     constexpr auto f =
         Flag::SPRITES_UPDATED
+        | Flag::TRANSLUCENT_UPDATED
         | Flag::CUBES_UPDATED;
     const bool old = this->flags.is_set(Flag::ZSPRITES);
     this->flags.set(Flag::ZSPRITES, z);
@@ -591,6 +602,14 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "triangle_ebo",
             .type = index,
             .size = TRIANGLE_EBO_SIZE,
+        }))
+        && (this->translucent_vbo = g->create_buffer({
+            .name = "translucent_vbo",
+            .type = vertex,
+        }))
+        && (this->translucent_ebo = g->create_buffer({
+            .name = "translucent_ebo",
+            .type = index,
         }))
         && (this->sprite_vbo = g->create_buffer({
             .name = "sprite_vbo",
@@ -804,6 +823,12 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->sprite_vbo, this->sprite_ebo},
                 }),
             }}),
+            .no_light = std::to_array<Stage>({{
+                .pipeline = sprite_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->translucent_vbo, this->translucent_ebo},
+                }),
+            }}),
             .overlay = std::to_array<Stage>({{
                 .pipeline = circle_pipeline,
                 .buffers = std::to_array<BufferPair>({
@@ -884,6 +909,7 @@ Renderer *Renderers::load(const sol::stack_table &t) {
     };
     switch(const Renderer::Type type = t["type"]) {
     case Renderer::Type::SPRITE: return load_tex(this->sprites, "sprite");
+    case Renderer::Type::TRANSLUCENT: return load_tex(this->translucent, "translucent");
     case Renderer::Type::CUBE: return load(this->cubes, "cube");
     case Renderer::Type::VOXEL: return load(this->voxels, "voxel");
     case Renderer::Type::N_TYPES:
@@ -912,6 +938,8 @@ void Renderers::remove(Renderer *p) {
     };
     if(is_in(this->sprites))
         remove_tex(&this->sprites, Flag::SPRITES_UPDATED);
+    if(is_in(this->translucent))
+        remove_tex(&this->translucent, Flag::TRANSLUCENT_UPDATED);
     if(is_in(this->cubes))
         remove(&this->cubes, Flag::CUBES_UPDATED);
     if(is_in(this->voxels))
@@ -945,6 +973,19 @@ bool Renderers::update() {
                 this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
         return update_span<::update_sprites_ortho, update_indices<6>>(
             this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
+    };
+    const auto update_translucent = [this] {
+        NNGN_LOG_CONTEXT("translucent");
+        const auto vbo = this->translucent_vbo;
+        const auto ebo = this->translucent_ebo;
+        if(this->flags.is_set(Flag::ZSPRITES))
+            return update_span<::update_sprites_orthoz, update_indices<6>>(
+                this->graphics, std::span{this->translucent}, vbo, ebo, 4, 6);
+        if(this->flags.is_set(Flag::PERSPECTIVE))
+            return update_span<::update_sprites_persp, update_indices<6>>(
+                this->graphics, std::span{this->translucent}, vbo, ebo, 4, 6);
+        return update_span<::update_sprites_ortho, update_indices<6>>(
+            this->graphics, std::span{this->translucent}, vbo, ebo, 4, 6);
     };
     const auto update_cubes = [this] {
         NNGN_LOG_CONTEXT("cube");
@@ -1251,6 +1292,10 @@ bool Renderers::update() {
     NNGN_PROFILE_CONTEXT(renderers);
     const auto sprites_updated = updated(Flag::SPRITES_UPDATED, this->sprites);
     if(sprites_updated && !update_sprites())
+        return false;
+    const auto translucent_updated =
+        updated(Flag::TRANSLUCENT_UPDATED, this->translucent);
+    if(translucent_updated && !update_translucent())
         return false;
     const auto cubes_updated = updated(Flag::CUBES_UPDATED, this->cubes);
     if(cubes_updated && !update_cubes())
