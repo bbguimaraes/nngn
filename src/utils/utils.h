@@ -1,6 +1,8 @@
 #ifndef NNGN_UTILS_UTILS_H
 #define NNGN_UTILS_UTILS_H
 
+#include <bit>
+#include <cassert>
 #define FWD(...) std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
 
 #define NNGN_DEFAULT_CONSTRUCT(x) \
@@ -31,6 +33,12 @@ constexpr decltype(auto) cast(U &&x) {
         return static_cast<T>(FWD(x));
     else
         return reinterpret_cast<T>(FWD(x));
+}
+
+template<typename T>
+constexpr auto set_bit(T t, T mask, bool value) {
+    assert(std::popcount(mask) == 1);
+    return t ^ ((t ^ -T{value}) & mask);
 }
 
 }
