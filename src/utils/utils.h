@@ -93,6 +93,8 @@ struct chain_cast {
 
 enum class empty {};
 
+template<typename T> struct always_false : std::false_type {};
+
 /** Performs successive <tt>static_cast</tt>s, right to left. */
 template<typename ...Ts>
 constexpr decltype(auto) chain_cast(auto &&x) {

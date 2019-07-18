@@ -30,6 +30,7 @@ CLEANFILES += \
 
 include %reldir%/bench/Makefile.am
 include %reldir%/collision/Makefile.am
+include %reldir%/compute/Makefile.am
 include %reldir%/font/Makefile.am
 include %reldir%/graphics/Makefile.am
 include %reldir%/input/Makefile.am

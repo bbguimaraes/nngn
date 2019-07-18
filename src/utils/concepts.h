@@ -22,6 +22,9 @@ concept derived_from =
     std::derived_from<D, B>;
 #endif
 
+template<typename T>
+concept arithmetic = std::is_arithmetic_v<T>;
+
 }
 
 #endif

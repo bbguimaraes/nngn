@@ -10,7 +10,8 @@ FROM archlinux/base
 RUN groupadd --gid 100 nngn \
     && useradd --uid 1000 --gid nngn nngn \
     && pacman --noconfirm -Syu \
-        base-devel clang emscripten gdb glew glfw-x11 lua \
-        qt5-base qt5-charts rust shaderc ttf-dejavu vulkan-headers \
-        vulkan-icd-loader vulkan-intel vulkan-validation-layers xxd
+        base-devel clang emscripten gdb glew glfw-x11 intel-compute-runtime \
+        lua ocl-icd opencl-headers qt5-base qt5-charts rust shaderc \
+        ttf-dejavu vulkan-headers vulkan-icd-loader vulkan-intel \
+        vulkan-validation-layers xxd
 USER nngn

@@ -37,6 +37,7 @@ nngn_js_LDFLAGS = \
 	-s USE_WEBGL2=1 -s MIN_WEBGL_VERSION=2 -s MAX_WEBGL_VERSION=2 \
 	-s USE_LIBPNG=1 -s USE_FREETYPE=1 \
 	--source-map-base / \
+	--embed-file $(srcdir)/src/cl/@src/cl \
 	--embed-file $(srcdir)/src/lua/@src/lua \
 	--embed-file $(srcdir)/src/lson/@src/lson \
 	--embed-file $(srcdir)/demos/@demos \
