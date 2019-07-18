@@ -25,6 +25,7 @@
 #include "entity.h"
 
 #include "collision/collision.h"
+#include "compute/compute.h"
 #include "font/font.h"
 #include "font/textbox.h"
 #include "graphics/graphics.h"
@@ -58,6 +59,7 @@ NNGN_LUA_DECLARE_USER_TYPE(Entity, "Entity")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Math, "Math")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Timing, "Timing")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Schedule, "Schedule")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Compute, "Compute")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Graphics, "Graphics")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Graphics::Parameters, "Graphics::Parameters")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::FPS, "FPS")
@@ -93,6 +95,7 @@ struct NNGN {
     nngn::Math math = {};
     nngn::Timing timing = {};
     nngn::Schedule schedule = {};
+    std::unique_ptr<nngn::Compute> compute = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
     nngn::FPS fps = {};
     nngn::Socket socket = {};
@@ -111,6 +114,7 @@ struct NNGN {
     nngn::Lighting lighting = {};
     nngn::Map map = {};
     bool init(int argc, const char *const *argv);
+    bool set_compute(nngn::Compute::Backend b, const void *params);
     bool set_graphics(nngn::Graphics::Backend b, const void *params);
     int loop(void);
     void remove_entity(Entity *e);
@@ -166,11 +170,20 @@ bool NNGN::init(int argc, const char *const *argv) {
     ))
         return false;
     this->fps.init(nngn::Timing::clock::now());
+    if(!this->compute)
+        this->set_compute(nngn::Compute::Backend::PSEUDOCOMP, {});
     if(!this->graphics)
         this->set_graphics(nngn::Graphics::Backend::PSEUDOGRAPH, {});
     if(!this->colliders.has_backend())
         this->colliders.set_backend(nngn::Colliders::native_backend());
     return true;
+}
+
+bool NNGN::set_compute(nngn::Compute::Backend b, const void *params) {
+    this->compute = nngn::Compute::create(
+        b, nngn::lua::user_data<char>::from_light(params));
+    auto *c = this->compute.get();
+    return c && c->init();
 }
 
 bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
@@ -273,6 +286,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["math"] = accessor<&NNGN::math>;
     t["timing"] = accessor<&NNGN::timing>;
     t["schedule"] = accessor<&NNGN::schedule>;
+    t["compute"] = [](const NNGN &nngn) { return nngn.compute.get(); };
     t["graphics"] = [](NNGN &nngn) { return nngn.graphics.get(); };
     t["fps"] = accessor<&NNGN::fps>;
     t["socket"] = accessor<&NNGN::socket>;
@@ -290,6 +304,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["textures"] = accessor<&NNGN::textures>;
     t["lighting"] = accessor<&NNGN::lighting>;
     t["map"] = accessor<&NNGN::map>;
+    t["set_compute"] = &NNGN::set_compute;
     t["set_graphics"] = &NNGN::set_graphics;
     t["remove_entity"] = &NNGN::remove_entity;
     t["remove_entities"] = [](NNGN &nngn, nngn::lua::table_view es) {

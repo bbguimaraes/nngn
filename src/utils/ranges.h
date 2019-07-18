@@ -146,6 +146,14 @@ constexpr void fill_with_pattern(I f, I l, O df, O dl) {
     });
 }
 
+constexpr void fill_with_pattern(
+    std::ranges::range auto &&p, std::ranges::range auto &&r)
+{
+    return fill_with_pattern(
+        std::ranges::begin(FWD(p)), std::ranges::end(FWD(p)),
+        std::ranges::begin(FWD(r)), std::ranges::end(FWD(r)));
+}
+
 template<typename T>
 constexpr T *memcpy(T *dst, std::ranges::contiguous_range auto &&r) {
     const auto n = std::span{FWD(r)}.size_bytes();

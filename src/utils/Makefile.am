@@ -14,6 +14,7 @@ noinst_HEADERS += \
 	%reldir%/ranges.h \
 	%reldir%/regexp.h \
 	%reldir%/scoped.h \
+	%reldir%/span.h \
 	%reldir%/static_vector.h \
 	%reldir%/tuple.h \
 	%reldir%/utils.h \
@@ -29,6 +30,7 @@ nngn_SOURCES += \
 	%reldir%/pp.cpp \
 	%reldir%/ranges.cpp \
 	%reldir%/regexp.cpp \
+	%reldir%/span.cpp \
 	%reldir%/tuple.cpp \
 	%reldir%/types.cpp \
 	%reldir%/utils.cpp

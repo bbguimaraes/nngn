@@ -77,6 +77,7 @@ The following `configure` options are relevant when targeting WebAssembly:
 - `--disable-benchmarks`
 - `--disable-tests`
 - `--disable-tools`
+- `--without-opencl`
 - `--without-vulkan`
 
 ### Optional features
@@ -102,6 +103,12 @@ be enabled by passing extra flags to the `configure` script.
 
 See [scripts/container.sh](./scripts/container.sh) for an example script that
 creates a container with all the build dependencies.
+
+#### `--with-opencl`
+
+Enables the OpenCL compute backend.  Requires:
+
+- `OpenCL` (2.2): heterogeneous computing library
 
 #### `--with-opengl`
 

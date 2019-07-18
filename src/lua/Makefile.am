@@ -9,6 +9,7 @@ LUA_FILES += \
 	%reldir%/lib/animation.lua \
 	%reldir%/lib/camera.lua \
 	%reldir%/lib/collision.lua \
+	%reldir%/lib/compute.lua \
 	%reldir%/lib/configure.lua \
 	%reldir%/lib/debug.lua \
 	%reldir%/lib/entity.lua \

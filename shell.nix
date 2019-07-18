@@ -14,6 +14,8 @@ pkgs.mkShell {
     pkgs.glslang
     pkgs.libpng
     pkgs.lua5_4
+    pkgs.ocl-icd
+    pkgs.opencl-headers
     pkgs.qt5.qtbase
     pkgs.qt5.qtcharts
     pkgs.vulkan-headers
