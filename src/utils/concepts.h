@@ -5,6 +5,8 @@
 
 namespace nngn {
 
+template<typename T> concept arithmetic = std::is_arithmetic_v<T>;
+
 template<typename T>
 concept member_pointer = std::is_member_object_pointer_v<T>;
 

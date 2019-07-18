@@ -5,6 +5,7 @@
 #include "player.h"
 
 #include "collision/collision.h"
+#include "compute/compute.h"
 #include "font/font.h"
 #include "font/textbox.h"
 #include "graphics/graphics.h"
@@ -44,6 +45,7 @@ struct NNGN {
     nngn::Math math = {};
     nngn::Timing timing = {};
     nngn::Schedule schedule = {};
+    std::unique_ptr<nngn::Compute> compute = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
     nngn::FPS fps = {};
     nngn::Socket socket = {};
@@ -62,6 +64,8 @@ struct NNGN {
     nngn::Lighting lighting = {};
     nngn::Map map = {};
     bool init(int argc, const char *const *argv);
+    bool set_compute(
+        nngn::Compute::Backend b, std::optional<const void*> params);
     bool set_graphics(
         nngn::Graphics::Backend b, std::optional<const void*> params);
     int loop();
@@ -100,11 +104,21 @@ bool NNGN::init(int argc, const char *const *argv) {
             [&l = this->lua](auto x) { return l.dofile(x); })))
         return false;
     this->fps.init(nngn::Timing::clock::now());
+    if(!this->compute)
+        this->set_compute(nngn::Compute::Backend::PSEUDOCOMP, {});
     if(!this->graphics)
         this->set_graphics(nngn::Graphics::Backend::PSEUDOGRAPH, {});
     if(!this->colliders.has_backend())
         this->colliders.set_backend(nngn::Colliders::native_backend());
     return true;
+}
+
+bool NNGN::set_compute(
+        nngn::Compute::Backend b, std::optional<const void*> params) {
+    this->compute = nngn::Compute::create(
+        b, params ? static_cast<const uintptr_t*>(*params) + 1 : nullptr);
+    auto *c = this->compute.get();
+    return c && c->init();
 }
 
 bool NNGN::set_graphics(
@@ -205,6 +219,8 @@ NNGN_LUA_PROXY(NNGN,
     "math", sol::readonly(&NNGN::math),
     "timing", sol::readonly(&NNGN::timing),
     "schedule", sol::readonly(&NNGN::schedule),
+    "compute", sol::property(
+        [](const NNGN &nngn) { return nngn.compute.get(); }),
     "graphics", sol::property(
         [](const NNGN &nngn) { return nngn.graphics.get(); }),
     "fps", sol::readonly(&NNGN::fps),
@@ -225,6 +241,7 @@ NNGN_LUA_PROXY(NNGN,
     "textures", sol::readonly(&NNGN::textures),
     "lighting", sol::readonly(&NNGN::lighting),
     "map", sol::readonly(&NNGN::map),
+    "set_compute", &NNGN::set_compute,
     "set_graphics", &NNGN::set_graphics,
     "remove_entity", &NNGN::remove_entity,
     "remove_entity_v", [](NNGN &nngn, const sol::table &t) {

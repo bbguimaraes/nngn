@@ -15,6 +15,8 @@ pkgs=(
     # vk
     shaderc vulkan-headers vulkan-icd-loader vulkan-intel
     vulkan-validation-layers xxd
+    # cl
+    clinfo intel-compute-runtime ocl-icd opencl-headers
     # font
     ttf-dejavu
 )

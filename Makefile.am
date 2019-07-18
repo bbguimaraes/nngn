@@ -3,7 +3,8 @@ AUTOMAKE_OPTIONS = subdir-objects
 AM_CPPFLAGS = $(DEPS_CFLAGS) -I@srcdir@/src
 AM_CXXFLAGS = \
 	-std=c++20 -fno-exceptions -fno-rtti -fstrict-aliasing \
-	-O3 -DNDEBUG -DSOL_NO_EXCEPTIONS -fno-omit-frame-pointer \
+	-O3 -DNDEBUG -DSOL_NO_EXCEPTIONS -DCL_TARGET_OPENCL_VERSION=120 \
+	-fno-omit-frame-pointer \
 	-Werror -Wall -Wextra -Wpedantic -pedantic-errors \
 	-Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy \
 	-Wdisabled-optimization -Wdouble-promotion -Weffc++ -Wformat=2 -Wimport \
@@ -37,6 +38,7 @@ nngn_js_CXXFLAGS = \
 nngn_js_LDFLAGS = \
 	$(nngn_js_CXXFLAGS) \
 	--source-map-base / \
+	--embed-file $(srcdir)/src/cl/@src/cl \
 	--embed-file $(srcdir)/src/lua/@src/lua \
 	--embed-file $(srcdir)/src/lson/@src/lson \
 	--embed-file $(srcdir)/demos/@demos \

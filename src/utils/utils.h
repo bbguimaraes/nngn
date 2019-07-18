@@ -53,6 +53,8 @@ namespace nngn {
 
 enum class empty {};
 
+template<typename T> struct always_false : std::false_type {};
+
 /** Cast value to \c T with the strictest cast operator. */
 template<typename T, typename U>
 constexpr decltype(auto) cast(U &&x) {

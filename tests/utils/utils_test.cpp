@@ -3,6 +3,7 @@
 
 #include "utils/log.h"
 #include "utils/pointer_flag.h"
+#include "utils/scoped.h"
 #include "utils/utils.h"
 #include "utils/vector.h"
 

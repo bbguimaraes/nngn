@@ -16,6 +16,15 @@ NNGN_BIN=nngn
 case "$CXX" in *em++*) NNGN_BIN=${NNGN_BIN}.js;; esac
 AC_SUBST([NNGN_BIN])
 
+AC_ARG_WITH([opencl],
+    [AS_HELP_STRING([--with-opencl], [enable the OpenCL compute backend])],
+    [], [])
+AS_IF([test "x$with_opencl" == xyes],
+    [DEPS="$DEPS OpenCL"
+     AC_DEFINE([NNGN_PLATFORM_HAS_OPENCL], [1], [Define if you have OpenCL])],
+    [])
+AM_CONDITIONAL([ENABLE_OPENCL], [test "x$with_opencl" == xyes])
+
 AC_ARG_WITH([opengl],
     [AS_HELP_STRING([--with-opengl], [enable the OpenGL graphics backend])],
     [], [])
