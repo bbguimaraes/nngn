@@ -24,6 +24,8 @@
  *
  * Output tools are:
  *
+ * - `plot` displays conventional line graphs, such as memory usage and camera
+ *   parameters.
  * - `timeline` displays line graphs as segments of a fixed time period, used to
  *   display various types of profiling information.
  */

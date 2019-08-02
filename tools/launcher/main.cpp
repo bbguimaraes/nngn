@@ -14,6 +14,18 @@ using namespace std::string_view_literals;
 namespace {
 
 constexpr auto SOCKET_PATH = "sock"sv;
+constexpr auto PLOT_FPS = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.plot")
+    p.plot(p.FS.fps)
+end)"sv;
+constexpr auto PLOT_LUA = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.plot")
+    p.plot(p.FS.lua)
+end)"sv;
 constexpr auto TIMELINE_PROF = R"(
 do
     require("nngn.lib.tools").add_to_path()
@@ -77,12 +89,15 @@ int main(int argc, char **argv) {
                 + "\n\n"
                 + launcher.socket().errorString());
     Window w;
+    const auto plot_section = w.add_section("plot");
     const auto timeline_section = w.add_section("timeline");
     const auto add = [&w, &l = launcher](auto s, const char *n, auto p) {
         QObject::connect(
             w.add_button(s, n), &QPushButton::pressed,
             [&l, p] { l.exec(p); });
     };
+    add(plot_section, "fps", PLOT_FPS);
+    add(plot_section, "lua", PLOT_LUA);
     add(timeline_section, "prof", TIMELINE_PROF);
     add(timeline_section, "lua", TIMELINE_LUA);
     QObject::connect(

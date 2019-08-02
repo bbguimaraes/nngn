@@ -6,12 +6,14 @@ LUA_FILES += \
 	%reldir%/lib/debug.lua \
 	%reldir%/lib/graphics.lua \
 	%reldir%/lib/math.lua \
+	%reldir%/lib/plot.lua \
 	%reldir%/lib/profile.lua \
 	%reldir%/lib/serial.lua \
 	%reldir%/lib/timeline.lua \
 	%reldir%/lib/tools.lua \
 	%reldir%/lib/utils.lua \
 	%reldir%/path.lua \
+	%reldir%/plot.lua \
 	%reldir%/profile.lua \
 	%reldir%/strict.lua \
 	%reldir%/timeline.lua
