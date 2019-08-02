@@ -1,11 +1,13 @@
 if ENABLE_TOOLS
 bin_PROGRAMS += \
 	%reldir%/bin/launcher \
+	%reldir%/bin/plot \
 	%reldir%/bin/timeline
 endif
 
 EXTRA_PROGRAMS += \
 	%reldir%/bin/launcher \
+	%reldir%/bin/plot \
 	%reldir%/bin/timeline
 
 noinst_HEADERS += \
@@ -13,6 +15,9 @@ noinst_HEADERS += \
 	%reldir%/poller.h \
 	%reldir%/reader.h \
 	%reldir%/worker.h \
+	%reldir%/plot/graph.h \
+	%reldir%/plot/window.h \
+	%reldir%/plot/worker.h \
 	%reldir%/timeline/graph.h \
 	%reldir%/timeline/worker.h
 
@@ -22,6 +27,21 @@ noinst_HEADERS += \
 %canon_reldir%_bin_launcher_SOURCES = \
 	%reldir%/launcher/main.cpp \
 	%reldir%/launcher/window.cpp
+
+%canon_reldir%_bin_plot_CPPFLAGS = $(AM_CPPFLAGS) $(QT_DEPS_CFLAGS)
+%canon_reldir%_bin_plot_CXXFLAGS = $(AM_CXXFLAGS) -fPIC
+%canon_reldir%_bin_plot_LDADD = $(QT_DEPS_LIBS)
+%canon_reldir%_bin_plot_SOURCES = \
+	src/utils/log.cpp \
+	%reldir%/plot/main.cpp \
+	%reldir%/poller.cpp \
+	%reldir%/reader.cpp \
+	%reldir%/worker.cpp \
+	%reldir%/worker.moc.cpp \
+	%reldir%/plot/window.cpp \
+	%reldir%/plot/window.moc.cpp \
+	%reldir%/plot/worker.cpp \
+	%reldir%/plot/worker.moc.cpp
 
 %canon_reldir%_bin_timeline_CPPFLAGS = $(AM_CPPFLAGS) $(QT_DEPS_CFLAGS)
 %canon_reldir%_bin_timeline_CXXFLAGS = $(AM_CXXFLAGS) -fPIC
