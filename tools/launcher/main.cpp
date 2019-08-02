@@ -14,6 +14,18 @@ using namespace std::string_view_literals;
 namespace {
 
 constexpr auto SOCKET_PATH = "/home/bbguimaraes/src/nngn/sock"sv;
+constexpr auto PLOT_FPS = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.plot")
+    p.plot(p.FS.fps)
+end)"sv;
+constexpr auto PLOT_LUA = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.plot")
+    p.plot(p.FS.lua)
+end)"sv;
 constexpr auto TIMELINE_PROF = R"(
 do
     require("nngn.lib.tools").add_to_path()
@@ -60,6 +72,9 @@ int main(int argc, char **argv) {
             nullptr, "Warning",
             "Failed to open socket.\n\n" + launcher.socket().errorString());
     Window w;
+    const auto plot_section = w.add_section("plot");
+    const auto *const plot_fps = w.add_button(plot_section, "fps");
+    const auto *const plot_lua = w.add_button(plot_section, "lua");
     const auto timeline_section = w.add_section("timeline");
     const auto *const timeline_prof = w.add_button(timeline_section, "prof");
     QObject::connect(
@@ -76,12 +91,17 @@ int main(int argc, char **argv) {
         &launcher.socket(), &QLocalSocket::errorOccurred,
         &w, &QWidget::close);
     QObject::connect(
+        plot_fps, &QPushButton::pressed,
+        [&l = launcher] { l.exec(PLOT_FPS); });
+    QObject::connect(
+        plot_lua, &QPushButton::pressed,
+        [&l = launcher] { l.exec(PLOT_LUA); });
+    QObject::connect(
         timeline_prof, &QPushButton::pressed,
         [&l = launcher] { l.exec(TIMELINE_PROF); });
     const auto screen_height =
         app.primaryScreen()->availableGeometry().height();
     w.setWindowFlags(Qt::Dialog);
-    w.adjustSize();
     w.move(32, (screen_height - w.height()) / 2);
     w.show();
     if(const int ret = app.exec())
