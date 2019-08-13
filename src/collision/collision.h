@@ -28,12 +28,22 @@ struct CollisionStats : StatsBase<CollisionStats, 4> {
         counters,
         aabb_copy, aabb_exec_barrier, aabb_exec,
         bb_copy, bb_exec_barrier, bb_exec,
-        aabb_bb_exec_barrier, aabb_bb_exec;
+        sphere_pos, sphere_vel, sphere_mass, sphere_radius,
+        sphere_grid_count, sphere_exec_grid_barrier,
+        sphere_exec_grid, sphere_exec_barrier, sphere_exec,
+        aabb_bb_exec_barrier, aabb_bb_exec,
+        aabb_sphere_exec_barrier, aabb_sphere_exec,
+        bb_sphere_exec_barrier, bb_sphere_exec;
     static constexpr std::array names = {
         "counters",
         "aabb_copy", "aabb_exec_barrier", "aabb_exec",
         "bb_copy", "bb_exec_barrier", "bb_exec",
-        "aabb_bb_exec_barrier", "aabb_bb_exec"};
+        "sphere_pos", "sphere_vel", "sphere_mass", "sphere_radius",
+        "sphere_grid_count", "sphere_exec_grid_barrier",
+        "sphere_exec_grid", "sphere_exec_barrier", "sphere_exec",
+        "aabb_bb_exec_barrier", "aabb_bb_exec",
+        "aabb_sphere_exec_barrier", "aabb_sphere_exec",
+        "bb_sphere_exec_barrier", "bb_sphere_exec"};
     const uint64_t *to_u64() const { return this->counters.data(); }
     uint64_t *to_u64() { return this->counters.data(); }
 };
@@ -43,6 +53,7 @@ struct Colliders {
         struct Input {
             std::vector<AABBCollider> aabb = {};
             std::vector<BBCollider> bb = {};
+            std::vector<SphereCollider> sphere = {};
         };
         struct Output {
             CollisionStats stats = {};
@@ -76,6 +87,7 @@ public:
     ~Colliders();
     auto &aabb() const { return this->input.aabb; }
     auto &bb() const { return this->input.bb; }
+    auto &sphere() const { return this->input.sphere; }
     size_t max_colliders() const { return this->m_max_colliders; }
     size_t max_collisions() const { return this->output.collisions.capacity(); }
     auto &collisions() const { return this->output.collisions; }
@@ -89,6 +101,7 @@ public:
     bool set_backend(std::unique_ptr<Backend> p);
     AABBCollider *add(const AABBCollider &c);
     BBCollider *add(const BBCollider &c);
+    SphereCollider *add(const SphereCollider &c);
     Collider *load(const sol::stack_table &t);
     void remove(Collider *p);
     void clear();

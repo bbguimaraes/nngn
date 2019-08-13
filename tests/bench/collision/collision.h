@@ -30,6 +30,8 @@ private slots:
     void aabb_sparse_benchmark();
     void bb_benchmark();
     void bb_sparse_benchmark();
+    void sphere_benchmark();
+    void sphere_sparse_benchmark();
 };
 
 #endif

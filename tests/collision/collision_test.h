@@ -12,6 +12,8 @@ private slots:
     void aabb_collision();
     void bb_collision_data();
     void bb_collision();
+    void sphere_sphere_collision_data();
+    void sphere_sphere_collision();
 protected:
     nngn::Colliders colliders = {};
 };

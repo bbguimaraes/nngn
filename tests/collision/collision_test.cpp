@@ -8,6 +8,7 @@
 Q_DECLARE_METATYPE(std::optional<nngn::vec3>)
 Q_DECLARE_METATYPE(nngn::AABBCollider)
 Q_DECLARE_METATYPE(nngn::BBCollider)
+Q_DECLARE_METATYPE(nngn::SphereCollider)
 
 namespace {
 
@@ -108,6 +109,48 @@ void CollisionTest::bb_collision() {
     this->colliders.set_max_colliders(2);
     this->colliders.set_max_collisions(1);
     this->colliders.add(nngn::BBCollider({0.5f, -0.5f}, {1.5f, 1.5f}, 0, 1));
+    this->colliders.add(c);
+    QVERIFY(this->colliders.check_collisions(nngn::Timing{}));
+    const auto ret = this->colliders.collisions();
+    if(coll) {
+        QVERIFY(!ret.empty());
+        if(const auto v = ret[0].force; !fuzzy_eq(v, *coll))
+            QCOMPARE(v, *coll);
+    } else if(!ret.empty())
+        QFAIL(toString(ret[0].force));
+}
+
+void CollisionTest::sphere_sphere_collision_data() {
+    const auto sphere = [](float x, float y)
+        { return nngn::SphereCollider({x, y, 0}, 0.5f); };
+    QTest::addColumn<std::optional<nngn::vec3>>("coll");
+    QTest::addColumn<nngn::SphereCollider>("c");
+    QTest::newRow("n, l") << no_coll << sphere(0.5f, 1.5f);
+    QTest::newRow("n, r") << no_coll << sphere(2.5f, 1.5f);
+    QTest::newRow("n, b") << no_coll << sphere(1.5f, 0.5f);
+    QTest::newRow("n, t") << no_coll << sphere(1.5f, 2.5f);
+    QTest::newRow("y, l") << coll( 0.5f,  0.0f) << sphere(1.0f, 1.5f);
+    QTest::newRow("y, r") << coll(-0.5f,  0.0f) << sphere(2.0f, 1.5f);
+    QTest::newRow("y, b") << coll( 0.0f,  0.5f) << sphere(1.5f, 1.0f);
+    QTest::newRow("y, t") << coll( 0.0f, -0.5f) << sphere(1.5f, 2.0f);
+    const auto diag = std::pow(2.0f, -1.5f);
+    QTest::newRow("y, bl")
+        << coll( diag,  diag) << sphere(1.5f - diag, 1.5f - diag);
+    QTest::newRow("y, tr")
+        << coll(-diag, -diag) << sphere(1.5f + diag, 1.5f + diag);
+    QTest::newRow("y, br")
+        << coll( diag, -diag) << sphere(1.5f - diag, 1.5f + diag);
+    QTest::newRow("y, tl")
+        << coll(-diag,  diag) << sphere(1.5f + diag, 1.5f - diag);
+}
+
+void CollisionTest::sphere_sphere_collision() {
+    QFETCH(const std::optional<nngn::vec3>, coll);
+    QFETCH(const nngn::SphereCollider, c);
+    this->colliders.clear();
+    this->colliders.set_max_colliders(2);
+    this->colliders.set_max_collisions(1);
+    this->colliders.add(nngn::SphereCollider{{1.5f, 1.5f, 0}, .5f});
     this->colliders.add(c);
     QVERIFY(this->colliders.check_collisions(nngn::Timing{}));
     const auto ret = this->colliders.collisions();

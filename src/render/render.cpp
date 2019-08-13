@@ -289,6 +289,14 @@ void update_bbs(const UpdateBBData *data, nngn::Vertex *p, u64 i, u64 n) {
     }
 }
 
+void update_spheres(
+    nngn::Vertex **p, const nngn::SphereCollider *x
+) {
+    const auto uv = x->r / 2.0f < 32.0f ? CIRCLE_UV_32 : CIRCLE_UV_64;
+    nngn::Renderers::gen_quad_verts(
+        p, (x->pos - x->r).xy(), (x->pos + x->r).xy(), 0, 1, uv[0], uv[1]);
+}
+
 }
 
 namespace nngn {
@@ -359,7 +367,9 @@ bool Renderers::set_max_colliders(std::size_t n) {
         && this->graphics->set_buffer_capacity(this->bb_vbo, vsize)
         && this->graphics->set_buffer_capacity(this->bb_ebo, esize)
         && this->graphics->set_buffer_capacity(this->bb_circle_vbo, vsize)
-        && this->graphics->set_buffer_capacity(this->bb_circle_ebo, esize);
+        && this->graphics->set_buffer_capacity(this->bb_circle_ebo, esize)
+        && this->graphics->set_buffer_capacity(this->sphere_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->sphere_ebo, esize);
 }
 
 void Renderers::set_debug(std::underlying_type_t<Debug> d) {
@@ -547,6 +557,14 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "bb_circle_ebo",
             .type = index,
         }))
+        && (this->sphere_vbo = g->create_buffer({
+            .name = "sphere_vbo",
+            .type = vertex,
+        }))
+        && (this->sphere_ebo = g->create_buffer({
+            .name = "sphere_ebo",
+            .type = index,
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -584,6 +602,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .buffers = std::to_array<BufferPair>({
                     {this->aabb_circle_vbo, this->aabb_circle_ebo},
                     {this->bb_circle_vbo, this->bb_circle_ebo},
+                    {this->sphere_vbo, this->sphere_ebo},
                 }),
             }, {
                 .pipeline = box_pipeline,
@@ -903,6 +922,20 @@ bool Renderers::update() {
         return update_span<::update_aabb_circles, update_indices<6>>(
             this->graphics, v, vbo, ebo, 4, 6);
     };
+    const auto update_spheres = [this] {
+        NNGN_LOG_CONTEXT("sphere");
+        const auto vbo = this->sphere_vbo;
+        const auto ebo = this->sphere_ebo;
+        const auto v = std::span{
+            const_cast<std::vector<SphereCollider>&>(
+                this->colliders->sphere())};
+        if(!this->m_debug.is_set(Debug::CIRCLE) || v.empty()) {
+            this->graphics->set_buffer_size(ebo, 0);
+            return true;
+        }
+        return update_span<::update_spheres, update_indices<6>>(
+            this->graphics, v, vbo, ebo, 4, 6);
+    };
     const auto updated = [&flags = this->flags](auto f, const auto &v) {
         return flags.is_set(f)
             ? (flags.clear(f), true)
@@ -934,7 +967,8 @@ bool Renderers::update() {
     }
     return update_text() && update_textbox() && update_selections()
         && update_aabbs() && update_aabb_circles()
-        && update_bbs() && update_bb_circles();
+        && update_bbs() && update_bb_circles()
+        && update_spheres();
 }
 
 }

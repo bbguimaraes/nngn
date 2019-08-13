@@ -34,3 +34,6 @@ print(fmt(
 print(fmt(
     "- bb", Collider.SIZEOF_BB,
     nngn.colliders:n_bb(), max_colliders))
+print(fmt(
+    "- sphere", Collider.SIZEOF_SPHERE,
+    nngn.colliders:n_sphere(), max_colliders))

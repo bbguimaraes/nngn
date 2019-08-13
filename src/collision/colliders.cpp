@@ -77,4 +77,10 @@ void BBCollider::load(const sol::stack_table &t) {
     }
 }
 
+void SphereCollider::load(const sol::stack_table &t) {
+    Collider::load(t);
+    if(const auto x = t.get<std::optional<float>>("r"))
+        this->r = *x;
+}
+
 }
