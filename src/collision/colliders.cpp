@@ -83,4 +83,15 @@ void BBCollider::load(nngn::lua::table_view t) {
     }
 }
 
+void SphereCollider::update(std::span<SphereCollider> s) {
+    for(auto &x : s)
+        update_collider(&x);
+}
+
+void SphereCollider::load(nngn::lua::table_view t) {
+    Collider::load(t);
+    if(const auto tr = t["r"].get<std::optional<float>>())
+        this->r = *tr;
+}
+
 }

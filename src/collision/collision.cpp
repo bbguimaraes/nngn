@@ -28,6 +28,7 @@ bool Colliders::set_max_colliders(size_t n) {
     this->m_max_colliders = n;
     set_capacity(&this->input.aabb, n);
     set_capacity(&this->input.bb, n);
+    set_capacity(&this->input.sphere, n);
     return !this->backend || this->backend->set_max_colliders(n);
 }
 
@@ -54,11 +55,14 @@ void Colliders::remove(Collider *p) {
         remove(&this->input.aabb);
     if(contains(this->input.bb, *p))
         remove(&this->input.bb);
+    if(contains(this->input.sphere, *p))
+        remove(&this->input.sphere);
 }
 
 void Colliders::clear() {
     this->input.aabb.clear();
     this->input.bb.clear();
+    this->input.sphere.clear();
 }
 
 bool Colliders::check_collisions(const Timing &t) {
@@ -66,6 +70,7 @@ bool Colliders::check_collisions(const Timing &t) {
     NNGN_PROFILE_CONTEXT(collision_check);
     AABBCollider::update(this->input.aabb);
     BBCollider::update(this->input.bb);
+    SphereCollider::update(this->input.sphere);
     this->output.collisions.clear();
     if(!this->m_flags.is_set(Flag::CHECK) || !this->backend)
         return true;
@@ -131,6 +136,8 @@ AABBCollider *Colliders::add(const AABBCollider &c)
     { NNGN_LOG_CONTEXT("aabb"); return nngn::add(&this->input.aabb, c); }
 BBCollider *Colliders::add(const BBCollider &c)
     { NNGN_LOG_CONTEXT("bb"); return nngn::add(&this->input.bb, c); }
+SphereCollider *Colliders::add(const SphereCollider &c)
+    { NNGN_LOG_CONTEXT("sphere"); return nngn::add(&this->input.sphere, c); }
 
 Collider *Colliders::load(nngn::lua::table_view t) {
     NNGN_LOG_CONTEXT_CF(Colliders);
@@ -139,6 +146,7 @@ Collider *Colliders::load(nngn::lua::table_view t) {
     switch(type) {
     case Collider::Type::AABB: return load(AABBCollider());
     case Collider::Type::BB: return load(BBCollider());
+    case Collider::Type::SPHERE: return load(SphereCollider());
     case Collider::Type::NONE:
     case Collider::Type::N_TYPES:
     default:

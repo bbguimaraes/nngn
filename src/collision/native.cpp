@@ -10,13 +10,21 @@ using Input = Colliders::Backend::Input;
 using Output = Colliders::Backend::Output;
 using nngn::AABBCollider;
 using nngn::BBCollider;
+using nngn::SphereCollider;
 
 namespace {
 
 void check_aabb(std::span<AABBCollider> aabb, Output *output);
 void check_bb(std::span<BBCollider> s, Output *output);
+void check_sphere(std::span<SphereCollider> s, Output *output);
 void check_aabb_bb(
     std::span<AABBCollider> aabb, std::span<BBCollider> bb,
+    Output *output);
+void check_aabb_sphere(
+    std::span<AABBCollider> aabb, std::span<SphereCollider> sphere,
+    Output *output);
+void check_bb_sphere(
+    std::span<BBCollider> bb, std::span<SphereCollider> sphere,
     Output *output);
 bool check_bb_fast(const AABBCollider &c0, const AABBCollider &c1);
 constexpr float overlap(float min0, float max0, float min1, float max1);
@@ -27,6 +35,9 @@ constexpr std::array<nngn::vec2, 4> to_edges(
 inline bool check_bb_common(
     const nngn::vec2 &bl, const nngn::vec2 &tr,
     const std::array<nngn::vec2, 4> &v1, nngn::vec2 *output);
+inline bool check_bb_sphere_common(
+    const nngn::vec2 &c0, const nngn::vec2 &bl0, const nngn::vec2 &tr0,
+    const nngn::vec2 &sc, float sr, nngn::vec2 *output);
 template<typename T, typename U>
 bool add_collision(
     T *c0, U *c1, const nngn::vec3 &v,
@@ -42,7 +53,10 @@ bool NativeBackend::check(
     { NNGN_STATS_CONTEXT(Colliders, &output->stats.counters); }
     check_aabb(input->aabb, output);
     check_bb(input->bb, output);
+    check_sphere(input->sphere, output);
     check_aabb_bb(input->aabb, input->bb, output);
+    check_aabb_sphere(input->aabb, input->sphere, output);
+    check_bb_sphere(input->bb, input->sphere, output);
     auto &v = *nngn::Stats::u64_data<Colliders>();
     for(std::size_t i = 0, n = v.size(); i < n; i += 4)
         v[i + 1] = v[i + 2] = v[i];
@@ -112,6 +126,33 @@ void check_bb(std::span<BBCollider> bb, Output *output) {
     }
 }
 
+void check_sphere(std::span<SphereCollider> sphere, Output *output) {
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_pos); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_vel); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_mass); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_radius); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_grid_count); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_exec_grid_barrier); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_exec_grid); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_exec_barrier); }
+    NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_exec);
+    for(auto i0 = begin(sphere), e = end(sphere); i0 != e; ++i0) {
+        auto &c0 = *i0;
+        for(auto i1 = i0 + 1; i1 != e; ++i1) {
+            auto &c1 = *i1;
+            const auto d = c0.pos - c1.pos;
+            const auto r = c0.r + c1.r;
+            const auto l2 = nngn::Math::length2(d);
+            if(l2 >= r * r || l2 == 0)
+                continue;
+            const auto l = std::sqrt(l2);
+            const auto v = (r - l) / l * d;
+            if(!add_collision(&c0, &c1, v, &output->collisions))
+                return;
+        }
+    }
+}
+
 void check_aabb_bb(
     std::span<AABBCollider> aabb, std::span<BBCollider> bb,
     Output *output
@@ -142,6 +183,50 @@ void check_aabb_bb(
             v0 = nngn::Math::length2(v0) <= nngn::Math::length2(v1)
                 ? -v0 : rotate(v1, c0.cos, c0.sin);
             if(!add_collision(&c0, &c1, {v0, 0}, &output->collisions))
+                return;
+        }
+    }
+}
+
+void check_aabb_sphere(
+    std::span<AABBCollider> aabb, std::span<SphereCollider> sphere,
+    Output *output
+) {
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.aabb_sphere_exec_barrier); }
+    NNGN_STATS_CONTEXT(Colliders, &output->stats.aabb_sphere_exec);
+    if(sphere.empty())
+        return;
+    for(auto &c0 : aabb)
+        for(auto &c1 : sphere) {
+            nngn::vec2 v = {};
+            if(!check_bb_sphere_common(
+                    c0.pos.xy(), c0.bl, c0.tr, c1.pos.xy(), c1.r, &v))
+                continue;
+            if(!add_collision(&c0, &c1, {v, 0}, &output->collisions))
+                return;
+        }
+}
+
+void check_bb_sphere(
+    std::span<BBCollider> bb, std::span<SphereCollider> sphere,
+    Output *output
+) {
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.bb_sphere_exec_barrier); }
+    NNGN_STATS_CONTEXT(Colliders, &output->stats.bb_sphere_exec);
+    if(sphere.empty())
+        return;
+    for(auto &c0 : bb) {
+        const auto pos0 = c0.pos.xy();
+        const auto center0 = c0.center.xy();
+        for(auto &c1 : sphere) {
+            nngn::vec2 v = {};
+            if(!check_bb_sphere_common(
+                    pos0, c0.bl, c0.tr,
+                    center0 + rotate(c1.pos.xy() - center0, c0.cos, -c0.sin),
+                    c1.r, &v))
+                continue;
+            v = rotate(v, c0.cos, c0.sin);
+            if(!add_collision(&c0, &c1, {v, 0}, &output->collisions))
                 return;
         }
     }
@@ -188,6 +273,34 @@ inline bool check_bb_common(
         return false;
     *out = std::fabs(xoverlap) <= std::fabs(yoverlap)
         ? nngn::vec2(-xoverlap, 0) : nngn::vec2(0, -yoverlap);
+    return true;
+}
+
+inline bool check_bb_sphere_common(
+        const nngn::vec2 &c0, const nngn::vec2 &bl0, const nngn::vec2 &tr0,
+        const nngn::vec2 &sc, float sr, nngn::vec2 *out) {
+    const auto nearest = nngn::vec2(
+        std::clamp(sc.x, bl0.x, tr0.x),
+        std::clamp(sc.y, bl0.y, tr0.y));
+    const auto d = sc - nearest;
+    if(const auto l2 = nngn::Math::length2(d); l2 != 0) {
+        if(l2 >= sr * sr)
+            return false;
+        *out = d * (1 - sr / std::sqrt(l2));
+        return true;
+    }
+    const auto rd = tr0 - bl0;
+    const auto rd_2 = rd / 2.0f;
+    const auto v = sc - c0;
+    if(v == nngn::vec2())
+        return false;
+    const auto a = v.y / v.x;
+    const auto vx = (v.x > 0 ? 1.0f : -1.0f) * nngn::vec2(rd_2.x, a * rd_2.x);
+    const auto vy = (v.y > 0 ? 1.0f : -1.0f) * nngn::vec2(rd_2.y / a, rd_2.y);
+    const auto proj = std::abs(vx.y) < std::abs(rd.y) ? vx : vy;
+    if(proj == nngn::vec2())
+        return false;
+    *out = sc - nngn::vec2{c0 + proj * (1 + sr / nngn::Math::length(proj))};
     return true;
 }
 

@@ -49,6 +49,7 @@ struct Gen {
     static void aabb(Vertex **p, const AABBCollider &x, vec3 color);
     static void aabb_circle(Vertex **p, const AABBCollider &x);
     static void bb(Vertex **p, const BBCollider &x, vec3 color);
+    static void coll_sphere(Vertex **p, const SphereCollider &x);
 private:
     static constexpr std::array<vec2, 2>
         CIRCLE_UV_32 = {{{ 32/512.0f, 1}, { 64/512.0f, 1 -  32/512.0f}}},
@@ -340,6 +341,12 @@ inline void Gen::bb(Vertex **pp, const BBCollider &x, vec3 color) {
     *p++ = {{rot[2], 0}, color};
     *p++ = {{rot[3], 0}, color};
     *pp = p;
+}
+
+inline void Gen::coll_sphere(Vertex **p, const SphereCollider &x) {
+    const auto uv = x.r / 2.0f < 32.0f ? CIRCLE_UV_32 : CIRCLE_UV_64;
+    const auto pos = x.pos.xy();
+    Gen::quad_vertices(p, pos - x.r, pos + x.r, 0, 1, uv[0], uv[1]);
 }
 
 }
