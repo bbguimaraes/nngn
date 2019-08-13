@@ -75,4 +75,10 @@ void BBCollider::load(const nngn::lua::table &t) {
     }
 }
 
+void SphereCollider::load(const nngn::lua::table &t) {
+    Collider::load(t);
+    if(const auto x = t.get<std::optional<float>>("r"))
+        this->r = *x;
+}
+
 }

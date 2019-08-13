@@ -174,7 +174,9 @@ bool Renderers::set_max_colliders(std::size_t n) {
         && this->graphics->set_buffer_capacity(this->bb_vbo, vsize)
         && this->graphics->set_buffer_capacity(this->bb_ebo, esize)
         && this->graphics->set_buffer_capacity(this->bb_circle_vbo, vsize)
-        && this->graphics->set_buffer_capacity(this->bb_circle_ebo, esize);
+        && this->graphics->set_buffer_capacity(this->bb_circle_ebo, esize)
+        && this->graphics->set_buffer_capacity(this->sphere_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->sphere_ebo, esize);
 }
 
 void Renderers::set_debug(Debug d) {
@@ -363,6 +365,14 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "bb_circle_ebo",
             .type = index,
         }))
+        && (this->sphere_vbo = g->create_buffer({
+            .name = "sphere_vbo",
+            .type = vertex,
+        }))
+        && (this->sphere_ebo = g->create_buffer({
+            .name = "sphere_ebo",
+            .type = index,
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -400,6 +410,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .buffers = std::to_array<BufferPair>({
                     {this->aabb_circle_vbo, this->aabb_circle_ebo},
                     {this->bb_circle_vbo, this->bb_circle_ebo},
+                    {this->sphere_vbo, this->sphere_ebo},
                 }),
             }, {
                 .pipeline = box_pipeline,
@@ -745,6 +756,19 @@ bool Renderers::update_debug(
         return update_span<gen, update_quad_indices<6>>(
             this->graphics, v, vbo, ebo, 4, 6);
     };
+    const auto update_coll_spheres = [this] {
+        NNGN_LOG_CONTEXT("coll_sphere");
+        const auto vbo = this->sphere_vbo;
+        const auto ebo = this->sphere_ebo;
+        const auto v = std::span{
+            const_cast<std::vector<SphereCollider>&>(this->colliders->sphere()),
+        };
+        if(!this->m_debug.is_set(Debug::DEBUG_CIRCLE) || v.empty())
+            return this->graphics->set_buffer_size(ebo, 0);
+        constexpr auto gen = [](auto *p, auto *x) { Gen::coll_sphere(p, *x); };
+        return update_span<gen, update_quad_indices<6>>(
+            this->graphics, v, vbo, ebo, 4, 6);
+    };
     const auto update = [
         this,
         enabled = this->m_debug.is_set(Debug::DEBUG_RENDERERS),
@@ -757,7 +781,8 @@ bool Renderers::update_debug(
         && update(cubes_updated, update_cube_debug, this->cube_debug_ebo)
         && update(voxels_updated, update_voxel_debug, this->voxel_debug_ebo)
         && update_aabbs() && update_aabb_circles()
-        && update_bbs() && update_bb_circles();
+        && update_bbs() && update_bb_circles()
+        && update_coll_spheres();
 }
 
 }

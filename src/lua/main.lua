@@ -44,4 +44,11 @@ entities = {
     entity.load(nil, "src/lson/fairy0.lua", {pos = {96, 0}}),
     entity.load(nil, "src/lson/rock0.lua", {pos = {128, 16}}),
     entity.load(nil, "src/lson/tree0.lua", {pos = {192, 32}}),
+    entity.load(nil, "src/lson/circle32.lua", {
+        pos = {256, 0, 8},
+        collider = {
+            type = Collider.SPHERE, flags = Collider.SOLID,
+            r = 16, m = 1/0,
+        },
+    }),
 }
