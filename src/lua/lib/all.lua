@@ -1,3 +1,4 @@
+inspect = require "nngn.inspect"
 plot = require "nngn.plot"
 profile = require "nngn.profile"
 timeline = require "nngn.timeline"
