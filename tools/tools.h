@@ -24,6 +24,8 @@
  *
  * Output tools are:
  *
+ * - `inspect` is a simple text field which can display textual data, such as
+ *   the text dump of the texture cache.
  * - `plot` displays conventional line graphs, such as memory usage and camera
  *   parameters.
  * - `timeline` displays line graphs as segments of a fixed time period, used to
