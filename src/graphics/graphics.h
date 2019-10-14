@@ -221,6 +221,7 @@ struct Graphics {
     virtual uvec2 window_size() const = 0;
     virtual GraphicsStats stats() = 0;
     virtual void get_keys(size_t n, int32_t *keys) const = 0;
+    virtual ivec2 mouse_pos() const = 0;
     virtual bool set_n_frames(std::size_t n) = 0;
     virtual void set_swap_interval(int i) = 0;
     virtual void set_window_title(const char *t) = 0;

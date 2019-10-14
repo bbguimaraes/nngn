@@ -47,6 +47,7 @@ struct Camera {
     mat4 gen_hud_proj() const;
     mat4 gen_view() const;
     float fov_z() const;
+    vec3 to_world(const vec3 &vp) const;
     void set_perspective(bool b);
     void set_screen(const uvec2 &s);
     void set_pos(const vec3 &pos);

@@ -73,6 +73,10 @@ inline constexpr bool operator==(const mat4_base<T> &m0, const mat4_base<T> &m1)
     { return m0.m == m1.m; }
 
 template<typename T>
+inline constexpr mat4_base<T> operator*(T s, const mat4_base<T> &m)
+    { return {s * m[0], s * m[1], s * m[2], s * m[3]}; }
+
+template<typename T>
 inline constexpr mat4_base<T> operator*(
         const mat4_base<T> &m0, const mat4_base<T> &m1) {
     const auto

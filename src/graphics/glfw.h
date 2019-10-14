@@ -34,6 +34,7 @@ public:
     int swap_interval() const final { return this->m_swap_interval; }
     nngn::uvec2 window_size() const override;
     void get_keys(size_t n, int32_t *keys) const override;
+    ivec2 mouse_pos() const override;
     void set_swap_interval(int i) override;
     void set_window_title(const char *t) final;
     void set_cursor_mode(CursorMode m) final;

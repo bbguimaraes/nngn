@@ -63,6 +63,12 @@ void GLFWBackend::get_keys(size_t n, int32_t *keys) const {
         [w = this->w](auto x) { return static_cast<char>(glfwGetKey(w, x)); });
 }
 
+ivec2 GLFWBackend::mouse_pos() const {
+    dvec2 ret;
+    glfwGetCursorPos(this->w, &ret.x, &ret.y);
+    return static_cast<ivec2>(ret);
+}
+
 void GLFWBackend::set_swap_interval(int i)
     { glfwSwapInterval(this->m_swap_interval = i); }
 void GLFWBackend::set_window_title(const char *t)

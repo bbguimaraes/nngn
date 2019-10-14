@@ -53,6 +53,10 @@ NNGN_LUA_PROXY(Camera,
     "dash", [](const Camera &c) { return c.flags.is_set(Camera::Flag::DASH); },
     "eye", gf<&Camera::eye>,
     "fov_z", &Camera::fov_z,
+    "to_world", [](const Camera &c, float v0, float v1, float v2) {
+        const auto ret = c.to_world({v0, v1, v2});
+        return std::tuple(ret.x, ret.y, ret.z);
+    },
     "dash", &Camera::dash,
     "perspective", &Camera::perspective,
     "set_screen", [](Camera &c, uint32_t x, uint32_t y)

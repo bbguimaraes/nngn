@@ -253,6 +253,11 @@ auto stats(sol::this_state sol_, Graphics *g) {
             "total_writes_bytes", s.buffers.total_writes_bytes));
 }
 
+auto mouse_pos(const Graphics &g) {
+    const auto v = g.mouse_pos();
+    return std::tuple(v.x, v.y);
+}
+
 }
 
 NNGN_LUA_PROXY(Graphics,
@@ -299,4 +304,5 @@ NNGN_LUA_PROXY(Graphics,
     "set_cursor_mode", &Graphics::set_cursor_mode,
     "set_shadow_map_size", &Graphics::set_shadow_map_size,
     "set_shadow_cube_size", &Graphics::set_shadow_cube_size,
+    "mouse_pos", mouse_pos,
     "resize_textures", &Graphics::resize_textures)

@@ -67,6 +67,8 @@ public:
     template<typename T>
     static constexpr mat4_base<T> transpose(const mat4_base<T> &m);
     template<typename T>
+    static constexpr mat4_base<T> inverse(const mat4_base<T> &m);
+    template<typename T>
     static constexpr mat4_base<T> translate(
         const mat4_base<T> &m, const vec3_base<T> &v);
     template<typename T>
@@ -214,6 +216,51 @@ inline constexpr mat4_base<T> Math::transpose(const mat4_base<T> &m) {
         r0[1], r1[1], r2[1], r3[1],
         r0[2], r1[2], r2[2], r3[2],
         r0[3], r1[3], r2[3], r3[3]};
+}
+
+// XXX
+template<typename T>
+inline constexpr mat4_base<T> Math::inverse(const mat4_base<T> &m) {
+    const auto c00 = m[2][2] * m[3][3] - m[3][2] * m[2][3];
+    const auto c02 = m[1][2] * m[3][3] - m[3][2] * m[1][3];
+    const auto c03 = m[1][2] * m[2][3] - m[2][2] * m[1][3];
+    const auto c04 = m[2][1] * m[3][3] - m[3][1] * m[2][3];
+    const auto c06 = m[1][1] * m[3][3] - m[3][1] * m[1][3];
+    const auto c07 = m[1][1] * m[2][3] - m[2][1] * m[1][3];
+    const auto c08 = m[2][1] * m[3][2] - m[3][1] * m[2][2];
+    const auto c10 = m[1][1] * m[3][2] - m[3][1] * m[1][2];
+    const auto c11 = m[1][1] * m[2][2] - m[2][1] * m[1][2];
+    const auto c12 = m[2][0] * m[3][3] - m[3][0] * m[2][3];
+    const auto c14 = m[1][0] * m[3][3] - m[3][0] * m[1][3];
+    const auto c15 = m[1][0] * m[2][3] - m[2][0] * m[1][3];
+    const auto c16 = m[2][0] * m[3][2] - m[3][0] * m[2][2];
+    const auto c18 = m[1][0] * m[3][2] - m[3][0] * m[1][2];
+    const auto c19 = m[1][0] * m[2][2] - m[2][0] * m[1][2];
+    const auto c20 = m[2][0] * m[3][1] - m[3][0] * m[2][1];
+    const auto c22 = m[1][0] * m[3][1] - m[3][0] * m[1][1];
+    const auto c23 = m[1][0] * m[2][1] - m[2][0] * m[1][1];
+    const vec4_base<T> f0 = {c00, c00, c02, c03};
+    const vec4_base<T> f1 = {c04, c04, c06, c07};
+    const vec4_base<T> f2 = {c08, c08, c10, c11};
+    const vec4_base<T> f3 = {c12, c12, c14, c15};
+    const vec4_base<T> f4 = {c16, c16, c18, c19};
+    const vec4_base<T> f5 = {c20, c20, c22, c23};
+    const vec4_base<T> v0 = {m[1][0], m[0][0], m[0][0], m[0][0]};
+    const vec4_base<T> v1 = {m[1][1], m[0][1], m[0][1], m[0][1]};
+    const vec4_base<T> v2 = {m[1][2], m[0][2], m[0][2], m[0][2]};
+    const vec4_base<T> v3 = {m[1][3], m[0][3], m[0][3], m[0][3]};
+    const auto i0 = v1 * f0 - v2 * f1 + v3 * f2;
+    const auto i1 = v0 * f0 - v2 * f3 + v3 * f4;
+    const auto i2 = v0 * f1 - v1 * f3 + v3 * f5;
+    const auto i3 = v0 * f2 - v1 * f4 + v2 * f5;
+    const vec4_base<T> sa = {+1, -1, +1, -1};
+    const vec4_base<T> sb = {-1, +1, -1, +1};
+    const mat4_base<T> ret = {i0 * sa, i1 * sb, i2 * sa, i3 * sb};
+    const vec4_base<T> r0 = {ret[0][0], ret[1][0], ret[2][0], ret[3][0]};
+    const vec4_base<T> d0 = m[0] * r0;
+    const auto d1 = (d0.x + d0.y) + (d0.z + d0.w);
+    const auto inv_d = T{1} / d1;
+    return inv_d * ret;
 }
 
 template<typename T>

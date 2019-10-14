@@ -62,6 +62,19 @@ float Camera::fov_z() const {                 //   y
         / TAN_HALF_FOVY;                      //  \|/
 }                                             //  fovy
 
+vec3 Camera::to_world(const vec3 &vp) const {
+    const auto s = static_cast<vec2>(this->screen);
+    const vec3 clip_v = {
+        (vp.x / s.x - .5f) *  2.0f,
+        (vp.y / s.y - .5f) * -2.0f, vp.z};
+    const auto view_v = Math::inverse(proj) * vec4(clip_v, 1);
+    const auto world_v = Math::inverse(view) * view_v;
+    const auto world_v3 = world_v.xyz() / world_v.w;
+    return this->flags.is_set(Flag::PERSPECTIVE)
+        ? vec3(world_v3) // TODO
+        : vec3(world_v3) * vec3(1, -1, 1);
+}
+
 void Camera::set_perspective(bool b) {
     this->flags.set(Flag::PERSPECTIVE, b);
     const float d = this->fov_z();

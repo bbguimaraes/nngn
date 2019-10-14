@@ -36,6 +36,7 @@ struct Pseudograph : Graphics {
     uvec2 window_size() const override { return {}; }
     GraphicsStats stats() override { return {}; }
     void get_keys(size_t, int32_t*) const override {}
+    ivec2 mouse_pos() const override { return {}; }
     bool set_n_frames(std::size_t) override { return true; }
     void set_swap_interval(int) override {}
     void set_window_title(const char*) override {}

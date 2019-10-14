@@ -24,3 +24,18 @@ player.set{
 nngn.textures:load(texture.NNGN)
 font.load(32)
 nngn.grid:set_dimensions(32.0, 64)
+nngn.colliders:set_resolve(false)
+
+nngn.schedule:next(Schedule.HEARTBEAT, function()
+    local p = nngn.players:cur()
+    if not p or camera.following() then return end
+    local m = {nngn.graphics:mouse_pos()}
+    local s = {nngn.graphics:window_size()}
+    print("m", table.unpack(m))
+    print("w", nngn.camera:to_world(m[1], m[2], 0))
+    m = {nngn.camera:to_world(m[1], m[2], 0)}
+--    local z = nngn.camera:zoom()
+--    m[1] = (m[1] - s[1] / 2) / z
+--    m[2] = (m[2] - s[2] / 2) / z
+    p:entity():set_pos(table.unpack(m))
+end)
