@@ -73,4 +73,22 @@ void VoxelRenderer::load(const nngn::lua::table &t) {
         read_table(std::span{this->size}, *s);
 }
 
+void ModelRenderer::load(nngn::lua::table_view t) {
+    this->model_flags = chain_cast<Models::Flag, lua_Integer>(t["flags"]);
+    this->tex = t["tex"];
+    this->obj = t["obj"].get<std::string>();
+    if(const auto tr = t["trans"].get<std::optional<nngn::lua::table>>()) {
+        const auto &trv = *tr;
+        this->trans = {trv[1], trv[2], trv[3]};
+    }
+    if(const auto s = t["scale"]; /*XXX*/s.get<lua::value_view>().state() && s.get<lua::value_view>().get_type() == lua::type::table)
+        this->scale = {s[1], s[2], s[3]};
+    else
+        this->scale = vec3(s.get(1.0f));
+    if(const auto r = t["rot"].get<std::optional<nngn::lua::table>>()) {
+        const auto &tr = *r;
+        this->rot = {tr[1], tr[2], tr[3], tr[4]};
+    }
+}
+
 }

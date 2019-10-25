@@ -2,6 +2,7 @@
 #include "lua/register.h"
 #include "lua/table.h"
 
+#include "model.h"
 #include "render.h"
 
 using nngn::Renderer;
@@ -33,6 +34,9 @@ void register_renderer(nngn::lua::table_view t) {
     t["TRANSLUCENT"] = Renderer::Type::TRANSLUCENT;
     t["CUBE"] = Renderer::Type::CUBE;
     t["VOXEL"] = Renderer::Type::VOXEL;
+    t["MODEL"] = Renderer::Type::MODEL;
+    t["MODEL_DEDUP"] = nngn::Models::Flag::DEDUP;
+    t["MODEL_CALC_NORMALS"] = nngn::Models::Flag::CALC_NORMALS;
     t["z_off"] = z_off;
 }
 

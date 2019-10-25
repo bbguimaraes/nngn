@@ -3,6 +3,7 @@ check_PROGRAMS += \
 	%reldir%/animation \
 	%reldir%/light \
 	%reldir%/map \
+	%reldir%/obj \
 	%reldir%/render \
 	%reldir%/sun
 endif
@@ -11,6 +12,7 @@ check_HEADERS += \
 	%reldir%/animation_test.h \
 	%reldir%/light_test.h \
 	%reldir%/map_test.h \
+	%reldir%/obj_test.h \
 	%reldir%/render_test.h \
 	%reldir%/sun_test.h
 
@@ -63,6 +65,15 @@ check_HEADERS += \
 	src/utils/log.cpp \
 	%reldir%/map_test.cpp \
 	%reldir%/map_test.moc.cpp
+
+%canon_reldir%_obj_CPPFLAGS = $(check_CPPFLAGS)
+%canon_reldir%_obj_CXXFLAGS = $(check_CXXFLAGS)
+%canon_reldir%_obj_LDADD = $(check_LDADD)
+%canon_reldir%_obj_SOURCES = \
+	src/render/obj.cpp \
+	src/utils/log.cpp \
+	%reldir%/obj_test.cpp \
+	%reldir%/obj_test.moc.cpp
 
 %canon_reldir%_render_CPPFLAGS = $(check_CPPFLAGS)
 %canon_reldir%_render_CXXFLAGS = $(check_CXXFLAGS)

@@ -11,6 +11,7 @@
 #include "lua/table.h"
 #include "utils/flags.h"
 
+#include "model.h"
 #include "renderers.h"
 
 namespace nngn {
@@ -101,7 +102,8 @@ public:
 private:
     bool update_renderers(
         bool sprites_updated, bool screen_sprites_updated,
-        bool translucent_updated, bool cubes_updated, bool voxels_updated);
+        bool translucent_updated, bool models_updated, bool cubes_updated,
+        bool voxels_updated);
     bool update_debug(
         bool sprites_updated, bool screen_sprites_updated, bool cubes_updated,
         bool voxels_updated);
@@ -111,10 +113,11 @@ private:
         TRANSLUCENT_UPDATED = 1u << 2,
         CUBES_UPDATED = 1u << 3,
         VOXELS_UPDATED = 1u << 4,
-        DEBUG_UPDATED = 1u << 5,
-        SELECTION_UPDATED = 1u << 6,
-        PERSPECTIVE = 1u << 7,
-        ZSPRITES = 1u << 8,
+        MODELS_UPDATED = 1u << 5,
+        DEBUG_UPDATED = 1u << 6,
+        SELECTION_UPDATED = 1u << 7,
+        PERSPECTIVE = 1u << 8,
+        ZSPRITES = 1u << 9,
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
@@ -131,6 +134,7 @@ private:
     std::vector<SpriteRenderer> translucent = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
+    std::vector<ModelRenderer> models = {};
     std::unordered_set<const Renderer*> selections = {};
     u32
         translucent_vbo = {}, translucent_ebo = {},
@@ -138,6 +142,7 @@ private:
         sprite_debug_vbo = {}, sprite_debug_ebo = {},
         screen_sprite_vbo = {}, screen_sprite_ebo = {},
         screen_sprite_debug_vbo = {}, screen_sprite_debug_ebo = {},
+        model_vbo = {}, model_ebo = {},
         cube_vbo = {}, cube_ebo = {},
         cube_debug_vbo = {}, cube_debug_ebo = {},
         voxel_vbo = {}, voxel_ebo = {},

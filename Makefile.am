@@ -45,6 +45,7 @@ nngn_js_LDFLAGS = \
 	--embed-file $(srcdir)/demos/@demos \
 	--embed-file $(srcdir)/img/@img \
 	--embed-file $(srcdir)/maps/@maps \
+	--embed-file $(srcdir)/obj/@obj \
 	--embed-file /usr/share/fonts/TTF/DejaVuSans.ttf@DejaVuSans.ttf
 nngn_js_LDADD = $(DEPS_LIBS)
 
