@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = subdir-objects
 
-AM_CPPFLAGS = $(DEPS_CFLAGS) -I@srcdir@/src
+AM_CPPFLAGS = $(DEPS_CFLAGS) -I@srcdir@/src -isystem $(srcdir)/tinyobj
 AM_CXXFLAGS = \
 	-std=c++20 -fno-exceptions -fno-rtti -fstrict-aliasing \
 	-O3 -DNDEBUG -DSOL_NO_EXCEPTIONS -DCL_TARGET_OPENCL_VERSION=120 \
@@ -44,6 +44,7 @@ nngn_js_LDFLAGS = \
 	--embed-file $(srcdir)/demos/@demos \
 	--embed-file $(srcdir)/img/@img \
 	--embed-file $(srcdir)/maps/@maps \
+	--embed-file $(srcdir)/obj/@obj \
 	--embed-file /usr/share/fonts/TTF/DejaVuSans.ttf@DejaVuSans.ttf
 nngn_js_LDADD = $(DEPS_LIBS)
 

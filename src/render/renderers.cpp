@@ -75,4 +75,23 @@ void VoxelRenderer::load(const sol::stack_table &t) {
         read_table(std::span{this->size}, *tt);
 }
 
+void ModelRenderer::load(const sol::table &t) {
+    this->model_flags = t.get_or("flags", Models::Flag());
+    this->tex = t["tex"];
+    this->obj = t["obj"];
+    if(const auto tr = t.get<sol::optional<sol::table>>("trans")) {
+        const auto trv = *tr;
+        this->trans = {trv[1], trv[2], trv[3]};
+    }
+    if(const auto s = t.get<sol::optional<sol::table>>("scale")) {
+        const auto sv = *s;
+        this->scale = {sv[1], sv[2], sv[3]};
+    } else
+        this->scale = vec3(t.get_or("scale", 1.0f));
+    if(const auto r = t.get<sol::optional<sol::table>>("rot")) {
+        const auto tr = *r;
+        this->rot = {tr[1], tr[2], tr[3], tr[4]};
+    }
+}
+
 }

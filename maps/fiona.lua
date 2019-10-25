@@ -43,7 +43,7 @@ local function init()
             pos = t[1],
             renderer = {
                 type = Renderer.SPRITE,
-                tex = tex, size = t[3], z_off = t[4],
+                tex = tex.tex, size = t[3], z_off = t[4],
                 scale = {512//t[5][1], 512//t[5][2]}, coords = t[6]},
             collider = {
                 type = Collider.AABB,
@@ -106,4 +106,4 @@ map.map {
     entities = entities,
     on_collision = on_collision,
     reset = function() nngn.lighting:set_ambient_anim({f = {}}) end,
-    tiles = {tex, 2, 0, 0, 256, 256, 1, 1, {0, 0}}}
+    tiles = {tex.tex, 2, 0, 0, 256, 256, 1, 1, {0, 0}}}

@@ -3,6 +3,7 @@
 
 #include "luastate.h"
 
+#include "model.h"
 #include "render.h"
 
 using nngn::Renderer;
@@ -17,6 +18,9 @@ NNGN_LUA_PROXY(Renderer,
     "TRANSLUCENT", sol::var(Renderer::Type::TRANSLUCENT),
     "CUBE", sol::var(Renderer::Type::CUBE),
     "VOXEL", sol::var(Renderer::Type::VOXEL),
+    "MODEL", sol::var(Renderer::Type::MODEL),
+    "MODEL_DEDUP", sol::var(nngn::Models::Flag::DEDUP),
+    "MODEL_CALC_NORMALS", sol::var(nngn::Models::Flag::CALC_NORMALS),
     "z_off", [](const Renderer &r) { return r.z_off; })
 NNGN_LUA_PROXY(Renderers,
     sol::no_constructor,

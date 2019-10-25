@@ -18,6 +18,7 @@
 #include "grid.h"
 #include "light.h"
 #include "map.h"
+#include "model.h"
 #include "render.h"
 
 using nngn::u8, nngn::u32, nngn::u64;
@@ -417,6 +418,7 @@ void Renderers::init(
     this->colliders = c;
     this->lighting = l;
     this->map = m;
+    this->models.reserve(16);
 }
 
 std::size_t Renderers::n() const {
@@ -520,6 +522,7 @@ bool Renderers::set_graphics(Graphics *g) {
         TRIANGLE_MAX = 3,
         TRIANGLE_VBO_SIZE = TRIANGLE_MAX * sizeof(Vertex),
         TRIANGLE_EBO_SIZE = TRIANGLE_MAX * sizeof(u32),
+        MODEL_MAX = 1u << 20,
         TEXTBOX_MAX = 1,
         SELECTION_MAX = 1024,
         LIGHTS_MAX = 2 * NNGN_MAX_LIGHTS,
@@ -610,6 +613,16 @@ bool Renderers::set_graphics(Graphics *g) {
         && (this->translucent_ebo = g->create_buffer({
             .name = "translucent_ebo",
             .type = index,
+        }))
+        && (this->model_vbo = g->create_buffer({
+            .name = "model_vbo",
+            .type = vertex,
+            .size = 4 * MODEL_MAX * sizeof(Vertex),
+        }))
+        && (this->model_ebo = g->create_buffer({
+            .name = "model_ebo",
+            .type = index,
+            .size = 6 * MODEL_MAX * sizeof(u32),
         }))
         && (this->sprite_vbo = g->create_buffer({
             .name = "sprite_vbo",
@@ -793,6 +806,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .buffers = std::to_array<BufferPair>({
                     {this->voxel_vbo, this->voxel_ebo},
                     {this->cube_vbo, this->cube_ebo},
+                    {this->model_vbo, this->model_ebo},
                 }),
             }}),
             .map_ortho = std::to_array<Stage>({{
@@ -810,6 +824,7 @@ bool Renderers::set_graphics(Graphics *g) {
             .normal = std::to_array<Stage>({{
                 .pipeline = voxel_pipeline,
                 .buffers = std::to_array<BufferPair>({
+                    {this->model_vbo, this->model_ebo},
                     {this->voxel_vbo, this->voxel_ebo},
                 }),
             }, {
@@ -912,6 +927,7 @@ Renderer *Renderers::load(const sol::stack_table &t) {
     case Renderer::Type::TRANSLUCENT: return load_tex(this->translucent, "translucent");
     case Renderer::Type::CUBE: return load(this->cubes, "cube");
     case Renderer::Type::VOXEL: return load(this->voxels, "voxel");
+    case Renderer::Type::MODEL: return load_tex(this->models, "model");
     case Renderer::Type::N_TYPES:
     default:
         Log::l() << "invalid type: " << static_cast<int>(type) << '\n';
@@ -938,6 +954,8 @@ void Renderers::remove(Renderer *p) {
     };
     if(is_in(this->sprites))
         remove_tex(&this->sprites, Flag::SPRITES_UPDATED);
+    if(is_in(this->models))
+        remove_tex(&this->models, Flag::MODELS_UPDATED);
     if(is_in(this->translucent))
         remove_tex(&this->translucent, Flag::TRANSLUCENT_UPDATED);
     if(is_in(this->cubes))
@@ -973,6 +991,46 @@ bool Renderers::update() {
                 this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
         return update_span<::update_sprites_ortho, update_indices<6>>(
             this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
+    };
+    const auto update_models = [this] {
+        NNGN_LOG_CONTEXT("model");
+        auto &v = this->models;
+        std::vector<Vertex> vertices = {};
+        std::vector<u32> indices = {};
+        for(auto &x : v) {
+            x.flags.clear(Renderer::Flag::UPDATED);
+            if(x.obj.empty())
+                continue;
+            const auto n = vertices.size();
+            if(!Models::load(x.obj, x.tex, &vertices, &indices, x.model_flags))
+                return false;
+            const auto rot = Math::rotate(mat4(1), x.rot[3], x.rot.xyz());
+            for(auto &xv : std::span{vertices}.subspan(n)) {
+                if(x.rot[3] != 0) {
+                    xv.pos = vec3((rot * vec4(xv.pos, 1)).xyz());
+                    xv.norm = vec3((rot * vec4(xv.norm, 1)).xyz());
+                }
+                xv.pos = x.pos + xv.pos * x.scale + x.trans;
+            }
+        }
+        const auto vbo = this->model_vbo;
+        const auto ebo = this->model_ebo;
+        if(vertices.empty())
+            return this->graphics->set_buffer_size(ebo, 0), true;
+        const auto vsize = vertices.size() * sizeof(Vertex);
+        const auto esize = indices.size() * sizeof(u32);
+        constexpr auto memcpy =
+            [](void *src, void *dst, std::size_t i, std::size_t nw)
+                { std::memcpy(dst, static_cast<const char*>(src) + i, nw); };
+        const bool ok = this->graphics->write_to_buffer(
+                vbo, 0, vsize, 1, vertices.data(), memcpy)
+            && this->graphics->write_to_buffer(
+                ebo, 0, esize, 1, indices.data(), memcpy);
+        if(!ok)
+            return false;
+        this->graphics->set_buffer_size(vbo, vsize);
+        this->graphics->set_buffer_size(ebo, esize);
+        return true;
     };
     const auto update_translucent = [this] {
         NNGN_LOG_CONTEXT("translucent");
@@ -1292,6 +1350,9 @@ bool Renderers::update() {
     NNGN_PROFILE_CONTEXT(renderers);
     const auto sprites_updated = updated(Flag::SPRITES_UPDATED, this->sprites);
     if(sprites_updated && !update_sprites())
+        return false;
+    const auto models_updated = updated(Flag::MODELS_UPDATED, this->models);
+    if(models_updated && !update_models())
         return false;
     const auto translucent_updated =
         updated(Flag::TRANSLUCENT_UPDATED, this->translucent);

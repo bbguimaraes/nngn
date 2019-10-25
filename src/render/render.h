@@ -14,6 +14,7 @@
 #include "math/vec4.h"
 #include "utils/flags.h"
 
+#include "model.h"
 #include "renderers.h"
 
 struct Entity;
@@ -29,15 +30,16 @@ class Textures;
 class Textbox;
 
 class Renderers {
-    enum Flag : u8 {
+    enum Flag : u16 {
         SPRITES_UPDATED = 1u << 0,
         TRANSLUCENT_UPDATED = 1u << 1,
         CUBES_UPDATED = 1u << 2,
         VOXELS_UPDATED = 1u << 3,
-        RECT_UPDATED = 1u << 4,
-        SELECTION_UPDATED = 1u << 5,
-        PERSPECTIVE = 1u << 6,
-        ZSPRITES = 1u << 7,
+        MODELS_UPDATED = 1u << 4,
+        RECT_UPDATED = 1u << 5,
+        SELECTION_UPDATED = 1u << 6,
+        PERSPECTIVE = 1u << 7,
+        ZSPRITES = 1u << 8,
     };
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
@@ -52,10 +54,12 @@ class Renderers {
     std::vector<SpriteRenderer> translucent = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
+    std::vector<ModelRenderer> models = {};
     std::unordered_set<const Renderer*> selections = {};
     u32
         translucent_vbo = {}, translucent_ebo = {},
         sprite_vbo = {}, sprite_ebo = {},
+        model_vbo = {}, model_ebo = {},
         cube_vbo = {}, cube_ebo = {},
         cube_debug_vbo = {}, cube_debug_ebo = {},
         voxel_vbo = {}, voxel_ebo = {},
