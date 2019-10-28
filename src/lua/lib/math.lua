@@ -28,6 +28,17 @@ local function vec2_sqrt(v) return vec2(math.sqrt(v[1]), math.sqrt(v[2])) end
 local function vec2_str(v) return string.format("{%f, %f}", v[1], v[2]) end
 local function vec2_map(v, f) return vec2(f(v[1]), f(v[2])) end
 
+function vec2_random_dist(n, xoff, yoff, xspread, yspread)
+    local xs, ys = xspread / 2, yspread / 2
+    local ret = {}
+    for _ = 1, n do
+        table.insert(ret, {
+            xoff + math.random(-xs, xs),
+            yoff + math.random(-ys, ys)})
+    end
+    return ret
+end
+
 local function vec3_rand(f) return vec3(f(), f(), f()) end
 local function vec3_unm(v) return vec3(-v[1], -v[2], -v[3]) end
 local function vec3_add(v, u)
@@ -104,6 +115,7 @@ vec2_meta.__index = {
     interp = vec_interp,
     str = vec2_str,
     map = vec2_map,
+    random_dist = vec2_random_dist,
 }
 
 vec3_meta.__unm = vec3_unm

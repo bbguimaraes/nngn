@@ -35,15 +35,14 @@ local function init()
         pos = {264, -132},
         collider = {
             type = Collider.AABB,
-            bb = 16, m = Math.INFINITY, flags = Collider.SOLID}})) --TRIGGER}}))
---    table.insert(warps, entities[#entities])
+            bb = 16, m = Math.INFINITY, flags = Collider.TRIGGER}}))
+    table.insert(warps, entities[#entities])
     table.insert(entities, entity.load(nil, nil, {
         pos = {219, -82},
         collider = {
-            type = Collider.BB,
-            bb = {-16, -4, 16, 4}, rot = math.rad(153.5), m = Math.INFINITY,
-            flags = Collider.SOLID}})) --TRIGGER}}))
---    table.insert(warps, entities[#entities])
+            type = Collider.BB, bb = {-16, -4, 16, 4},
+            rot = math.rad(153.5), flags = Collider.TRIGGER}}))
+    table.insert(warps, entities[#entities])
     -- pillars
     do
         local ts = dofile("src/lson/pillar.lua")
@@ -212,6 +211,10 @@ Time", of course!]])
         map.next("maps/coll.lua")
     elseif e0 == warps[8] or e1 == warps[8] then
         map.next("maps/conway.lua")
+    elseif e0 == warps[9] or e1 == warps[9] then
+        map.next("maps/models.lua")
+    elseif e0 == warps[10] or e1 == warps[10] then
+        map.next("maps/colosseum.lua")
     end
 end
 
