@@ -8,6 +8,7 @@
  * minimum and with few exceptional cases the dependency graph is a DAG.
  */
 #include "graphics/graphics.h"
+#include "math/math.h"
 #include "os/platform.h"
 #include "os/socket.h"
 #include "timing/fps.h"
@@ -24,6 +25,7 @@ struct NNGN {
         EXIT = 1u << 0u,
     };
     nngn::Flags<Flag> flags = {};
+    nngn::Math math = {};
     nngn::Timing timing = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
     nngn::FPS fps = {};
@@ -34,6 +36,7 @@ struct NNGN {
 
 bool NNGN::init(int argc, const char *const *argv) {
     NNGN_LOG_CONTEXT_CF(NNGN);
+    this->math.init();
     if(!nngn::Platform::init(argc, argv))
         return false;
     if(!this->socket.init("sock"))

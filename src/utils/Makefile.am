@@ -3,6 +3,7 @@ noinst_HEADERS += \
 	%reldir%/concepts/fundamental.h \
 	%reldir%/def.h \
 	%reldir%/flags.h \
+	%reldir%/literals.h \
 	%reldir%/log.h \
 	%reldir%/utils.h
 nngn_SOURCES += \
