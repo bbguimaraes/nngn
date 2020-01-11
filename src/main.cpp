@@ -23,6 +23,7 @@
 #include "graphics/graphics.h"
 #include "lua/alloc.h"
 #include "lua/state.h"
+#include "math/math.h"
 #include "os/platform.h"
 #include "os/socket.h"
 #include "timing/fps.h"
@@ -40,6 +41,7 @@ struct NNGN {
         EXIT = 1u << 0, ERROR = 1u << 1,
     };
     nngn::Flags<Flag> flags = {};
+    nngn::Math math = {};
     nngn::Timing timing = {};
     nngn::Schedule schedule = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
@@ -57,6 +59,7 @@ struct NNGN {
 
 bool NNGN::init(int argc, const char *const *argv) {
     NNGN_LOG_CONTEXT_CF(NNGN);
+    this->math.init();
     if(!nngn::Platform::init(argc, argv))
         return false;
     nngn::Profile::init();
@@ -119,6 +122,7 @@ int NNGN::loop(void) {
 using nngn::lua::property, nngn::lua::readonly;
 
 NNGN_LUA_PROXY(NNGN,
+    "math", readonly(&NNGN::math),
     "timing", readonly(&NNGN::timing),
     "schedule", readonly(&NNGN::schedule),
     "graphics", property([](const NNGN &n) { return n.graphics.get(); }),
