@@ -64,6 +64,29 @@ bool write_to_buffer(
         });
 }
 
+template<typename T>
+bool write_to_buffer(nngn::Graphics *g, u32 b, u64 n, u64 size, auto &&f) {
+    return g->write_to_buffer(b, 0, n, size, [&f](void *p, u64 i, u64 nw) {
+        f(static_cast<T*>(p), i, nw);
+    });
+}
+
+template<typename T>
+bool write_to_buffer(
+    nngn::Graphics *g, u32 b, u64 size, std::span<T> s, auto &&f
+) {
+    return g->write_to_buffer(
+        b, 0, s.size(), size,
+        [s, &f](void *vp, u64 i, u64 nw) {
+            auto *p = static_cast<nngn::Vertex*>(vp);
+            for(auto &x : s.subspan(
+                static_cast<std::size_t>(i),
+                static_cast<std::size_t>(nw)
+            ))
+                FWD(f)(&p, &x);
+        });
+}
+
 template<auto vgen, auto egen, typename T>
 bool update_span(
     nngn::Graphics *g, std::span<T> s, u32 vbo, u32 ebo,
@@ -191,6 +214,15 @@ bool Renderers::set_max_voxels(std::size_t n) {
         && this->graphics->set_buffer_capacity(this->voxel_debug_ebo, esize);
 }
 
+bool Renderers::set_max_spheres(std::size_t n) {
+    set_capacity(&this->spheres, n);
+    n *= Gen::n_sphere_indices(this->sphere_n_lat, this->sphere_n_lon);
+    const u64 vsize = n * sizeof(Vertex);
+    const u64 esize = n * sizeof(std::uint32_t);
+    return this->graphics->set_buffer_capacity(this->sphere_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->sphere_ebo, esize);
+}
+
 bool Renderers::set_max_text(std::size_t n) {
     return this->graphics->set_buffer_capacity(
             this->text_vbo, 4 * n * sizeof(Vertex))
@@ -211,8 +243,8 @@ bool Renderers::set_max_colliders(std::size_t n) {
         && this->graphics->set_buffer_capacity(this->bb_ebo, esize)
         && this->graphics->set_buffer_capacity(this->bb_circle_vbo, vsize)
         && this->graphics->set_buffer_capacity(this->bb_circle_ebo, esize)
-        && this->graphics->set_buffer_capacity(this->sphere_vbo, vsize)
-        && this->graphics->set_buffer_capacity(this->sphere_ebo, esize);
+        && this->graphics->set_buffer_capacity(this->coll_sphere_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->coll_sphere_ebo, esize);
 }
 
 void Renderers::set_debug(Debug d) {
@@ -241,6 +273,17 @@ void Renderers::set_zsprites(bool z) {
     this->flags.set(Flag::ZSPRITES, z);
     if(old != z)
         this->flags.set(f);
+}
+
+void Renderers::set_sphere_interp_normals(bool b) {
+    this->flags.set(Flag::SPHERES_INTERP_NORMALS, b);
+    this->flags.set(Flag::SPHERES_UPDATED);
+}
+
+void Renderers::set_sphere_divisions(std::size_t lat, std::size_t lon) {
+    this->flags.set(Flag::SPHERES_UPDATED);
+    this->sphere_n_lat = lat;
+    this->sphere_n_lon = lon;
 }
 
 bool Renderers::set_graphics(Graphics *g) {
@@ -352,6 +395,14 @@ bool Renderers::set_graphics(Graphics *g) {
         }))
         && (this->sprite_ebo = g->create_buffer({
             .name = "sprite_ebo",
+            .type = index,
+        }))
+        && (this->sphere_vbo = g->create_buffer({
+            .name = "sphere_vbo",
+            .type = vertex,
+        }))
+        && (this->sphere_ebo = g->create_buffer({
+            .name = "sphere_ebo",
             .type = index,
         }))
         && (this->sprite_debug_vbo = g->create_buffer({
@@ -470,12 +521,12 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "bb_circle_ebo",
             .type = index,
         }))
-        && (this->sphere_vbo = g->create_buffer({
-            .name = "sphere_vbo",
+        && (this->coll_sphere_vbo = g->create_buffer({
+            .name = "coll_sphere_vbo",
             .type = vertex,
         }))
-        && (this->sphere_ebo = g->create_buffer({
-            .name = "sphere_ebo",
+        && (this->coll_sphere_ebo = g->create_buffer({
+            .name = "coll_sphere_ebo",
             .type = index,
         }))
         && (this->lights_vbo = g->create_buffer({
@@ -543,6 +594,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .pipeline = triangle_depth_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {this->voxel_vbo, this->voxel_ebo},
+                    {this->sphere_vbo, this->sphere_ebo},
                     {this->cube_vbo, this->cube_ebo},
                 }),
             }}),
@@ -566,6 +618,7 @@ bool Renderers::set_graphics(Graphics *g) {
             }, {
                 .pipeline = triangle_pipeline,
                 .buffers = std::to_array<BufferPair>({
+                    {this->sphere_vbo, this->sphere_ebo},
                     {this->cube_vbo, this->cube_ebo},
                 }),
             }, {
@@ -585,7 +638,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .buffers = std::to_array<BufferPair>({
                     {this->aabb_circle_vbo, this->aabb_circle_ebo},
                     {this->bb_circle_vbo, this->bb_circle_ebo},
-                    {this->sphere_vbo, this->sphere_ebo},
+                    {this->coll_sphere_vbo, this->coll_sphere_ebo},
                 }),
             }, {
                 .pipeline = box_pipeline,
@@ -672,6 +725,8 @@ Renderer *Renderers::load(nngn::lua::table_view t) {
         return load(this->cubes, "cube");
     case Renderer::Type::VOXEL:
         return load_tex(this->voxels, "voxel");
+    case Renderer::Type::SPHERE:
+        return load(this->spheres, "sphere");
     case Renderer::Type::N_TYPES:
     default:
         Log::l() << "invalid type: " << static_cast<int>(type) << '\n';
@@ -702,6 +757,8 @@ void Renderers::remove(Renderer *p) {
         remove(&this->cubes, Flag::CUBES_UPDATED);
     else if(contains(this->voxels, *p))
         remove(&this->voxels, Flag::VOXELS_UPDATED);
+    else if(contains(this->spheres, *p))
+        remove(&this->spheres, Flag::SPHERES_UPDATED);
     else
         assert(!"invalid renderer");
     auto i = this->selections.find(p);
@@ -734,9 +791,10 @@ bool Renderers::update(void) {
         updated(Flag::TRANSLUCENT_UPDATED, this->translucent);
     const auto cubes_updated = updated(Flag::CUBES_UPDATED, this->cubes);
     const auto voxels_updated = updated(Flag::VOXELS_UPDATED, this->voxels);
+    const auto spheres_updated = updated(Flag::SPHERES_UPDATED, this->spheres);
     return this->update_renderers(
             sprites_updated, screen_sprites_updated, translucent_updated,
-            cubes_updated, voxels_updated)
+            cubes_updated, voxels_updated, spheres_updated)
         && this->update_debug(
             sprites_updated, screen_sprites_updated, cubes_updated,
             voxels_updated);
@@ -744,7 +802,7 @@ bool Renderers::update(void) {
 
 bool Renderers::update_renderers(
     bool sprites_updated, bool screen_sprites_updated, bool translucent_updated,
-    bool cubes_updated, bool voxels_updated)
+    bool cubes_updated, bool voxels_updated, bool spheres_updated)
 {
     NNGN_PROFILE_CONTEXT(renderers);
     const auto update_sprites = [this] {
@@ -803,6 +861,47 @@ bool Renderers::update_renderers(
             : update_span<Gen::voxel_ortho, update_quad_indices<6 * 6>>(
                 this->graphics, std::span{this->voxels},
                 vbo, ebo, 6_z * 4_z, 6_z * 6_z);
+    };
+    const auto update_spheres = [this] {
+        NNGN_LOG_CONTEXT("spheres");
+        const auto vbo = this->sphere_vbo;
+        const auto ebo = this->sphere_ebo;
+        const auto n = this->spheres.size();
+        if(!n)
+            return this->graphics->set_buffer_size(ebo, 0), true;
+        const auto n_lat = this->sphere_n_lat, n_lon = 2 * this->sphere_n_lon;
+        const auto verts = n * Gen::n_sphere_vertices(n_lat, n_lon / 2);
+        const auto elems = n * Gen::n_sphere_indices(n_lat, n_lon / 2);
+        if(this->flags.is_set(Flag::SPHERES_INTERP_NORMALS))
+            return write_to_buffer(
+                    this->graphics, vbo, verts * sizeof(Vertex),
+                    std::span{this->spheres},
+                    [n_lat, n_lon](auto **p, auto *x) {
+                        Gen::sphere_interp(p, x, n_lat, n_lon);
+                    })
+                && write_to_buffer<u32>(
+                    this->graphics, ebo, this->spheres.size(),
+                    elems * sizeof(u32),
+                    [n_lat, n_lon](auto *p, auto i, auto nw) {
+                        Gen::sphere_indices(i, nw, n_lat, n_lon, p);
+                    })
+                && this->graphics->set_buffer_size(vbo, verts * sizeof(Vertex))
+                && this->graphics->set_buffer_size(ebo, elems * sizeof(u32));
+        else
+            return write_to_buffer(
+                    this->graphics, vbo, elems * sizeof(Vertex),
+                    std::span{this->spheres},
+                    [n_lat, n_lon](auto **p, auto *x) {
+                        Gen::sphere(p, x, n_lat, n_lon);
+                    })
+                && write_to_buffer<u32>(
+                    this->graphics, ebo, this->spheres.size(),
+                    elems * sizeof(u32),
+                    [elems](auto *p, auto i, auto nw) {
+                        Gen::indices(i, elems * nw, p);
+                    })
+                && this->graphics->set_buffer_size(vbo, elems * sizeof(Vertex))
+                && this->graphics->set_buffer_size(ebo, elems * sizeof(u32));
     };
     const auto update_text = [this] {
         NNGN_LOG_CONTEXT("text");
@@ -904,6 +1003,7 @@ bool Renderers::update_renderers(
         && (!translucent_updated || update_translucent())
         && (!cubes_updated || update_cubes())
         && (!voxels_updated || update_voxels())
+        && (!spheres_updated || update_spheres())
         && update_text() && update_textbox()
         && update_selections();
 }
@@ -993,8 +1093,8 @@ bool Renderers::update_debug(
     };
     const auto update_coll_spheres = [this] {
         NNGN_LOG_CONTEXT("coll_sphere");
-        const auto vbo = this->sphere_vbo;
-        const auto ebo = this->sphere_ebo;
+        const auto vbo = this->coll_sphere_vbo;
+        const auto ebo = this->coll_sphere_ebo;
         const std::span s = this->colliders->sphere();
         if(!this->m_debug.is_set(Debug::DEBUG_CIRCLE) || s.empty())
             return this->graphics->set_buffer_size(ebo, 0);

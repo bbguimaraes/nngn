@@ -1,6 +1,8 @@
 #ifndef NNGN_RENDER_GEN_H
 #define NNGN_RENDER_GEN_H
 
+#include <numeric>
+
 #include "collision/colliders.h"
 #include "font/font.h"
 #include "font/text.h"
@@ -14,6 +16,9 @@ namespace nngn {
 
 struct Gen {
     // Primitives
+    static void indices(u64 i, u64 n, u32 *p);
+    static void sphere_indices(
+        u64 i, u64 n, std::size_t n_lat, std::size_t n_lon, u32 *p);
     static void quad_indices(u64 i, u64 n, u32 *p);
     static void quad_vertices(
         Vertex **p, vec2 bl, vec2 tr, float z, vec3 norm,
@@ -30,7 +35,15 @@ struct Gen {
     static void cube_vertices(
         Vertex **p, vec3 pos, vec3 size,
         u32 tex, const std::array<vec4, 6> &uv);
+    static void sphere_vertices(
+        Vertex **p, vec3 pos, float r, vec3 color,
+        std::size_t n_lat, std::size_t n_lon);
+    static void sphere_vertices_interp(
+        Vertex **p, vec3 pos, float r, vec3 color,
+        std::size_t n_lat, std::size_t n_lon);
     // Utilities
+    static std::size_t n_sphere_vertices(std::size_t n_lat, std::size_t n_lon);
+    static std::size_t n_sphere_indices(std::size_t n_lat, std::size_t n_lon);
     static float text_color(u8 r, u8 g, u8 b);
     static float text_color(u32 c);
     // Renderers
@@ -42,6 +55,12 @@ struct Gen {
     static void cube_persp(Vertex **p, CubeRenderer *x);
     static void voxel_ortho(Vertex **p, VoxelRenderer *x);
     static void voxel_persp(Vertex **p, VoxelRenderer *x);
+    static void sphere(
+        nngn::Vertex **p, nngn::SphereRenderer *x,
+        std::size_t n_lat, std::size_t n_lon);
+    static void sphere_interp(
+        nngn::Vertex **p, nngn::SphereRenderer *x,
+        std::size_t n_lat, std::size_t n_lon);
     static void sprite_debug(Vertex **p, SpriteRenderer *x);
     static void cube_debug(Vertex **p, CubeRenderer *x);
     static void voxel_debug(Vertex **p, VoxelRenderer *x);
@@ -62,6 +81,47 @@ private:
         CIRCLE_UV_32 = {{{ 32/512.0f, 1}, { 64/512.0f, 1 -  32/512.0f}}},
         CIRCLE_UV_64 = {{{128/512.0f, 1}, {256/512.0f, 1 - 128/512.0f}}};
 };
+
+inline void Gen::indices(u64 i, u64 n, u32 *p) {
+    std::iota(p, p + static_cast<u32>(n), static_cast<u32>(i));
+}
+
+inline void Gen::sphere_indices(
+    u64 i_64, u64 n, std::size_t n_lat, std::size_t n_lon_z, u32 *p
+) {
+    const auto n_lon = static_cast<u32>(n_lon_z);
+    auto i = static_cast<u32>(i_64);
+    while(n--) {
+        auto i0 = i++;
+        for(std::size_t i_lon = 1; i_lon != n_lon; ++i_lon, ++i)
+            *p++ = i0, *p++ = i + 1, *p++ = i;
+        *p++ = i0, *p++ = i0 + 1, *p++ = i++;
+        for(std::size_t i_lat = 2; i_lat < n_lat; ++i_lat) {
+            i0 = i;
+            for(std::size_t i_lon = 1; i_lon != n_lon; ++i_lon, ++i) {
+                *p++ = i - n_lon;
+                *p++ = i - n_lon + 1;
+                *p++ = i;
+                *p++ = i;
+                *p++ = i - n_lon + 1;
+                *p++ = i + 1;
+            }
+            *p++ = i - n_lon;
+            *p++ = i0 - n_lon;
+            *p++ = i;
+            *p++ = i;
+            *p++ = i0 - n_lon;
+            *p++ = i0;
+            ++i;
+        }
+        const auto in = i;
+        i -= n_lon;
+        i0 = i;
+        for(std::size_t i_lon = 1; i_lon != n_lon; ++i_lon, ++i)
+            *p++ = in, *p++ = i, *p++ = i + 1;
+        *p++ = in, *p++ = i, *p++ = i0;
+    }
+}
 
 inline void Gen::quad_indices(u64 i_64, u64 n, u32 *p) {
     constexpr std::size_t n_verts = 4, log2 = std::countr_zero(n_verts);
@@ -192,6 +252,117 @@ inline void Gen::cube_vertices(
     *((*p)++) = { tr               , { 0,  1,  0}, {uv_.zw(), ftex}};
 }
 
+inline void Gen::sphere_vertices(
+    Vertex **pp, vec3 pos, float sphere_r, vec3 color,
+    std::size_t n_lat, std::size_t n_lon
+) {
+    constexpr auto pi = std::numbers::pi_v<float>;
+    const auto cone = [color](
+        vec3 base, vec3 top, float r, float dir, std::size_t div, Vertex *p
+    ) {
+        const auto div_f = dir * static_cast<float>(div);
+        const auto v = vec3{r, 0, 0};
+        auto p0 = base + v;
+        for(std::size_t i = 1; i <= div; ++i) {
+            const auto a = 2.0f * pi * static_cast<float>(i) / div_f;
+            const auto p1 = base + Math::rotate_z(v, a);
+            const auto n = Math::normalize(Math::normal(top, p0, p1));
+            *p++ = {top, n, color};
+            *p++ = {p0,  n, color};
+            *p++ = {p1,  n, color};
+            p0 = p1;
+        }
+        return p;
+    };
+    const auto strip = [color](
+        vec3 bc, vec3 tc, vec3 bl, vec3 tl, std::size_t div, Vertex *p
+    ) {
+        const auto div_f = static_cast<float>(div);
+        const auto bv = bl - bc;
+        const auto tv = tl - tc;
+        for(std::size_t i = 1; i <= div; ++i) {
+            const auto a = 2.0f * pi * static_cast<float>(i) / div_f;
+            const auto br = bc + Math::rotate_z(bv, a);
+            const auto tr = tc + Math::rotate_z(tv, a);
+            const auto n = Math::normalize(Math::normal(bl, br, tl));
+            *p++ = {bl, n, color};
+            *p++ = {br, n, color};
+            *p++ = {tl, n, color};
+            *p++ = {tl, n, color};
+            *p++ = {br, n, color};
+            *p++ = {tr, n, color};
+            bl = br, tl = tr;
+        }
+        return p;
+    };
+    const auto strips = [strip](
+        vec3 center, vec3 c0, float r, float r0,
+        std::size_t n_lat_, std::size_t n_lon_, Vertex *p
+    ) {
+        const auto div_f = static_cast<float>(n_lat_);
+        for(std::size_t i = 2; i != n_lat_; ++i) {
+            const auto a = pi * static_cast<float>(i) / div_f;
+            const auto c1 = center - vec3{0, 0, r * std::cos(a)};
+            const auto r1 = r * std::sin(a);
+            p = strip(
+                c0, c1, c0 + vec3{r0, 0, 0}, c1 + vec3{r1, 0, 0}, n_lon_, p);
+            r0 = r1, c0 = c1;
+        }
+        return p;
+    };
+    const auto pole_v = vec3{0, 0, sphere_r};
+    const auto a0 = pi / static_cast<float>(n_lat);
+    const auto cone_r = sphere_r * std::sin(a0);
+    const auto cone_v = vec3{0, 0, sphere_r * std::cos(a0)};
+    auto *p = *pp;
+    p = cone(pos - cone_v, pos - pole_v, cone_r, -1, n_lon, p);
+    p = strips(pos, pos - cone_v, sphere_r, cone_r, n_lat, n_lon, p);
+    p = cone(pos + cone_v, pos + pole_v, cone_r, 1, n_lon, p);
+    *pp = p;
+}
+
+inline std::size_t Gen::n_sphere_vertices(
+    std::size_t n_lat, std::size_t n_lon
+) {
+    constexpr std::size_t poles = 2, hemispheres = 2;
+    const auto meridians = n_lat - 1;
+    return poles + meridians * hemispheres * n_lon;
+}
+
+inline std::size_t Gen::n_sphere_indices(
+    std::size_t n_lat, std::size_t n_lon
+) {
+    constexpr std::size_t tri = 3, quad = 6, hemispheres = 2;
+    const auto cone = hemispheres * hemispheres * n_lon * tri;
+    const auto strip = hemispheres * n_lon * quad;
+    return cone + (n_lat - 2) * strip;
+}
+
+inline void Gen::sphere_vertices_interp(
+    Vertex **pp, vec3 pos, float r, vec3 color,
+    std::size_t n_lat, std::size_t n_lon
+) {
+    constexpr auto pi = std::numbers::pi_v<float>;
+    const auto pole_v = vec3{0, 0, r};
+    auto *p = *pp;
+    std::fill(p, p + 32, Vertex{});
+    *p++ = {pos - pole_v, {0, 0, -1}, color};
+    for(std::size_t i_lat = 1; i_lat != n_lat; ++i_lat) {
+        const auto lat_a =
+            pi * static_cast<float>(i_lat) / static_cast<float>(n_lat);
+        const auto c = pos - vec3{0, 0, r * std::cos(lat_a)};
+        const vec3 v = {r * std::sin(lat_a), 0, 0};
+        for(std::size_t i_lon = 0; i_lon != n_lon; ++i_lon) {
+            const auto lon_a = 2.0f * pi
+                * static_cast<float>(i_lon) / static_cast<float>(n_lon);
+            const auto sp = c + Math::rotate_z(v, lon_a);
+            *p++ = {sp, Math::normalize(sp - pos), color};
+        }
+    }
+    *p++ = {pos + pole_v, {0, 0, 1}, color};
+    *pp = p;
+}
+
 inline float Gen::text_color(u8 r, u8 g, u8 b) {
     return Gen::text_color((static_cast<u32>(r) << 16)
         | (static_cast<u32>(g) << 8)
@@ -264,6 +435,22 @@ inline void Gen::voxel_ortho(Vertex **p, VoxelRenderer *x) {
 inline void Gen::voxel_persp(Vertex **p, VoxelRenderer *x) {
     x->flags.clear(Renderer::Flag::UPDATED);
     Gen::cube_vertices(p, x->pos, x->size, x->tex, x->uv);
+}
+
+inline void Gen::sphere(
+    nngn::Vertex **p, nngn::SphereRenderer *x,
+    std::size_t n_lat, std::size_t n_lon
+) {
+    x->flags.clear(nngn::Renderer::Flag::UPDATED);
+    Gen::sphere_vertices(p, x->pos, x->r, x->color, n_lat, n_lon);
+}
+
+inline void Gen::sphere_interp(
+    nngn::Vertex **p, nngn::SphereRenderer *x,
+    std::size_t n_lat, std::size_t n_lon
+) {
+    x->flags.clear(nngn::Renderer::Flag::UPDATED);
+    Gen::sphere_vertices_interp(p, x->pos, x->r, x->color, n_lat, n_lon);
 }
 
 inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {

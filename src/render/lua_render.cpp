@@ -33,6 +33,7 @@ void register_renderer(nngn::lua::table_view t) {
     t["TRANSLUCENT"] = Renderer::Type::TRANSLUCENT;
     t["CUBE"] = Renderer::Type::CUBE;
     t["VOXEL"] = Renderer::Type::VOXEL;
+    t["SPHERE"] = Renderer::Type::SPHERE;
     t["z_off"] = z_off;
 }
 
@@ -49,6 +50,8 @@ void register_renderers(nngn::lua::table_view t) {
     t["debug"] = &Renderers::debug;
     t["perspective"] = &Renderers::perspective;
     t["zsprites"] = &Renderers::zsprites;
+    t["sphere_interp_normals"] = &Renderers::sphere_interp_normals;
+    t["sphere_division"] = &Renderers::sphere_division;
     t["n"] = get<&Renderers::n>;
     t["n_sprites"] = get<&Renderers::n_sprites>;
     t["n_screen_sprites"] = get<&Renderers::n_screen_sprites>;
@@ -61,11 +64,14 @@ void register_renderers(nngn::lua::table_view t) {
     t["set_max_translucent"] = set<&Renderers::set_max_translucent>;
     t["set_max_cubes"] = set<&Renderers::set_max_cubes>;
     t["set_max_voxels"] = set<&Renderers::set_max_voxels>;
+    t["set_max_spheres"] = &Renderers::set_max_spheres;
     t["set_max_text"] = set<&Renderers::set_max_text>;
     t["set_max_colliders"] = set<&Renderers::set_max_colliders>;
     t["set_debug"] = &Renderers::set_debug;
     t["set_perspective"] = &Renderers::set_perspective;
     t["set_zsprites"] = &Renderers::set_zsprites;
+    t["set_sphere_interp_normals"] = &Renderers::set_sphere_interp_normals;
+    t["set_sphere_divisions"] = &Renderers::set_sphere_divisions;
     t["load"] = &Renderers::load;
     t["remove"] = &Renderers::remove;
     t["add_selection"] = &Renderers::add_selection;

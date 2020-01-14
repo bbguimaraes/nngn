@@ -19,6 +19,7 @@ struct Renderer {
         TRANSLUCENT,
         CUBE,
         VOXEL,
+        SPHERE,
         N_TYPES,
     };
     enum Flag : u8 { UPDATED = 1u << 0 };
@@ -52,6 +53,12 @@ struct VoxelRenderer : Renderer {
     vec3 size = {};
     u32 tex = 0;
     void load(const nngn::lua::table &t);
+};
+
+struct SphereRenderer : Renderer {
+    vec3 color = {1, 1, 1};
+    float r = {};
+    void load(nngn::lua::table_view t);
 };
 
 template<typename T, std::size_t N>

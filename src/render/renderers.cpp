@@ -73,4 +73,12 @@ void VoxelRenderer::load(const nngn::lua::table &t) {
         read_table(std::span{this->size}, *s);
 }
 
+void SphereRenderer::load(nngn::lua::table_view t) {
+    this->r = t["r"];
+    if(const auto co = t["color"].get<std::optional<nngn::lua::table>>()) {
+        const auto &c = *co;
+        this->color = {c[1], c[2], c[3]};
+    }
+}
+
 }
