@@ -75,4 +75,12 @@ void VoxelRenderer::load(const sol::stack_table &t) {
         read_table(std::span{this->size}, *tt);
 }
 
+void SphereRenderer::load(const sol::table &t) {
+    this->r = t.get<float>("r");
+    if(const auto tt = t.get<sol::optional<sol::table>>("color")) {
+        const auto c = *tt;
+        this->color = {c[1], c[2], c[3], c[4]};
+    }
+}
+
 }

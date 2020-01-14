@@ -484,8 +484,8 @@ bool Renderers::set_max_colliders(std::size_t n) {
         && this->graphics->set_buffer_capacity(this->bb_ebo, esize)
         && this->graphics->set_buffer_capacity(this->bb_circle_vbo, vsize)
         && this->graphics->set_buffer_capacity(this->bb_circle_ebo, esize)
-        && this->graphics->set_buffer_capacity(this->sphere_vbo, vsize)
-        && this->graphics->set_buffer_capacity(this->sphere_ebo, esize);
+        && this->graphics->set_buffer_capacity(this->sphere_coll_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->sphere_coll_ebo, esize);
 }
 
 void Renderers::set_debug(std::underlying_type_t<Debug> d) {
@@ -520,6 +520,7 @@ bool Renderers::set_graphics(Graphics *g) {
         TRIANGLE_MAX = 3,
         TRIANGLE_VBO_SIZE = TRIANGLE_MAX * sizeof(Vertex),
         TRIANGLE_EBO_SIZE = TRIANGLE_MAX * sizeof(u32),
+        SPHERE_MAX = 1u << 16,
         TEXTBOX_MAX = 1,
         SELECTION_MAX = 1024,
         LIGHTS_MAX = 2 * NNGN_MAX_LIGHTS,
@@ -618,6 +619,16 @@ bool Renderers::set_graphics(Graphics *g) {
         && (this->sprite_ebo = g->create_buffer({
             .name = "sprite_ebo",
             .type = index,
+        }))
+        && (this->sphere_vbo = g->create_buffer({
+            .name = "sphere_vbo",
+            .type = vertex,
+            .size = 24 * SPHERE_MAX * sizeof(Vertex),
+        }))
+        && (this->sphere_ebo = g->create_buffer({
+            .name = "sphere_ebo",
+            .type = index,
+            .size = 36 * SPHERE_MAX * sizeof(u32),
         }))
         && (this->box_vbo = g->create_buffer({
             .name = "box_vbo",
@@ -719,12 +730,12 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "bb_circle_ebo",
             .type = index,
         }))
-        && (this->sphere_vbo = g->create_buffer({
-            .name = "sphere_vbo",
+        && (this->sphere_coll_vbo = g->create_buffer({
+            .name = "sphere_coll_vbo",
             .type = vertex,
         }))
-        && (this->sphere_ebo = g->create_buffer({
-            .name = "sphere_ebo",
+        && (this->sphere_coll_ebo = g->create_buffer({
+            .name = "sphere_coll_ebo",
             .type = index,
         }))
         && (this->lights_vbo = g->create_buffer({
@@ -1194,8 +1205,8 @@ bool Renderers::update() {
     };
     const auto update_spheres = [this] {
         NNGN_LOG_CONTEXT("sphere");
-        const auto vbo = this->sphere_vbo;
-        const auto ebo = this->sphere_ebo;
+        const auto vbo = this->sphere_coll_vbo;
+        const auto ebo = this->sphere_coll_ebo;
         const auto v = std::span{
             const_cast<std::vector<SphereCollider>&>(
                 this->colliders->sphere())};

@@ -46,6 +46,12 @@ struct VoxelRenderer : Renderer {
     void load(const sol::stack_table &t);
 };
 
+struct SphereRenderer : Renderer {
+    vec4 color = {1, 1, 1, 1};
+    float r = {};
+    void load(const sol::table &t);
+};
+
 inline void SpriteRenderer::uv_coords(
         const uvec2 &uv0, const uvec2 &uv1,
         const uvec2 &scale, vec2 *p) {

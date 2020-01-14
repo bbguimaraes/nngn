@@ -29,15 +29,16 @@ class Textures;
 class Textbox;
 
 class Renderers {
-    enum Flag : u8 {
+    enum Flag : u16 {
         SPRITES_UPDATED = 1u << 0,
         TRANSLUCENT_UPDATED = 1u << 1,
         CUBES_UPDATED = 1u << 2,
         VOXELS_UPDATED = 1u << 3,
-        RECT_UPDATED = 1u << 4,
-        SELECTION_UPDATED = 1u << 5,
-        PERSPECTIVE = 1u << 6,
-        ZSPRITES = 1u << 7,
+        SPHERES_UPDATED = 1u << 4,
+        RECT_UPDATED = 1u << 5,
+        SELECTION_UPDATED = 1u << 6,
+        PERSPECTIVE = 1u << 7,
+        ZSPRITES = 1u << 8,
     };
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
@@ -52,6 +53,7 @@ class Renderers {
     std::vector<SpriteRenderer> translucent = {};
     std::vector<CubeRenderer> cubes = {};
     std::vector<VoxelRenderer> voxels = {};
+    std::vector<SphereRenderer> spheres = {};
     std::unordered_set<const Renderer*> selections = {};
     u32
         translucent_vbo = {}, translucent_ebo = {},
@@ -60,6 +62,7 @@ class Renderers {
         cube_debug_vbo = {}, cube_debug_ebo = {},
         voxel_vbo = {}, voxel_ebo = {},
         voxel_debug_vbo = {}, voxel_debug_ebo = {},
+        sphere_vbo = {}, sphere_ebo = {},
         box_vbo = {}, box_ebo = {},
         text_vbo = {}, text_ebo = {},
         textbox_vbo = {}, textbox_ebo = {},
@@ -68,7 +71,7 @@ class Renderers {
         aabb_circle_vbo = {}, aabb_circle_ebo = {},
         bb_vbo = {}, bb_ebo = {},
         bb_circle_vbo = {}, bb_circle_ebo = {},
-        sphere_vbo = {}, sphere_ebo = {},
+        sphere_coll_vbo = {}, sphere_coll_ebo = {},
         lights_vbo = {}, lights_ebo = {},
         range_vbo = {}, range_ebo = {},
         depth_vbo = {}, depth_ebo = {},
