@@ -81,6 +81,7 @@ int main(int argc, const char *const *argv) {
     tracer.set_min_t(0.001f);
     tracer.set_max_t(9999999);
     tracer.set_max_samples(samples);
+    tracer.set_n_threads(4);
     tracer.camera()->look_at({}, {13, 2, 3}, {0, 1, 0});
     init(&tracer, &math, spread);
     for(const nngn::Timing t = {}; tracer.trace(t););

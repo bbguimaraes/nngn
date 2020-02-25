@@ -31,6 +31,7 @@ local tracer = nngn.tracer
 local n = 500
 local spread = 11
 tracer:set_enabled(true)
+tracer:set_n_threads(4)
 tracer:set_min_t(0.001)
 tracer:set_max_t(9999999)
 tracer:set_max_samples(1024)

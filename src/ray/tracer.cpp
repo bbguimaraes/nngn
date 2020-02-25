@@ -1,4 +1,6 @@
 #include <cstring>
+#include <mutex>
+#include <thread>
 
 #include "utils/vector.h"
 
@@ -14,6 +16,38 @@ size_t tex_bytes(size_t w, size_t h) { return 4 * sizeof(float) * w * h; }
 }
 
 namespace nngn::ray {
+
+struct thread_pool {
+    std::vector<std::thread> threads = {};
+    std::vector<std::mutex> mutexes_begin = {}, mutexes_end = {};
+    thread_pool(size_t n);
+    ~thread_pool();
+    template<typename F, typename ...Args> void start(F &&f, Args &&...args);
+    void resume();
+    void join();
+};
+
+thread_pool::thread_pool(size_t n)
+    : mutexes_begin(n), mutexes_end(n) { threads.reserve(n); }
+
+thread_pool::~thread_pool() {
+    for(auto &x : this->mutexes_begin)
+        x.unlock();
+    for(auto &x : this->threads)
+        x.join();
+}
+
+template<typename F, typename ...Args>
+void thread_pool::start(F &&f, Args &&...args) {
+    const auto i = this->threads.size();
+    assert(i < this->threads.capacity());
+    this->threads.emplace_back(
+        std::forward<F>(f), &this->mutexes_begin[i], &this->mutexes_end[i],
+        std::forward<Args>(args)...);
+}
+
+void thread_pool::resume() { for(auto &m : this->mutexes_begin) m.unlock(); }
+void thread_pool::join() { for(auto &m : this->mutexes_end) m.lock(); }
 
 bool world::hit(
         const ray &r, float t_min, float t_max, nngn::ray::hit *h) const {
@@ -54,6 +88,9 @@ ray camera::ray_uv(float p_u, float p_v, Math::rnd_generator_t *rnd) const {
 
 constexpr vec3 tracer::interp(const vec3 &v, const vec3 &u, float t)
     { return (1 - t) * v + t * u; }
+
+tracer::tracer() : pool{} {}
+tracer::~tracer() { this->n_samples = this->max_samples; }
 
 vec3 tracer::color(ray r) const {
     auto *rnd = this->math->rnd_generator();
@@ -123,24 +160,41 @@ bool tracer::trace(const Timing &t) {
             * Math::rotate(mat4(1), -this->m_camera.r.z, {0, 0, 1})
             * vec4(0, 0, -1, 1)).xyz();
     this->c.set_pos(this->m_camera.p, eye, {0, 1, 0});
-    auto gen = this->math->rnd_generator();
-    auto rnd =
-        [gen, d = std::uniform_real_distribution<float>()]() mutable
-        { return d(*gen); };
-    const auto fi = static_cast<float>(n_samples);
-    for(size_t y = 0; y < this->img_height; ++y) {
+    const auto line = [this](auto *gen, size_t y) {
+        auto rnd = std::uniform_real_distribution<float>{};
+        const auto fi = static_cast<float>(this->n_samples);
         const auto v =
-            (static_cast<float>(y) + rnd())
+            (static_cast<float>(y) + rnd(*gen))
             / static_cast<float>(this->img_height);
         for(size_t x = 0; x < this->img_width; ++x) {
             const auto u =
-                (static_cast<float>(x) + rnd())
+                (static_cast<float>(x) + rnd(*gen))
                 / static_cast<float>(this->img_width);
             const auto prev_pixel = this->read_pixel(x, y) * fi;
             const auto pixel_i = this->color(this->c.ray_uv(u, v, gen));
             this->write_pixel(x, y, {(pixel_i + prev_pixel) / (fi + 1), 1});
         }
+    };
+    if(!this->pool) {
+        this->pool = std::make_unique<thread_pool>(this->n_threads);
+        auto &rnd = *this->math->rnd_generator();
+        for(size_t i = 0; i < this->n_threads; ++i)
+            this->pool->start(
+                [this, line, i, rnd_i = Math::rnd_generator_t(rnd())]
+                (std::mutex *mb, std::mutex *me) mutable {
+                    const auto n = this->img_height / n_threads;
+                    const auto b = n * i;
+                    const auto e = std::min(this->img_height, b + n);
+                    while(this->n_samples != this->max_samples) {
+                        mb->lock();
+                        for(auto y = b; y < e; ++y)
+                            line(&rnd_i, y);
+                        me->unlock();
+                    }
+            });
     }
+    this->pool->resume();
+    this->pool->join();
     ++this->n_samples;
     return true;
 }

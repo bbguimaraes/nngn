@@ -69,12 +69,27 @@ nngn_SOURCES += \
 
 TESTS = $(check_PROGRAMS)
 check_PROGRAMS =
+if ENABLE_TESTS
+if ENABLE_OPENCL
+check_PROGRAMS += \
+	tests/compute/thread_pool
+endif
+endif
 
 check_CPPFLAGS = $(AM_CPPFLAGS) $(TEST_DEPS_CFLAGS) -I@srcdir@/src
 check_CXXFLAGS = $(AM_CXXFLAGS) -fPIC
 check_LDADD = $(DEPS_LIBS) $(TEST_DEPS_LIBS)
 check_HEADERS =
 dist_check_DATA =
+
+check_HEADERS += \
+	tests/compute/thread_pool_test.h
+
+tests_compute_thread_pool_CPPFLAGS = $(check_CPPFLAGS)
+tests_compute_thread_pool_CXXFLAGS = $(check_CXXFLAGS)
+tests_compute_thread_pool_LDADD = $(check_LDADD)
+tests_compute_thread_pool_SOURCES = \
+	tests/compute/thread_pool_test.cpp tests/compute/thread_pool_test.moc.cpp
 
 EXTRA_DIST = \
 	img \

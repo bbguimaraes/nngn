@@ -98,6 +98,7 @@ AM_CONDITIONAL([ENABLE_TOOLS], [test "x$ENABLE_TOOLS" == xyes])
 PKG_CHECK_MODULES(
     [DEPS], [$DEPS lua sol2],
     [DEPS_CFLAGS=$(echo "$DEPS_CFLAGS" | sed s/-I/-isystem/g)])
+DEPS_LIBS="${DEPS_LIBS+$DEPS_LIBS }-lpthread"
 
 AS_IF([test "$ENABLE_TESTS" != no],
     [PKG_CHECK_MODULES(

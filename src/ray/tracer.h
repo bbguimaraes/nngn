@@ -1,6 +1,7 @@
 #ifndef NNGN_RAY_TRACER_H
 #define NNGN_RAY_TRACER_H
 
+#include <memory>
 #include <vector>
 
 #include "math/camera.h"
@@ -41,7 +42,7 @@ class tracer {
     Flags<Flag> flags = {};
     static constexpr size_t max_depth = 64;
     size_t img_width = 0, img_height = 0;
-    size_t n_samples = 0;
+    size_t n_samples = 0, n_threads = 1;
     size_t max_samples = std::numeric_limits<size_t>::max();
     float min_t = 0, max_t = 0;
     std::vector<float> tex = {};
@@ -51,17 +52,20 @@ class tracer {
     world objects = {{}};
     Camera m_camera = {};
     nngn::ray::camera c = {};
+    std::unique_ptr<struct thread_pool> pool;
     Math *math = nullptr;
     static constexpr vec3 interp(const vec3 &v, const vec3 &u, float t);
     vec3 color(ray r) const;
     vec3 read_pixel(size_t x, size_t y);
     void write_pixel(size_t x, size_t y, const vec4 &c);
 public:
-    tracer() = default;
+    tracer();
     tracer(tracer&) = delete;
     tracer &operator=(tracer&) = delete;
+    ~tracer();
     Camera *camera() { return &this->m_camera; }
     void set_enabled(bool b) { this->flags.set(Flag::ENABLED, b); }
+    void set_n_threads(size_t n) { this->n_threads = n; }
     void set_min_t(float t) { this->min_t = t; }
     void set_max_t(float t) { this->max_t = t; }
     void set_max_samples(size_t n) { this->max_samples = n; }
