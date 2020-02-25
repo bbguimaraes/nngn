@@ -134,6 +134,8 @@ PKG_CHECK_MODULES(
     [DEPS], [$DEPS lua], [],
     [PKG_CHECK_MODULES([DEPS], [$DEPS lua-5.4], [])])
 DEPS_CFLAGS=$(echo "$DEPS_CFLAGS" | sed s/-I/-isystem/g)
+# XXX
+DEPS_LIBS="${DEPS_LIBS+$DEPS_LIBS }-lpthread"
 
 AS_IF([test "$ENABLE_TESTS" != no],
     [PKG_CHECK_MODULES(
