@@ -5,10 +5,12 @@
 
 #include "tests/tests.h"
 
+Q_DECLARE_METATYPE(nngn::vec4)
 Q_DECLARE_METATYPE(std::optional<nngn::vec3>)
 Q_DECLARE_METATYPE(nngn::AABBCollider)
 Q_DECLARE_METATYPE(nngn::BBCollider)
 Q_DECLARE_METATYPE(nngn::SphereCollider)
+Q_DECLARE_METATYPE(nngn::PlaneCollider)
 
 namespace {
 
@@ -160,4 +162,130 @@ void CollisionTest::sphere_sphere_collision() {
             QCOMPARE(v, *coll);
     } else if(!ret.empty())
         QFAIL(toString(ret[0].force));
+}
+
+// TODO
+//void CollisionTest::plane_collision_data() {
+//    QTest::addColumn<vec4>("v");
+//    QTest::addColumn<bool>("coll");
+//    QTest::addColumn<vec3>("p");
+//    QTest::addColumn<vec3>("d");
+//    QTest::newRow("equal")
+//        << vec4(0, 1, 0, -1) << false << vec3(0) << vec3(0);
+//    QTest::newRow("parallel")
+//        << vec4(0, 1, 0, 0) << false << vec3(0) << vec3(0);
+//    QTest::newRow("coll0")
+//        << vec4(-1, 0, 0, 1) << true
+//        << vec3(1, 1, 0) << vec3(0, 0, 1);
+//    QTest::newRow("coll1")
+//        << vec4(0, 0, 1, -1) << true
+//        << vec3(0, 1, 1) << vec3(1, 0, 0);
+//}
+//
+//void CollisionTest::plane_collision() {
+//    const nngn::PlaneCollider c({0, 1, 0, -1});
+//    QFETCH(const vec4, v);
+//    QFETCH(const bool, coll);
+//    QFETCH(const vec3, p);
+//    QFETCH(const vec3, d);
+//    this->colliders.clear();
+//    this->colliders.set_max_colliders(2);
+//    this->colliders.set_max_collisions(1);
+//    this->colliders.add(c);
+//    this->colliders.add(nngn::PlaneCollider(v));
+//    QVERIFY(this->colliders.check_collisions(nngn::Timing{}));
+//    vec3 tp = {}, td = {};
+//    const auto ret = c.collision(, &tp, &td);
+//    QCOMPARE(coll, ret);
+//    QCOMPARE(tp, p);
+//    QCOMPARE(td, d);
+//}
+
+void CollisionTest::plane_sphere_collision_data() {
+    constexpr float r = .5;
+    const auto diag_1 = nngn::vec2(1.0f / std::sqrt(2.0f));
+    const auto diag_quarter = nngn::vec2(1.0f / std::sqrt(32.0f));
+    const std::array p = {
+        nngn::PlaneCollider({0,  1, 0}, {0,  1, 0, -1}),
+        nngn::PlaneCollider({0, -1, 0}, {0, -1, 0, -1}),
+        nngn::PlaneCollider({0, -1, 0}, {0,  1, 0,  1}),
+        nngn::PlaneCollider({0,  1, 0}, {0, -1, 0,  1}),
+        nngn::PlaneCollider({ diag_1, 0}, {diag_1, 0, -1}),
+        nngn::PlaneCollider({-diag_1, 0}, {diag_1, 0,  1})};
+    const std::array s = {
+        nngn::SphereCollider({0, -1.50, 0}, r),
+        nngn::SphereCollider({0, -1.25, 0}, r),
+        nngn::SphereCollider({0, -0.75, 0}, r),
+        nngn::SphereCollider({0, -0.50, 0}, r),
+        nngn::SphereCollider({0,  0.00, 0}, r),
+        nngn::SphereCollider({0,  0.50, 0}, r),
+        nngn::SphereCollider({0,  0.75, 0}, r),
+        nngn::SphereCollider({0,  1.25, 0}, r),
+        nngn::SphereCollider({0,  1.50, 0}, r),
+        nngn::SphereCollider({diag_1 * -1.50f, 0}, r),
+        nngn::SphereCollider({diag_1 * -1.25f, 0}, r),
+        nngn::SphereCollider({diag_1 * -0.75f, 0}, r),
+        nngn::SphereCollider({diag_1 * -0.50f, 0}, r),
+        nngn::SphereCollider({diag_1 * 1.50f, 0}, r),
+        nngn::SphereCollider({diag_1 * 1.25f, 0}, r),
+        nngn::SphereCollider({diag_1 * 0.75f, 0}, r),
+        nngn::SphereCollider({diag_1 * 0.50f, 0}, r)};
+    const auto
+        no = nngn::vec4(),
+        p25 = nngn::vec4(1, 0, .25f, 0),
+        p75 = nngn::vec4(1, 0, .75f, 0),
+        p1 = nngn::vec4(1, 0, 1, 0),
+        n25 = nngn::vec4(1, 0, -.25f, 0),
+        n75 = nngn::vec4(1, 0, -.75f, 0),
+        n1 = nngn::vec4(1, 0, -1, 0),
+        pd25 = nngn::vec4(1, diag_quarter, 0),
+        pd75 = nngn::vec4(1, diag_1 - diag_quarter, 0),
+        pd1 = nngn::vec4(1, diag_1, 0);
+    QTest::addColumn<nngn::PlaneCollider>("c1");
+    QTest::addColumn<nngn::SphereCollider>("c0");
+    QTest::addColumn<nngn::vec4>("coll");
+    QTest::newRow("p u-1 s +1.50") << p[0] << s[8] << no;
+    QTest::newRow("p u-1 s +1.25") << p[0] << s[7] << p25;
+    QTest::newRow("p u-1 s +0.75") << p[0] << s[6] << p75;
+    QTest::newRow("p u-1 s +0.50") << p[0] << s[5] << p1;
+    QTest::newRow("p d-1 s -1.50") << p[1] << s[0] << no;
+    QTest::newRow("p d-1 s -1.25") << p[1] << s[1] << n25;
+    QTest::newRow("p d-1 s -0.75") << p[1] << s[2] << n75;
+    QTest::newRow("p d-1 s -0.50") << p[1] << s[3] << n1;
+    QTest::newRow("p u+1 s -0.50") << p[2] << s[3] << no;
+    QTest::newRow("p u+1 s -0.75") << p[2] << s[2] << p25;
+    QTest::newRow("p u+1 s -1.25") << p[2] << s[1] << p75;
+    QTest::newRow("p u+1 s -1.50") << p[2] << s[0] << p1;
+    QTest::newRow("p d+1 s +0.50") << p[3] << s[5] << no;
+    QTest::newRow("p d+1 s +0.75") << p[3] << s[6] << n25;
+    QTest::newRow("p d+1 s +1.25") << p[3] << s[7] << n75;
+    QTest::newRow("p d+1 s +1.50") << p[3] << s[8] << n1;
+    QTest::newRow("p r-1 s d*1.50") << p[4] << s[13] << no;
+    QTest::newRow("p r-1 s d*1.25") << p[4] << s[14] << pd25;
+    QTest::newRow("p r-1 s d*0.75") << p[4] << s[15] << pd75;
+    QTest::newRow("p r-1 s d*0.50") << p[4] << s[16] << pd1;
+    QTest::newRow("p r+1 s d*-0.50") << p[5] << s[12] << no;
+    QTest::newRow("p r+1 s d*-0.75") << p[5] << s[11] << pd25;
+    QTest::newRow("p r+1 s d*-1.25") << p[5] << s[10] << pd75;
+    QTest::newRow("p r+1 s d*-1.50") << p[5] << s[ 9] << pd1;
+}
+
+void CollisionTest::plane_sphere_collision() {
+    QFETCH(const nngn::PlaneCollider, c1);
+    QFETCH(const nngn::SphereCollider, c0);
+    QFETCH(const nngn::vec4, coll);
+    this->colliders.clear();
+    this->colliders.set_max_colliders(2);
+    this->colliders.set_max_collisions(1);
+    this->colliders.add(c0);
+    this->colliders.add(c1);
+    QVERIFY(this->colliders.check_collisions(nngn::Timing{}));
+    const auto ret = this->colliders.collisions();
+    nngn::vec4 cmp = {};
+    if(!ret.empty())
+        cmp = {1, ret[0].force};
+    if(!(qFuzzyCompare(cmp[0], coll[0])
+            && qFuzzyCompare(cmp[1], coll[1])
+            && qFuzzyCompare(cmp[2], coll[2])))
+        QCOMPARE(cmp, coll);
 }

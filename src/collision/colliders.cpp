@@ -1,5 +1,7 @@
 #include "utils/log.h"
 
+#include "math/math.h"
+
 #include "colliders.h"
 
 namespace {
@@ -79,6 +81,21 @@ void SphereCollider::load(const nngn::lua::table &t) {
     Collider::load(t);
     if(const auto x = t.get<std::optional<float>>("r"))
         this->r = *x;
+}
+
+void PlaneCollider::update(size_t n, PlaneCollider *v) {
+    for(auto *e = v + n; v != e; ++v)
+        v->abcd[3] = -nngn::Math::dot(v->abcd.xyz(), v->pos);
+}
+
+void PlaneCollider::load(const nngn::lua::table &t) {
+    Collider::load(t);
+    if(const auto tt = t.get<std::optional<nngn::lua::table>>("n")) {
+        const auto &tv = *tt;
+        this->abcd[0] = tv[1];
+        this->abcd[1] = tv[2];
+        this->abcd[2] = tv[3];
+    }
 }
 
 }

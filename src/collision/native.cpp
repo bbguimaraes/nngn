@@ -11,6 +11,7 @@ using Output = Colliders::Backend::Output;
 using nngn::AABBCollider;
 using nngn::BBCollider;
 using nngn::SphereCollider;
+using nngn::PlaneCollider;
 
 namespace {
 
@@ -20,6 +21,8 @@ void check_bb(
     const std::vector<BBCollider> &v, Output *output);
 void check_sphere(
     const std::vector<SphereCollider> &v, Output *output);
+void check_plane(
+    const std::vector<PlaneCollider> &v, Output *output);
 void check_aabb_bb(
     const std::vector<AABBCollider> &aabb,
     const std::vector<BBCollider> &bb,
@@ -31,6 +34,10 @@ void check_aabb_sphere(
 void check_bb_sphere(
     const std::vector<BBCollider> &bb,
     const std::vector<SphereCollider> &sphere,
+    Output *output);
+void check_sphere_plane(
+    const std::vector<SphereCollider> &sphere,
+    const std::vector<PlaneCollider> &plane,
     Output *output);
 bool check_bb_fast(const AABBCollider &c0, const AABBCollider &c1);
 constexpr float overlap(float min0, float max0, float min1, float max1);
@@ -59,9 +66,11 @@ bool NativeBackend::check(
     check_aabb(input.aabb, output);
     check_bb(input.bb, output);
     check_sphere(input.sphere, output);
+    check_plane(input.plane, output);
     check_aabb_bb(input.aabb, input.bb, output);
     check_aabb_sphere(input.aabb, input.sphere, output);
     check_bb_sphere(input.bb, input.sphere, output);
+    check_sphere_plane(input.sphere, input.plane, output);
     auto &v = *nngn::Stats::u64_data<Colliders>();
     for(std::size_t i = 0, n = v.size(); i < n; i += 4)
         v[i + 1] = v[i + 2] = v[i];
@@ -158,6 +167,44 @@ void check_sphere(const std::vector<SphereCollider> &sphere, Output *output) {
     }
 }
 
+void check_plane(const std::vector<PlaneCollider>&, Output *output) {
+    NNGN_STATS_CONTEXT(Colliders, &output->stats.plane);
+    // TODO
+//    nngn::vec3 v = {};
+//    for(auto i0 = plane.cbegin(), e = plane.cend(); i0 != e; ++i0) {
+//        const auto &c0 = *i0;
+//        for(auto i1 = i0 + 1; i1 != e; ++i1) {
+//            const auto &c1 = *i1;
+//            {
+//                const auto &v0 = c0.abcd, v1 = c1.abcd;
+//                auto cross = nngn::Math::cross(nngn::vec3(v0), nngn::vec3(v1));
+//                if(cross.x == 0 && cross.y == 0 && cross.z == 0)
+//                    continue;
+//                v = cross;
+//                cross = {std::abs(cross.x), std::abs(cross.y), std::abs(cross.z)};
+//                const auto max = std::max({cross.x, cross.y, cross.z});
+//                if(max == cross.x)
+//                    v = {
+//                        0,
+//                        (v0.z * v1.w - v1.z * v0.w) / cross.x,
+//                        (v1.y * v0.w - v0.y * v1.w) / cross.x};
+//                else if(max == cross.y)
+//                    v = {
+//                        (v1.z * v0.w - v0.z * v1.w) / cross.y,
+//                        0,
+//                        (v0.x * v1.w - v1.x * v0.w) / cross.y};
+//                else
+//                    v = {
+//                        (v0.y * v1.w - v1.y * v0.w) / cross.z,
+//                        (v1.x * v0.w - v0.x * v1.w) / cross.z,
+//                        0};
+//            }
+//            if(!add_collision(c0, c1, v, &output->collisions))
+//                return;
+//        }
+//    }
+}
+
 void check_aabb_bb(
         const std::vector<AABBCollider> &aabb,
         const std::vector<BBCollider> &bb,
@@ -235,6 +282,27 @@ void check_bb_sphere(
                 return;
         }
     }
+}
+
+void check_sphere_plane(
+        const std::vector<SphereCollider> &sphere,
+        const std::vector<PlaneCollider> &plane,
+        Output *output) {
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_plane_exec_barrier); }
+    NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_plane_exec);
+    if(plane.empty())
+        return;
+    nngn::vec3 v = {};
+    for(const auto &c0 : sphere)
+        for(const auto &c1 : plane) {
+            const auto n = c1.abcd.xyz();
+            const auto d = nngn::Math::dot(n, c0.pos) + c1.abcd[3] - c0.r;
+            if(d >= -std::numeric_limits<float>::epsilon())
+                continue;
+            v = n * -d;
+            if(!add_collision(c0, c1, v, &output->collisions))
+                return;
+        }
 }
 
 bool check_bb_fast(const AABBCollider &c0, const AABBCollider &c1) {
