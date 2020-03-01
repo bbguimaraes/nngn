@@ -5,6 +5,7 @@
 
 #include "math/vec2.h"
 #include "math/vec3.h"
+#include "math/vec4.h"
 #include "utils/flags.h"
 
 struct Entity;
@@ -13,7 +14,7 @@ namespace nngn {
 
 struct Collider {
     enum Type : uint8_t {
-        NONE, AABB, BB, SPHERE, N_TYPES,
+        NONE, AABB, BB, SPHERE, PLANE, N_TYPES,
     };
     enum Flag : uint8_t { TRIGGER = 0b1, SOLID = 0b10 };
     Entity *entity = nullptr;
@@ -49,6 +50,14 @@ struct SphereCollider : Collider {
     float r = 0;
     SphereCollider() = default;
     SphereCollider(vec3 p_pos, float p_r) : Collider(p_pos), r(p_r) {}
+    void load(const sol::stack_table &t);
+};
+
+struct PlaneCollider : Collider {
+    vec4 abcd = {};
+    PlaneCollider() = default;
+    PlaneCollider(vec3 p, vec4 v) : Collider(p), abcd(v) {}
+    static void update(size_t n, PlaneCollider *v);
     void load(const sol::stack_table &t);
 };
 

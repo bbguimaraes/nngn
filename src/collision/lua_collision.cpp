@@ -14,7 +14,9 @@ using CollisionBackend = nngn::Colliders::Backend;
 namespace {
 
 size_t n_colliders(const Colliders &c) {
-    return c.aabb().size() + c.bb().size() + c.sphere().size();
+    return
+        c.aabb().size() + c.bb().size()
+        + c.sphere().size() + c.plane().size();
 }
 
 auto collisions(const Colliders &c, sol::this_state sol) {
@@ -50,6 +52,7 @@ NNGN_LUA_PROXY(Colliders,
     "n_aabb", [](const Colliders &c) { return c.aabb().size(); },
     "n_bb", [](const Colliders &c) { return c.bb().size(); },
     "n_sphere", [](const Colliders &c) { return c.sphere().size(); },
+    "n_plane", [](const Colliders &c) { return c.plane().size(); },
     "n_colliders", n_colliders,
     "n_collisions", [](const Colliders &c) { return c.collisions().size(); },
     "max_colliders", &Colliders::max_colliders,
