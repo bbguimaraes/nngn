@@ -40,3 +40,6 @@ print(fmt(
 print(fmt(
     "- sphere", Collider.SIZEOF_SPHERE,
     nngn:colliders():n_spheres(), max_colliders))
+print(fmt(
+    "- plane", Collider.SIZEOF_PLANE,
+    nngn:colliders():n_planes(), max_colliders))

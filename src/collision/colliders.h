@@ -4,6 +4,7 @@
 #include "lua/table.h"
 #include "math/vec2.h"
 #include "math/vec3.h"
+#include "math/vec4.h"
 #include "utils/def.h"
 #include "utils/flags.h"
 
@@ -13,7 +14,7 @@ namespace nngn {
 
 struct Collider {
     enum Type : u8 {
-        NONE, AABB, BB, SPHERE, N_TYPES,
+        NONE, AABB, BB, SPHERE, PLANE, N_TYPES,
     };
     enum Flag : u8 {
         COLLIDING = 1 << 0,
@@ -54,6 +55,14 @@ struct SphereCollider : Collider {
     SphereCollider() = default;
     SphereCollider(vec3 p_pos, float p_r) : Collider(p_pos), r(p_r) {}
     static void update(std::span<SphereCollider> s);
+    void load(nngn::lua::table_view t);
+};
+
+struct PlaneCollider : Collider {
+    vec4 abcd = {};
+    PlaneCollider() = default;
+    PlaneCollider(vec3 p, vec4 v) : Collider(p), abcd(v) {}
+    static void update(std::span<PlaneCollider> s);
     void load(nngn::lua::table_view t);
 };
 

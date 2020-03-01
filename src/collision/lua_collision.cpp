@@ -26,7 +26,8 @@ auto size(const Colliders &c) {
 
 auto n_colliders(const Colliders &c) {
     return nngn::narrow<lua_Integer>(
-        c.aabb().size() + c.bb().size() + c.sphere().size());
+        c.aabb().size() + c.bb().size() + c.sphere().size()
+        + c.plane().size());
 }
 
 auto max_colliders(const Colliders &c) {
@@ -93,6 +94,7 @@ void register_colliders(nngn::lua::table_view t) {
     t["n_aabbs"] = size<&Colliders::aabb>;
     t["n_bbs"] = size<&Colliders::bb>;
     t["n_spheres"] = size<&Colliders::sphere>;
+    t["n_planes"] = size<&Colliders::plane>;
     t["n_colliders"] = n_colliders;
     t["n_collisions"] = size<&Colliders::collisions>;
     t["max_colliders"] = max_colliders;

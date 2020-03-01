@@ -2,6 +2,7 @@
 
 #include <cmath>
 
+#include "math/math.h"
 #include "utils/log.h"
 
 namespace {
@@ -92,6 +93,22 @@ void SphereCollider::load(nngn::lua::table_view t) {
     Collider::load(t);
     if(const auto tr = t["r"].get<std::optional<float>>())
         this->r = *tr;
+}
+
+void PlaneCollider::update(std::span<PlaneCollider> s) {
+    for(auto &x : s) {
+        update_collider(&x);
+        x.abcd[3] = -nngn::Math::dot(x.abcd.xyz(), x.pos);
+    }
+}
+
+void PlaneCollider::load(nngn::lua::table_view t) {
+    Collider::load(t);
+    if(const auto n = t["n"].get<std::optional<nngn::lua::table>>()) {
+        this->abcd[0] = (*n)[1];
+        this->abcd[1] = (*n)[2];
+        this->abcd[2] = (*n)[3];
+    }
 }
 
 }
