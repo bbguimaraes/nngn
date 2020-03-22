@@ -98,4 +98,10 @@ void PlaneCollider::load(const nngn::lua::table &t) {
     }
 }
 
+void GravityCollider::load(const nngn::lua::table &t) {
+    Collider::load(t);
+    const float d = t["max_distance"];
+    this->max_distance2 = d * d;
+}
+
 }

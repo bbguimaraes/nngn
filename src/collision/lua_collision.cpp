@@ -16,7 +16,8 @@ namespace {
 size_t n_colliders(const Colliders &c) {
     return
         c.aabb().size() + c.bb().size()
-        + c.sphere().size() + c.plane().size();
+        + c.sphere().size() + c.plane().size()
+        + c.gravity().size();
 }
 
 auto collisions(const Colliders &c, nngn::lua::state_arg lua_) {
@@ -58,6 +59,7 @@ NNGN_LUA_PROXY(Colliders,
     "n_bbs", [](const Colliders &c) { return c.bb().size(); },
     "n_spheres", [](const Colliders &c) { return c.sphere().size(); },
     "n_planes", [](const Colliders &c) { return c.plane().size(); },
+    "n_gravity", [](const Colliders &c) { return c.gravity().size(); },
     "n_colliders", n_colliders,
     "n_collisions", [](const Colliders &c) { return c.collisions().size(); },
     "max_colliders", &Colliders::max_colliders,

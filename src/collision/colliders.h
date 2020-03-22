@@ -13,7 +13,7 @@ namespace nngn {
 
 struct Collider {
     enum Type : uint8_t {
-        NONE, AABB, BB, SPHERE, PLANE, N_TYPES,
+        NONE, AABB, BB, SPHERE, PLANE, GRAVITY, N_TYPES,
     };
     enum Flag : uint8_t { TRIGGER = 0b1, SOLID = 0b10 };
     Entity *entity = nullptr;
@@ -57,6 +57,15 @@ struct PlaneCollider : Collider {
     PlaneCollider() = default;
     PlaneCollider(vec3 p, vec4 v) : Collider(p), abcd(v) {}
     static void update(size_t n, PlaneCollider *v);
+    void load(const nngn::lua::table &t);
+};
+
+struct GravityCollider : Collider {
+    static constexpr float G = 6.674e-11f;
+    float max_distance2 = {};
+    GravityCollider() = default;
+    GravityCollider(vec3 p, float p_m, float max_distance)
+        : Collider(p, p_m), max_distance2(max_distance * max_distance) {}
     void load(const nngn::lua::table &t);
 };
 

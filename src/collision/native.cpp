@@ -12,6 +12,7 @@ using nngn::AABBCollider;
 using nngn::BBCollider;
 using nngn::SphereCollider;
 using nngn::PlaneCollider;
+using nngn::GravityCollider;
 
 namespace {
 
@@ -23,6 +24,10 @@ void check_sphere(
     const std::vector<SphereCollider> &v, Output *output);
 void check_plane(
     const std::vector<PlaneCollider> &v, Output *output);
+template<typename T> void check_gravity(
+    const std::vector<T> &v,
+    const std::vector<nngn::GravityCollider> &gravity,
+    Output *output);
 void check_aabb_bb(
     const std::vector<AABBCollider> &aabb,
     const std::vector<BBCollider> &bb,
@@ -67,10 +72,14 @@ bool NativeBackend::check(
     check_bb(input.bb, output);
     check_sphere(input.sphere, output);
     check_plane(input.plane, output);
+    check_gravity(input.gravity, input.gravity, output);
     check_aabb_bb(input.aabb, input.bb, output);
     check_aabb_sphere(input.aabb, input.sphere, output);
     check_bb_sphere(input.bb, input.sphere, output);
     check_sphere_plane(input.sphere, input.plane, output);
+    check_gravity(input.aabb, input.gravity, output);
+    check_gravity(input.bb, input.gravity, output);
+    check_gravity(input.sphere, input.gravity, output);
     auto &v = *nngn::Stats::u64_data<Colliders>();
     for(std::size_t i = 0, n = v.size(); i < n; i += 4)
         v[i + 1] = v[i + 2] = v[i];
@@ -303,6 +312,36 @@ void check_sphere_plane(
             if(!add_collision(c0, c1, v, &output->collisions))
                 return;
         }
+}
+
+template<typename T> void check_gravity(
+        const std::vector<T> &other,
+        const std::vector<GravityCollider> &gravity,
+        Output *output) {
+    constexpr auto G = GravityCollider::G;
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.gravity_pos); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.gravity_mass); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.gravity_max_distance2); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_gravity_exec_barrier); }
+    { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_gravity_exec); }
+    if(gravity.empty())
+        return;
+    for(auto i0 = other.cbegin(), e0 = other.cend(); i0 != e0; ++i0) {
+        const auto &c0 = *i0;
+        auto i1 = gravity.cbegin();
+        if constexpr(std::is_same_v<T, GravityCollider>)
+            i1 = i0 + 1;
+        for(auto e1 = gravity.cend(); i1 != e1; ++i1) {
+            const auto &c1 = *i1;
+            const auto d = c1.pos - c0.pos;
+            const float l2 = nngn::Math::length2(d);
+            if(l2 > c1.max_distance2)
+                continue;
+            const auto v = d * (G * c1.m * c0.m / l2 / std::sqrt(l2));
+            if(!add_collision(c0, c1, v, &output->collisions))
+                return;
+        }
+    }
 }
 
 bool check_bb_fast(const AABBCollider &c0, const AABBCollider &c1) {

@@ -40,3 +40,6 @@ print(fmt(
 print(fmt(
     "- plane", Collider.SIZEOF_PLANE,
     nngn.colliders:n_planes(), max_colliders))
+print(fmt(
+    "- gravity", Collider.SIZEOF_GRAVITY,
+    nngn.colliders:n_gravity(), max_colliders))

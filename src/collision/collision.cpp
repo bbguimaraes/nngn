@@ -21,6 +21,7 @@ bool Colliders::set_max_colliders(size_t n) {
     set_capacity(&this->input.bb, n);
     set_capacity(&this->input.sphere, n);
     set_capacity(&this->input.plane, n);
+    set_capacity(&this->input.gravity, n);
     return !this->backend || this->backend->set_max_colliders(n);
 }
 
@@ -51,6 +52,8 @@ void Colliders::remove(Collider *p) {
         remove(&this->input.sphere);
     if(contains(this->input.plane, *p))
         remove(&this->input.plane);
+    if(contains(this->input.gravity, *p))
+        remove(&this->input.gravity);
 }
 
 void Colliders::clear() {
@@ -58,6 +61,7 @@ void Colliders::clear() {
     this->input.bb.clear();
     this->input.sphere.clear();
     this->input.plane.clear();
+    this->input.gravity.clear();
 }
 
 bool Colliders::check_collisions(const Timing &t) {
@@ -140,6 +144,8 @@ SphereCollider *Colliders::add(const SphereCollider &c)
     { NNGN_LOG_CONTEXT("sphere"); return nngn::add(&this->input.sphere, c); }
 PlaneCollider *Colliders::add(const PlaneCollider &c)
     { NNGN_LOG_CONTEXT("plane"); return nngn::add(&this->input.plane, c); }
+GravityCollider *Colliders::add(const GravityCollider &c)
+    { NNGN_LOG_CONTEXT("gravity"); return nngn::add(&this->input.gravity, c); }
 
 Collider *Colliders::load(const nngn::lua::table &t) {
     NNGN_LOG_CONTEXT_CF(Colliders);
@@ -150,6 +156,7 @@ Collider *Colliders::load(const nngn::lua::table &t) {
     case Collider::Type::BB: return load(BBCollider());
     case Collider::Type::SPHERE: return load(SphereCollider());
     case Collider::Type::PLANE: return load(PlaneCollider());
+    case Collider::Type::GRAVITY: return load(GravityCollider());
     case Collider::Type::NONE:
     case Collider::Type::N_TYPES:
     default:
