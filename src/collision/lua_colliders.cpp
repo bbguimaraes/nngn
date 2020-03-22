@@ -14,10 +14,13 @@ void register_collider(nngn::lua::table_view t) {
     t["SIZEOF_SPHERE"] =
         nngn::narrow<lua_Integer>(sizeof(nngn::SphereCollider));
     t["SIZEOF_PLANE"] = nngn::narrow<lua_Integer>(sizeof(nngn::PlaneCollider));
+    t["SIZEOF_GRAVITY"] =
+        nngn::narrow<lua_Integer>(sizeof(nngn::GravityCollider));
     t["AABB"] = Collider::Type::AABB;
     t["BB"] = Collider::Type::BB;
     t["SPHERE"] = Collider::Type::SPHERE;
     t["PLANE"] = Collider::Type::PLANE;
+    t["GRAVITY"] = Collider::Type::GRAVITY;
     t["TRIGGER"] = Collider::Flag::TRIGGER;
     t["SOLID"] = Collider::Flag::SOLID;
     t["flags"] = [](const Collider &c) { return *c.flags; };

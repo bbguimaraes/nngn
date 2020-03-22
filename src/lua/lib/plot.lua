@@ -120,13 +120,16 @@ local FS = {
     },
     coll = {
         function(f)
-            f:write("s 4\n")
-            write_names(f, "aabbs", "bbs", "spheres", "planes", "coll")
+            f:write("s 5\n")
+            write_names(f,
+                "aabbs", "bbs", "spheres", "planes", "gravity",
+                "coll")
         end,
         function(f)
             local c <const> = nngn:colliders()
             write_data(f,
                 c:n_aabbs(), c:n_bbs(), c:n_spheres(), c:n_planes(),
+                c:n_gravity(),
                 c:n_collisions())
         end,
     },

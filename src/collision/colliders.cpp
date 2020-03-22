@@ -111,4 +111,15 @@ void PlaneCollider::load(nngn::lua::table_view t) {
     }
 }
 
+void GravityCollider::update(std::span<GravityCollider> s) {
+    for(auto &x : s)
+        update_collider(&x);
+}
+
+void GravityCollider::load(const nngn::lua::table &t) {
+    Collider::load(t);
+    const float d = t["max_distance"];
+    this->max_distance2 = d * d;
+}
+
 }
