@@ -289,3 +289,45 @@ void CollisionTest::plane_sphere_collision() {
             && qFuzzyCompare(cmp[2], coll[2])))
         QCOMPARE(cmp, coll);
 }
+
+void CollisionTest::gravity_collision_data() {
+    const auto s = [](const nngn::vec3 &p, float m = 1.0f) {
+        nngn::SphereCollider ret(p, .5f);
+        ret.m = m;
+        ret.flags.set(nngn::Collider::Flag::SOLID);
+        return ret;
+    };
+    constexpr auto G = nngn::GravityCollider::G;
+    QTest::addColumn<nngn::SphereCollider>("c0");
+    QTest::addColumn<nngn::vec4>("coll");
+    QTest::newRow("+0")   << s({ 2,  1, 0}) << nngn::vec4(1, -G, 0, 0);
+    QTest::newRow("-0")   << s({ 0,  1, 0}) << nngn::vec4(1,  G, 0, 0);
+    QTest::newRow("0+")   << s({ 1,  2, 0}) << nngn::vec4(1, 0, -G, 0);
+    QTest::newRow("0-")   << s({ 1,  0, 0}) << nngn::vec4(1, 0,  G, 0);
+    QTest::newRow("++0")  << s({ 3,  1, 0}) << nngn::vec4();
+    QTest::newRow("--0")  << s({-1,  1, 0}) << nngn::vec4();
+    QTest::newRow("0++")  << s({ 1,  3, 0}) << nngn::vec4();
+    QTest::newRow("0--")  << s({ 1, -1, 0}) << nngn::vec4();
+    QTest::newRow("m") << s({ 2,  1, 0}, 2.0f) << nngn::vec4(1, -2 * G, 0, 0);
+}
+
+void CollisionTest::gravity_collision() {
+    QFETCH(const nngn::SphereCollider, c0);
+    QFETCH(const nngn::vec4, coll);
+    this->colliders.clear();
+    this->colliders.set_max_colliders(2);
+    this->colliders.set_max_collisions(1);
+    auto c1 = nngn::GravityCollider({1, 1, 0}, 1.0f, 1.0f);
+    c1.flags.set(nngn::Collider::Flag::SOLID);
+    this->colliders.add(c0);
+    this->colliders.add(c1);
+    QVERIFY(this->colliders.check_collisions(nngn::Timing{}));
+    const auto ret = this->colliders.collisions();
+    nngn::vec4 cmp = {};
+    if(!ret.empty())
+        cmp = {1, ret[0].force};
+    if(!(qFuzzyCompare(cmp[0], coll[0])
+            && qFuzzyCompare(cmp[1], coll[1])
+            && qFuzzyCompare(cmp[2], coll[2])))
+        QCOMPARE(cmp, coll);
+}

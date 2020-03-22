@@ -19,6 +19,8 @@ private slots:
 //    void plane_collision();
     void plane_sphere_collision_data();
     void plane_sphere_collision();
+    void gravity_collision_data();
+    void gravity_collision();
 protected:
     nngn::Colliders colliders = {};
 };
