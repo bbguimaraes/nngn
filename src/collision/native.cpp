@@ -422,7 +422,10 @@ template<typename T, typename U> bool add_collision(
         nngn::Log::l() << "too many collisions\n";
         return false;
     }
-    out->push_back({c0.entity, c1.entity, c0.m, c1.m, c0.flags, c1.flags, v});
+    // XXX
+    const auto l = nngn::Math::length(v);
+    out->push_back({
+        c0.entity, c1.entity, c0.m, c1.m, c0.flags, c1.flags, v / l, l});
     return true;
 }
 

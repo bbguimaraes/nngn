@@ -89,16 +89,25 @@ void Colliders::resolve_collisions() const {
     NNGN_PROFILE_CONTEXT(collision_resolve);
     if(!this->m_flags.is_set(Flag::RESOLVE))
         return;
+//    const auto dt = t.fdt_s(), dt2 = dt * dt * 32;
     constexpr auto div = [](auto x, auto y)
         { return std::isinf(x) && std::isinf(y) ? 1.0f : x / y; };
     for(const auto &c : this->output.collisions) {
         if(!(c.flags0 & c.flags1 & Collider::Flag::SOLID))
             continue;
         const auto denom = c.mass0 + c.mass1;
-        if(const auto f = div(c.mass1, denom); f != 0)
-            c.entity0->set_pos(c.entity0->p + f * c.force);
-        if(const auto f = div(c.mass0, denom); f != 0)
-            c.entity1->set_pos(c.entity1->p - f * c.force);
+        if(const auto f = 2.0f * div(c.mass1, denom); f != 0) {
+            c.entity0->set_pos(c.entity0->p + c.normal * c.length * f/* * .5f*/);
+//            if(c.e0->v != glm::vec3(0))
+//                c.e0->set_vel(c.e0->v - c.n * glm::dot(c.e0->v, c.n));
+        }
+        if(!c.entity1)
+            continue;
+        if(const auto f = 2.0f * div(c.mass0, denom); f != 0) {
+            c.entity1->set_pos(c.entity1->p - c.normal * c.length * f/* * .5f*/);
+//            if(c.e1->v != glm::vec3(0))
+//                c.e1->set_vel(c.e1->v - c.n * glm::dot(c.e1->v, c.n));
+        }
     }
 }
 
@@ -118,14 +127,15 @@ void Colliders::lua_on_collision(lua_State *L) {
         lua_pushvalue(L, 2);
         sol::stack::push(L, x.entity0);
         sol::stack::push(L, x.entity1);
+        lua_pushnumber(L, static_cast<lua_Number>(x.length));
         lua_createtable(L, 3, 0);
-        lua_pushnumber(L, static_cast<lua_Number>(x.force[0]));
+        lua_pushnumber(L, static_cast<lua_Number>(x.normal[0]));
         lua_rawseti(L, -2, 1);
-        lua_pushnumber(L, static_cast<lua_Number>(x.force[1]));
+        lua_pushnumber(L, static_cast<lua_Number>(x.normal[1]));
         lua_rawseti(L, -2, 2);
-        lua_pushnumber(L, static_cast<lua_Number>(x.force[2]));
+        lua_pushnumber(L, static_cast<lua_Number>(x.normal[2]));
         lua_rawseti(L, -2, 3);
-        if(lua_pcall(L, 3, 0, 1) != LUA_OK)
+        if(lua_pcall(L, 4, 0, 1) != LUA_OK)
             lua_pop(L, 1);
     }
     lua_pop(L, 2);

@@ -600,9 +600,12 @@ bool ComputeBackend::read_collision_buffer(
         const auto &c1 = v1[ci.i1];
         if(std::isinf(c0.m) && std::isinf(c1.m))
             continue;
+        // XXX
+        const nngn::vec3 v = {ci.v[0], ci.v[1], ci.v[2]};
+        const auto l = nngn::Math::length(v);
         out->push_back(nngn::Collision{
             c0.entity, c1.entity, c0.m, c1.m, c0.flags, c1.flags,
-            {ci.v[0], ci.v[1], ci.v[2]}});
+            l == 0 ? v : v / l, l});
     }
     return this->compute->unmap_buffer(b, p, {});
 }

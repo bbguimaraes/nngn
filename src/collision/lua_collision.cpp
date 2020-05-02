@@ -29,8 +29,9 @@ auto collisions(const Colliders &c, sol::this_state sol) {
     for(size_t i = 0; i < n; ++i) {
         const auto &x = v[i];
         ret[i + 1] = lua.create_table_with(
-            1, x.entity0, 2, x.entity1,
-            3, lua.create_table_with(1, x.force.x, 2, x.force.y));
+            1, x.entity0, 2, x.entity1, 3, x.length,
+            4, lua.create_table_with(
+                1, x.normal.x, 2, x.normal.y, 3, x.normal.z));
     }
     return ret;
 }
