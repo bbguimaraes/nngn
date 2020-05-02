@@ -63,10 +63,10 @@ void CollisionTest::aabb_collision() {
     const auto ret = this->colliders.collisions();
     if(coll) {
         QVERIFY(!ret.empty());
-        if(const auto v = ret[0].force; !fuzzy_eq(v, *coll))
+        if(const auto v = ret[0].length * ret[0].normal; !fuzzy_eq(v, *coll))
             QCOMPARE(v, *coll);
     } else if(!ret.empty())
-        QFAIL(toString(ret[0].force));
+        QFAIL(toString(ret[0].length * ret[0].normal));
 }
 
 void CollisionTest::bb_collision_data() {
@@ -116,10 +116,10 @@ void CollisionTest::bb_collision() {
     const auto ret = this->colliders.collisions();
     if(coll) {
         QVERIFY(!ret.empty());
-        if(const auto v = ret[0].force; !fuzzy_eq(v, *coll))
+        if(const auto v = ret[0].length * ret[0].normal; !fuzzy_eq(v, *coll))
             QCOMPARE(v, *coll);
     } else if(!ret.empty())
-        QFAIL(toString(ret[0].force));
+        QFAIL(toString(ret[0].length * ret[0].normal));
 }
 
 void CollisionTest::sphere_sphere_collision_data() {
@@ -158,10 +158,10 @@ void CollisionTest::sphere_sphere_collision() {
     const auto ret = this->colliders.collisions();
     if(coll) {
         QVERIFY(!ret.empty());
-        if(const auto v = ret[0].force; !fuzzy_eq(v, *coll))
+        if(const auto v = ret[0].length * ret[0].normal; !fuzzy_eq(v, *coll))
             QCOMPARE(v, *coll);
     } else if(!ret.empty())
-        QFAIL(toString(ret[0].force));
+        QFAIL(toString(ret[0].length * ret[0].normal));
 }
 
 // TODO
@@ -283,7 +283,7 @@ void CollisionTest::plane_sphere_collision() {
     const auto ret = this->colliders.collisions();
     nngn::vec4 cmp = {};
     if(!ret.empty())
-        cmp = {1, ret[0].force};
+        cmp = {1, ret[0].length * ret[0].normal};
     if(!(qFuzzyCompare(cmp[0], coll[0])
             && qFuzzyCompare(cmp[1], coll[1])
             && qFuzzyCompare(cmp[2], coll[2])))
@@ -325,7 +325,7 @@ void CollisionTest::gravity_collision() {
     const auto ret = this->colliders.collisions();
     nngn::vec4 cmp = {};
     if(!ret.empty())
-        cmp = {1, ret[0].force};
+        cmp = {1, ret[0].length * ret[0].normal};
     if(!(qFuzzyCompare(cmp[0], coll[0])
             && qFuzzyCompare(cmp[1], coll[1])
             && qFuzzyCompare(cmp[2], coll[2])))

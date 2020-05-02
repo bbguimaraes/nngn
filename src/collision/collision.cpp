@@ -97,16 +97,25 @@ void Colliders::resolve_collisions(void) const {
     NNGN_PROFILE_CONTEXT(collision_resolve);
     if(!this->m_flags.is_set(Flag::RESOLVE))
         return;
+//    const auto dt = t.fdt_s(), dt2 = dt * dt * 32;
     constexpr auto div = [](auto x, auto y)
         { return std::isinf(x) && std::isinf(y) ? 1.0f : x / y; };
     for(const auto &c : this->output.collisions) {
         if(!(c.flags0 & c.flags1 & Collider::Flag::SOLID))
             continue;
         const auto denom = c.mass0 + c.mass1;
-        if(const auto f = div(c.mass1, denom); f != 0)
-            c.entity0->set_pos(c.entity0->p + f * c.force);
-        if(const auto f = div(c.mass0, denom); f != 0)
-            c.entity1->set_pos(c.entity1->p - f * c.force);
+        if(const auto f = 2.0f * div(c.mass1, denom); f != 0) {
+            c.entity0->set_pos(c.entity0->p + c.normal * c.length * f/* * .5f*/);
+//            if(c.e0->v != glm::vec3(0))
+//                c.e0->set_vel(c.e0->v - c.n * glm::dot(c.e0->v, c.n));
+        }
+        if(!c.entity1)
+            continue;
+        if(const auto f = 2.0f * div(c.mass0, denom); f != 0) {
+            c.entity1->set_pos(c.entity1->p - c.normal * c.length * f/* * .5f*/);
+//            if(c.e1->v != glm::vec3(0))
+//                c.e1->set_vel(c.e1->v - c.n * glm::dot(c.e1->v, c.n));
+        }
     }
 }
 
@@ -120,16 +129,17 @@ bool Colliders::lua_on_collision(nngn::lua::state_view lua) {
     auto pop = nngn::lua::defer_pop(lua, 2);
     if(lua.get_type(-1) != nngn::lua::type::function)
         return true;
-    const auto t = lua.create_table(3, 0).release();
+    const auto t = lua.create_table(4, 0).release();
     pop.set_n(3);
     return std::all_of(
         begin(this->output.collisions), end(this->output.collisions),
         [&lua, &msgh, &f, &t](const auto &x) {
             if(~(x.flags0 | x.flags1) & Collider::Flag::TRIGGER)
                 return true;
-            t.raw_set(1, nngn::narrow<lua_Number>(x.force[0]));
-            t.raw_set(2, nngn::narrow<lua_Number>(x.force[1]));
-            t.raw_set(3, nngn::narrow<lua_Number>(x.force[2]));
+            t.raw_set(1, nngn::narrow<lua_Number>(x.normal));
+            t.raw_set(2, nngn::narrow<lua_Number>(x.force[0]));
+            t.raw_set(3, nngn::narrow<lua_Number>(x.force[1]));
+            t.raw_set(4, nngn::narrow<lua_Number>(x.force[2]));
             return lua.pcall(msgh, f, x.entity0, x.entity1, t) == LUA_OK;
         });
 }

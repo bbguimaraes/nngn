@@ -33,7 +33,8 @@ struct Collision {
     Entity *entity0 = nullptr, *entity1 = nullptr;
     float mass0 = 0, mass1 = 0;
     Flags<Collider::Flag> flags0 = {}, flags1 = {};
-    vec3 force = {};
+    vec3 normal = {};
+    float length = {};
 };
 
 struct CollisionStats : StatsBase<CollisionStats, 4> {

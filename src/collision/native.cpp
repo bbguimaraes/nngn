@@ -421,6 +421,8 @@ bool add_collision(
         nngn::Log::l() << "too many collisions\n";
         return false;
     }
+    // XXX
+    const auto l = nngn::Math::length(v);
     out->push_back({
         .entity0 = c0->entity,
         .entity1 = c1->entity,
@@ -429,6 +431,8 @@ bool add_collision(
         .flags0 = c0->flags,
         .flags1 = c1->flags,
         .force = v,
+        .normal = v / l,
+        .length = l,
     });
     return true;
 }

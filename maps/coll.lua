@@ -122,7 +122,7 @@ local function heartbeat()
     end
 end
 
-local function on_collision(e0, e1, v)
+local function on_collision(e0, e1, _, n)
     if e0 == ball or e1 == ball then
         local o = e0 == ball and e1 or e0
         if
@@ -133,8 +133,8 @@ local function on_collision(e0, e1, v)
             return
         end
         local vel = {ball:vel()}
-        if v[1] ~= 0 or v[2] ~= 0 then
-            if math.abs(v[1]) > math.abs(v[2])
+        if n[1] ~= 0 or n[2] ~= 0 then
+            if math.abs(n[1]) > math.abs(n[2])
             then vel[1] = -vel[1]
             else vel[2] = -vel[2] end
         end

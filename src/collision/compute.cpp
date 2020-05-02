@@ -626,6 +626,9 @@ bool ComputeBackend::read_collision_buffer(
         c1.flags.set(nngn::Collider::Flag::COLLIDING);
         if(std::isinf(c0.m) && std::isinf(c1.m))
             continue;
+        // XXX
+        const nngn::vec3 v = {ci.v[0], ci.v[1], ci.v[2]};
+        const auto l = nngn::Math::length(v);
         out->push_back(nngn::Collision{
             .entity0 = c0.entity,
             .entity1 = c1.entity,
@@ -633,7 +636,8 @@ bool ComputeBackend::read_collision_buffer(
             .mass1 = c1.m,
             .flags0 = c0.flags,
             .flags1 = c1.flags,
-            .force = {ci.v[0], ci.v[1], ci.v[2]},
+            .normal = l == 0 ? v : v / l,
+            .length = l,
         });
     }
     return this->compute->unmap_buffer(b, p, {});
