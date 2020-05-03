@@ -149,14 +149,14 @@ if USE_COLLIDERS then
             m = -1e14, max_distance = 1024,
         },
     }))
-    table.insert(gravity, entity.load(nil, nil, {
-        pos = {rnd_pos(), rnd_pos()},
-        renderer = star.renderer,
-        collider = {
-            type = Collider.GRAVITY, flags = Collider.SOLID,
-            m = 1e14, max_distance = 1024,
-        },
-    }))
+--    table.insert(gravity, entity.load(nil, nil, {
+--        pos = {rnd_pos(), rnd_pos()},
+--        renderer = star.renderer,
+--        collider = {
+--            type = Collider.GRAVITY, flags = Collider.SOLID,
+--            m = 1e14, max_distance = 1024,
+--        },
+--    }))
 end
 
 assert(nngn:compute():fill_buffer(
@@ -220,12 +220,12 @@ input.install()
 
 local input_v = Compute.create_vector(Compute.FLOATV, 2)
 local function heartbeat()
-    local vel_scale = 1024
+    local vel_scale = 32 -- 1024
     if USE_COLLIDERS then
         local pa = {entities[1]:acc()}
         pa[1] = pa[1] + vel_scale * player[1]
         pa[2] = pa[2] + vel_scale * player[2]
-        gravity[1]:set_acc(table.unpack(pa))
+        entities[1]:set_acc(table.unpack(pa))
     elseif USE_COMPUTE then
         assert(Compute.write_vector(input_v, 0, {
             Compute.FLOATV, {vel_scale * player[1], vel_scale * player[2]}}))
@@ -248,4 +248,28 @@ input.input:add(string.byte(" "), Input.SEL_PRESS, function()
         demo_start()
     end
 end)
+local explosion
+nngn.input:register_binding(string.byte("E"), Input.BIND_PRESS, function()
+    local timer = 250
+    local collider = entities[1]:collider()
+    load_entity(entities[1], nil, {
+        collider = {
+            type = Collider.GRAVITY, flags = Collider.SOLID,
+            m = -1e14, max_distance = 32,
+        },
+    })
+    explosion = {
+        heartbeat = nngn:schedule():next(Schedule.HEARTBEAT, function()
+            timer = timer - nngn:timing():dt_ms()
+            if 0 < timer then
+                return
+            end
+            nngn:colliders():remove(entities[1]:collider())
+            entities[1]:set_collider(collider)
+            nngn:schedule():cancel(explosion.heartbeat)
+            explosion = nil
+        end),
+    }
+end)
+
 camera.reset()

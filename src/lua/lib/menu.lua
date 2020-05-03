@@ -9,7 +9,13 @@ local function new_player()
             function(p, press) if press then player.light(p) end end,
             function(p, press) if press then player.flashlight(p) end end,
             function(p, press) if press then player.fairy(p) end end,
-            player.fire,
+            function(p, press)
+                if press then
+                    player.fire(FIRE_CMD_START)
+                else
+                    player.fire(FIRE_CMD_RELEASE)
+                end
+            end,
         },
     }
 end
