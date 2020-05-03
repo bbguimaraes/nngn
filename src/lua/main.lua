@@ -13,7 +13,7 @@ function on_collision(e0, e1, ...)
     local fire = player.data(nil, "fire")
     if fire then
         local e = fire.entity
-        if e and (e0 == e or e1 == e) then fire.remove() end
+        if e and (e0 == e or e1 == e) then fire(FIRE_CMD_HIT) end
     end
 end
 
@@ -24,3 +24,5 @@ player.set{
 nngn.textures:load(texture.NNGN)
 font.load(32)
 nngn.grid:set_dimensions(32.0, 64)
+
+dofile("src/lua/fire.lua")

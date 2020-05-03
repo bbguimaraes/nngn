@@ -95,7 +95,13 @@ register({
         nngn.camera:set_perspective(p)
         nngn.renderers:set_perspective(p)
     end},
-    {"E", 0, function(_, press) player.fire(press) end},
+    {"E", 0, function(_, press)
+        if press then
+            fire(FIRE_CMD_START)
+        else
+            fire(FIRE_CMD_RELEASE)
+        end
+    end},
     {"F", Input.SEL_PRESS, function() player.flashlight() end},
     {"H", Input.SEL_PRESS, function() player.fairy() end},
     {"L", Input.SEL_PRESS, function(_, _, mods)
