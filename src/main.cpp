@@ -26,9 +26,11 @@
 #include "os/platform.h"
 #include "os/socket.h"
 #include "timing/fps.h"
+#include "timing/schedule.h"
 #include "timing/timing.h"
 #include "utils/flags.h"
 #include "utils/log.h"
+#include "utils/scoped.h"
 
 namespace {
 
@@ -38,6 +40,7 @@ struct NNGN {
     };
     nngn::Flags<Flag> flags = {};
     nngn::Timing timing = {};
+    nngn::Schedule schedule = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
     nngn::FPS fps = {};
     nngn::Socket socket = {};
@@ -67,6 +70,7 @@ bool NNGN::init(int argc, const char *const *argv) {
             l << lua_tostring(L_, i);
         return 0;
     };
+    this->schedule.init(&this->timing);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::ranges::all_of(
@@ -98,6 +102,7 @@ int NNGN::loop(void) {
     this->timing.update();
     this->graphics->poll_events();
     bool ok = true;
+    ok = ok && this->schedule.update();
     ok = ok && this->socket.process(
         [&l = this->lua](auto s) { l.dostring(s); });
     ok = ok && this->graphics->render();
@@ -112,6 +117,7 @@ using nngn::lua::property, nngn::lua::readonly;
 
 NNGN_LUA_PROXY(NNGN,
     "timing", readonly(&NNGN::timing),
+    "schedule", readonly(&NNGN::schedule),
     "graphics", property([](const NNGN &n) { return n.graphics.get(); }),
     "fps", readonly(&NNGN::fps),
     "socket", readonly(&NNGN::socket),
@@ -133,5 +139,6 @@ int main(int argc, const char *const *argv) {
     p_nngn = &nngn;
     if(!nngn.init(argc, argv))
         return 1;
+    const auto exit = nngn::make_scoped([&s = nngn.schedule] { s.exit(); });
     return nngn::Platform::loop([]() { return p_nngn->loop(); });
 }
