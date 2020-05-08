@@ -31,12 +31,15 @@
 #include "os/platform.h"
 #include "os/socket.h"
 #include "timing/fps.h"
+#include "timing/schedule.h"
 #include "timing/timing.h"
 #include "utils/flags.h"
 #include "utils/log.h"
+#include "utils/scoped.h"
 
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Math, "Math")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Timing, "Timing")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Schedule, "Schedule")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Graphics, "Graphics")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::FPS, "FPS")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Socket, "Socket")
@@ -51,6 +54,7 @@ struct NNGN {
     nngn::Flags<Flag> flags = {};
     nngn::Math math = {};
     nngn::Timing timing = {};
+    nngn::Schedule schedule = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
     nngn::FPS fps = {};
     nngn::Socket socket = {};
@@ -89,6 +93,7 @@ bool NNGN::init(int argc, const char *const *argv) {
             l << lua_tostring(L_, i);
         return 0;
     };
+    this->schedule.init(&this->timing);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::all_of(
@@ -120,6 +125,7 @@ int NNGN::loop(void) {
     this->timing.update();
     this->graphics->poll_events();
     bool ok = true;
+    ok = ok && this->schedule.update();
     ok = ok && this->socket.process(
         [&l = this->lua](auto s) { l.dostring(s); });
     ok = ok && this->graphics->render();
@@ -134,6 +140,7 @@ void register_nngn(nngn::lua::table &&t) {
     using nngn::lua::accessor;
     t["math"] = accessor<&NNGN::math>;
     t["timing"] = accessor<&NNGN::timing>;
+    t["schedule"] = accessor<&NNGN::schedule>;
     t["graphics"] = [](NNGN &nngn) { return nngn.graphics.get(); };
     t["fps"] = accessor<&NNGN::fps>;
     t["socket"] = accessor<&NNGN::socket>;
@@ -158,5 +165,6 @@ int main(int argc, const char *const *argv) {
     p_nngn = &nngn;
     if(!nngn.init(argc, argv))
         return 1;
+    const auto exit = nngn::make_scoped([&s = nngn.schedule] { s.exit(); });
     return nngn::Platform::loop([]() { return p_nngn->loop(); });
 }
