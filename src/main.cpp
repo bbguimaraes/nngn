@@ -6,6 +6,7 @@
 #include "os/platform.h"
 #include "os/socket.h"
 #include "timing/fps.h"
+#include "timing/schedule.h"
 #include "timing/timing.h"
 #include "utils/flags.h"
 #include "utils/log.h"
@@ -18,6 +19,7 @@ struct NNGN {
     };
     nngn::Flags<Flag> flags = {};
     nngn::Timing timing = {};
+    nngn::Schedule schedule = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
     nngn::FPS fps = {};
     nngn::Socket socket = {};
@@ -39,6 +41,7 @@ bool NNGN::init(int argc, const char *const *argv) {
     auto sol = sol::state_view(this->lua.L);
     sol["nngn"] = this;
     sol["deref"] = [](void *p) { return *static_cast<uintptr_t*>(p); };
+    this->schedule.init(&this->timing);
     if(!(argc < 2
         ? this->lua.dofile("src/lua/all.lua")
         : std::all_of(
@@ -69,6 +72,7 @@ int NNGN::loop() {
     this->timing.update();
     this->graphics->poll_events();
     bool ok = true;
+    ok = ok && this->schedule.update();
     ok = ok && this->socket.process(
         [&l = this->lua](auto s) { l.dostring(s); });
     ok = ok && this->graphics->render();
@@ -81,6 +85,7 @@ int NNGN::loop() {
 
 NNGN_LUA_PROXY(NNGN,
     "timing", sol::readonly(&NNGN::timing),
+    "schedule", sol::readonly(&NNGN::schedule),
     "graphics", sol::property(
         [](const NNGN &nngn) { return nngn.graphics.get(); }),
     "fps", sol::readonly(&NNGN::fps),
@@ -103,5 +108,6 @@ int main(int argc, const char *const *argv) {
     p_nngn = &nngn;
     if(!nngn.init(argc, argv))
         return 1;
+    const auto exit = nngn::make_scoped([&s = nngn.schedule] { s.exit(); });
     return nngn::Platform::loop([]() { return p_nngn->loop(); });
 }
