@@ -4,7 +4,12 @@
 #include <emscripten.h>
 #else
 #include <csignal>
+#include <cstdlib>
 #include <cstring>
+#endif
+
+#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L
+#include <fcntl.h>
 #endif
 
 #include "utils/log.h"
@@ -22,6 +27,18 @@ namespace nngn {
 std::span<const char *const> Platform::argv = {};
 std::filesystem::path Platform::src_dir = {};
 
+void Platform::setenv(
+    [[maybe_unused]] const char *name,
+    [[maybe_unused]] const char *value
+) {
+#ifdef HAVE_SETENV
+    ::setenv(name, value, true);
+#else
+    NNGN_LOG_CONTEXT_F();
+    Log::l() << "not supported\n";
+#endif
+}
+
 bool Platform::init(int argc_, const char *const *argv_) {
     NNGN_LOG_CONTEXT_CF(Platform);
     init_common(argc_, argv_);
@@ -36,6 +53,21 @@ bool Platform::init(int argc_, const char *const *argv_) {
     }
 #endif
     return true;
+}
+
+bool Platform::set_non_blocking([[maybe_unused]] FILE *f) {
+    NNGN_LOG_CONTEXT_CF(Platform);
+#if defined(_POSIX_C_SOURCE) && _POSIX_C_SOURCE >= 200112L
+    const int fd = fileno(f);
+    if(fd == -1)
+        return Log::perror("fileno"), false;
+    if(fcntl(fd, F_SETFL, O_NONBLOCK) == -1)
+        return Log::perror("fcntl"), false;
+    return true;
+#else
+    Log::l() << "compiled without POSIX support\n";
+    return false;
+#endif
 }
 
 int Platform::loop(int (*loop)(void)) {
