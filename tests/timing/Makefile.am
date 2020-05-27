@@ -20,7 +20,9 @@ check_HEADERS += \
 %canon_reldir%_schedule_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_schedule_LDADD = $(check_LDADD)
 %canon_reldir%_schedule_SOURCES = \
+	src/timing/profile.cpp \
 	src/timing/schedule.cpp \
+	src/timing/stats.cpp \
 	src/utils/log.cpp \
 	%reldir%/schedule_test.cpp \
 	%reldir%/schedule_test.moc.cpp

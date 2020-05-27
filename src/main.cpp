@@ -6,6 +6,7 @@
 #include "os/platform.h"
 #include "os/socket.h"
 #include "timing/fps.h"
+#include "timing/profile.h"
 #include "timing/schedule.h"
 #include "timing/timing.h"
 #include "utils/flags.h"
@@ -36,6 +37,7 @@ bool NNGN::init(int argc, const char *const *argv) {
     NNGN_LOG_CONTEXT_CF(NNGN);
     if(!nngn::Platform::init(argc, argv))
         return false;
+    nngn::Profile::init();
     if(!this->lua.init())
         return false;
     auto sol = sol::state_view(this->lua.L);
@@ -78,6 +80,7 @@ int NNGN::loop() {
     ok = ok && this->graphics->render();
     if(!ok)
         return 1;
+    nngn::Profile::swap();
     this->fps.frame(nngn::Timing::clock::now());
     this->graphics->set_window_title(this->fps.to_string().c_str());
     return -1;

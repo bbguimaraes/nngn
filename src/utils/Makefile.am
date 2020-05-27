@@ -3,6 +3,7 @@ noinst_HEADERS += \
 	%reldir%/delegate.h \
 	%reldir%/flags.h \
 	%reldir%/log.h \
+	%reldir%/pointer_flag.h \
 	%reldir%/scoped.h \
 	%reldir%/utils.h
 nngn_SOURCES += \

@@ -18,6 +18,22 @@ local function test_pprint()
     end
 end
 
+local function test_fmt_time()
+    for _, t in ipairs{
+        {1.0,    "   1.000ns"},
+        {1.5,    "   1.500ns"},
+        {1.0e3,  "   1.000µs"},
+        {1.5e3,  "   1.500µs"},
+        {1.0e6,  "   1.000ms"},
+        {1.5e9,  "   1.500s"},
+        {1.0e12, "1000.000s"},
+    } do
+        local input, expected = table.unpack(t)
+        common.assert_eq(utils.fmt_time(input), expected)
+    end
+end
+
 return {
     test_pprint,
+    test_fmt_time,
 }
