@@ -61,6 +61,16 @@ local function map(t, f, iter)
     return ret
 end
 
+local function fmt_time(ns, plus)
+    plus = plus or ""
+    local abs = math.abs(ns)
+    local fmt = "%" .. plus .. "8.3f"
+    if abs < 1e3 then return string.format(fmt .. "ns", ns)
+    elseif abs < 1e6 then return string.format(fmt .. "µs", ns / 1e3)
+    elseif abs < 1e9 then return string.format(fmt .. "ms", ns / 1e6)
+    else return string.format(fmt .. "s", ns / 1e9) end
+end
+
 return {
     pprint = pprint,
     pformat = pformat,
@@ -68,4 +78,5 @@ return {
     get = get,
     deep_copy_values = deep_copy_values,
     map = map,
+    fmt_time = fmt_time,
 }

@@ -4,6 +4,7 @@
 
 #include "utils/log.h"
 
+#include "profile.h"
 #include "schedule.h"
 
 namespace {
@@ -112,6 +113,7 @@ bool Schedule::cancel_atexit(std::size_t i) {
 
 bool Schedule::update(void) {
     NNGN_LOG_CONTEXT_CF(Schedule);
+    NNGN_PROFILE_CONTEXT(schedule);
     const auto now = this->timing->now;
     const auto cur_frame = this->timing->frame;
     const auto g = ++this->cur_gen;

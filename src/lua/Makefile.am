@@ -6,9 +6,11 @@ LUA_FILES += \
 	%reldir%/lib/debug.lua \
 	%reldir%/lib/graphics.lua \
 	%reldir%/lib/math.lua \
+	%reldir%/lib/profile.lua \
 	%reldir%/lib/serial.lua \
 	%reldir%/lib/utils.lua \
 	%reldir%/path.lua \
+	%reldir%/profile.lua \
 	%reldir%/strict.lua
 
 noinst_HEADERS += \

@@ -8,6 +8,7 @@ noinst_HEADERS += \
 	%reldir%/fn.h \
 	%reldir%/literals.h \
 	%reldir%/log.h \
+	%reldir%/pointer_flag.h \
 	%reldir%/pp.h \
 	%reldir%/ranges.h \
 	%reldir%/regexp.h \
