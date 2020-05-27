@@ -2,6 +2,7 @@ noinst_HEADERS += \
 	%reldir%/luastate.h
 
 nngn_SOURCES += \
+	%reldir%/lua_luastate.cpp \
 	%reldir%/luastate.cpp \
 	%reldir%/main.cpp
 

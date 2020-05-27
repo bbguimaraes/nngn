@@ -1,5 +1,7 @@
 #include "platform.h"
 
+#include <cstdlib>
+
 #ifndef NNGN_PLATFORM_EMSCRIPTEN
 #include <csignal>
 #include <cstring>
@@ -23,6 +25,14 @@ namespace nngn {
 int Platform::argc = {};
 const char *const *Platform::argv = {};
 std::filesystem::path Platform::src_dir = {};
+
+#if HAVE_SETENV
+void Platform::setenv(const char *name, const char *value)
+    { ::setenv(name, value, true); }
+#else
+void Platform::setenv(const char*, const char*)
+    { NNGN_LOG_CONTEXT_F(); Log::l() << "not supported\n"; }
+#endif
 
 #ifdef NNGN_PLATFORM_EMSCRIPTEN
 #include <emscripten.h>

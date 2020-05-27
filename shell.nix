@@ -6,5 +6,6 @@ pkgs.mkShell {
     pkgs.glfw
     pkgs.lua5_3
     pkgs.qt5.qtbase
+    pkgs.qt5.qtcharts
   ];
 }

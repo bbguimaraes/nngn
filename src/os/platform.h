@@ -32,6 +32,7 @@ struct Platform {
     static const char *const *argv;
     static std::filesystem::path src_dir;
     static bool init(int argc, const char *const *argv);
+    static void setenv(const char *name, const char *value);
     static int loop(int (*loop)());
 };
 

@@ -14,6 +14,14 @@ using namespace std::string_view_literals;
 namespace {
 
 constexpr auto SOCKET_PATH = "/home/bbguimaraes/src/nngn/sock"sv;
+constexpr auto TIMELINE_PROF = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.profile")
+    if not p.active(Profile) then p.activate(Profile) end
+    local t = require("nngn.lib.timeline")
+    t.timeline(t.FS.profile)
+end)"sv;
 
 class Launcher {
 public:
@@ -21,6 +29,7 @@ public:
     bool ok() const { return this->flags & Flag::OK; }
     void fail() { this->flags = static_cast<Flag>(this->flags & ~Flag::OK); }
     bool open_socket();
+    bool exec(std::string_view cmd);
 private:
     enum Flag : std::uint8_t { OK = 1u << 0, ADDED_TO_PATH = 1u << 1 };
     QLocalSocket sock = {};
@@ -34,6 +43,13 @@ bool Launcher::open_socket() {
     return this->sock.waitForConnected(-1);
 }
 
+bool Launcher::exec(std::string_view cmd) {
+    if(!this->sock.isOpen() && !this->open_socket())
+        return false;
+    QTextStream(&this->sock) << cmd.data();
+    return this->sock.waitForBytesWritten(-1);
+}
+
 }
 
 int main(int argc, char **argv) {
@@ -44,6 +60,8 @@ int main(int argc, char **argv) {
             nullptr, "Warning",
             "Failed to open socket.\n\n" + launcher.socket().errorString());
     Window w;
+    const auto timeline_section = w.add_section("timeline");
+    const auto *const timeline_prof = w.add_button(timeline_section, "prof");
     QObject::connect(
         &launcher.socket(), &QLocalSocket::errorOccurred,
         [&launcher, &w](QLocalSocket::LocalSocketError error) {
@@ -57,6 +75,9 @@ int main(int argc, char **argv) {
     QObject::connect(
         &launcher.socket(), &QLocalSocket::errorOccurred,
         &w, &QWidget::close);
+    QObject::connect(
+        timeline_prof, &QPushButton::pressed,
+        [&l = launcher] { l.exec(TIMELINE_PROF); });
     const auto screen_height =
         app.primaryScreen()->availableGeometry().height();
     w.setWindowFlags(Qt::Dialog);

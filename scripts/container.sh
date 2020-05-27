@@ -8,6 +8,8 @@ pkgs=(
     emscripten
     # lua
     lua
+    # tools
+    qt5-charts
 )
 root=build/root
 pacstrap -cd "$root/" --needed "${pkgs[@]}"
