@@ -62,11 +62,11 @@ AS_IF([test "$ENABLE_TESTS" != no],
         [TEST_DEPS_CFLAGS=$(echo "$TEST_DEPS_CFLAGS" | sed s/-I/-isystem/g)])])
 AS_IF([test "$ENABLE_TOOLS" != no],
     [PKG_CHECK_MODULES(
-        [QT_DEPS], [Qt5Core Qt5Network Qt5Widgets],
+        [QT_DEPS], [Qt5Charts Qt5Core Qt5Network Qt5Widgets],
         [QT_DEPS_CFLAGS=$(echo "$QT_DEPS_CFLAGS" | sed s/-I/-isystem/g)])])
 
 # Checks for library functions.
-AC_CHECK_FUNCS([signal])
+AC_CHECK_FUNCS([setenv signal])
 AC_CHECK_FUNCS([socket],
     AC_DEFINE([NNGN_PLATFORM_HAS_SOCKETS], [1], [Define if you have sockets]))
 

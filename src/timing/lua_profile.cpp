@@ -19,6 +19,18 @@ nngn::lua::table_view to_table(
     return ret.release();
 }
 
+nngn::lua::table_view to_timeline_table(
+    nngn::lua::state_view lua, std::ranges::sized_range auto &&r)
+{
+    auto ret = lua.create_table(2 * static_cast<int>(std::ranges::size(r)), 0);
+    lua_Integer i = 1;
+    for(const auto &x : FWD(r)) {
+        ret.raw_set(i++, static_cast<lua_Integer>(x));
+        ret.raw_set(i++, static_cast<lua_Integer>(x));
+    }
+    return ret.release();
+}
+
 void register_profile(nngn::lua::table_view t) {
     t["STATS_IDX"] = static_cast<lua_Integer>(Profile::STATS_IDX);
     t["STATS_N_EVENTS"] = static_cast<lua_Integer>(Profile::Stats::N_EVENTS);
@@ -28,6 +40,9 @@ void register_profile(nngn::lua::table_view t) {
     };
     t["stats"] = [](nngn::lua::state_view lua) {
         return to_table(lua, *nngn::Stats::u64_data<nngn::Profile>());
+    };
+    t["stats_as_timeline"] = [](nngn::lua::state_view lua) {
+        return to_timeline_table(lua, *nngn::Stats::u64_data<nngn::Profile>());
     };
 }
 

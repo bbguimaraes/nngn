@@ -14,6 +14,22 @@ using namespace std::string_view_literals;
 namespace {
 
 constexpr auto SOCKET_PATH = "sock"sv;
+constexpr auto TIMELINE_PROF = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.profile")
+    if not p.active(Profile) then p.activate(Profile) end
+    local t = require("nngn.lib.timeline")
+    t.timeline(t.FS.profile)
+end)"sv;
+constexpr auto TIMELINE_LUA = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.profile")
+    if not p.active(Profile) then p.activate(Profile) end
+    local t = require("nngn.lib.timeline")
+    t.timeline(t.FS.lua)
+end)"sv;
 
 class Launcher {
 public:
@@ -22,6 +38,7 @@ public:
     bool ok() const { return this->flags & Flag::OK; }
     void fail() { this->flags = static_cast<Flag>(this->flags & ~Flag::OK); }
     bool open_socket();
+    bool exec(std::string_view cmd);
 private:
     enum Flag : std::uint8_t { OK = 1u << 0, ADDED_TO_PATH = 1u << 1 };
     std::string_view path;
@@ -38,6 +55,14 @@ bool Launcher::open_socket() {
     return this->sock.waitForConnected(-1);
 }
 
+bool Launcher::exec(std::string_view cmd) {
+    if(this->sock.state() == QLocalSocket::UnconnectedState)
+        if(!this->open_socket())
+            return false;
+    QTextStream(&this->sock) << cmd.data();
+    return this->sock.waitForBytesWritten(-1);
+}
+
 }
 
 int main(int argc, char **argv) {
@@ -52,6 +77,14 @@ int main(int argc, char **argv) {
                 + "\n\n"
                 + launcher.socket().errorString());
     Window w;
+    const auto timeline_section = w.add_section("timeline");
+    const auto add = [&w, &l = launcher](auto s, const char *n, auto p) {
+        QObject::connect(
+            w.add_button(s, n), &QPushButton::pressed,
+            [&l, p] { l.exec(p); });
+    };
+    add(timeline_section, "prof", TIMELINE_PROF);
+    add(timeline_section, "lua", TIMELINE_LUA);
     QObject::connect(
         &launcher.socket(), &QLocalSocket::errorOccurred,
         [&launcher, &w](QLocalSocket::LocalSocketError error) {

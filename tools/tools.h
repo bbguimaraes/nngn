@@ -24,4 +24,6 @@
  *
  * Output tools are:
  *
+ * - `timeline` displays line graphs as segments of a fixed time period, used to
+ *   display various types of profiling information.
  */

@@ -43,6 +43,8 @@ struct Platform {
     static std::span<const char *const> argv;
     static std::filesystem::path src_dir;
     static bool init(int argc, const char *const *argv);
+    static void setenv(const char *name, const char *value);
+    static bool set_non_blocking(FILE *f);
     static int loop(int (*loop)(void));
 };
 
