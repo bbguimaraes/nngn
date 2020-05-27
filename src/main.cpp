@@ -26,6 +26,7 @@
 #include "os/platform.h"
 #include "os/socket.h"
 #include "timing/fps.h"
+#include "timing/profile.h"
 #include "timing/schedule.h"
 #include "timing/timing.h"
 #include "utils/flags.h"
@@ -58,6 +59,7 @@ bool NNGN::init(int argc, const char *const *argv) {
     NNGN_LOG_CONTEXT_CF(NNGN);
     if(!nngn::Platform::init(argc, argv))
         return false;
+    nngn::Profile::init();
     if(!this->lua.init(&this->lua_alloc))
         return false;
     nngn::lua::static_register::register_all(this->lua);
@@ -108,6 +110,7 @@ int NNGN::loop(void) {
     ok = ok && this->graphics->render();
     if(!ok)
         return 1;
+    nngn::Profile::swap();
     this->fps.frame(nngn::Timing::clock::now());
     this->graphics->set_window_title(this->fps.to_string().c_str());
     return -1;

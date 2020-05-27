@@ -6,6 +6,7 @@ noinst_HEADERS += \
 	%reldir%/flags.h \
 	%reldir%/literals.h \
 	%reldir%/log.h \
+	%reldir%/pointer_flag.h \
 	%reldir%/ranges.h \
 	%reldir%/scoped.h \
 	%reldir%/tuple.h \

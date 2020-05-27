@@ -2,13 +2,15 @@ if ENABLE_TESTS
 check_PROGRAMS += \
 	%reldir%/flags \
 	%reldir%/log \
-	%reldir%/scoped
+	%reldir%/scoped \
+	%reldir%/utils
 endif
 
 check_HEADERS += \
 	%reldir%/flags_test.h \
 	%reldir%/log_test.h \
-	%reldir%/scoped_test.h
+	%reldir%/scoped_test.h \
+	%reldir%/utils_test.h
 
 %canon_reldir%_flags_CPPFLAGS = $(check_CPPFLAGS)
 %canon_reldir%_flags_CXXFLAGS = $(check_CXXFLAGS)
@@ -31,5 +33,12 @@ check_HEADERS += \
 %canon_reldir%_scoped_SOURCES = \
 	%reldir%/scoped_test.cpp \
 	%reldir%/scoped_test.moc.cpp
+
+%canon_reldir%_utils_CPPFLAGS = $(check_CPPFLAGS)
+%canon_reldir%_utils_CXXFLAGS = $(check_CXXFLAGS)
+%canon_reldir%_utils_LDADD = $(check_LDADD)
+%canon_reldir%_utils_SOURCES = \
+	%reldir%/utils_test.cpp \
+	%reldir%/utils_test.moc.cpp
 
 include %reldir%/alloc/Makefile.am

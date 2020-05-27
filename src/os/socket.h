@@ -5,6 +5,8 @@
 #include <string>
 #include <vector>
 
+#include "timing/profile.h"
+
 namespace nngn {
 
 class Socket {
@@ -39,6 +41,7 @@ public:
 };
 
 template<typename F> bool Socket::process(F f) {
+    NNGN_PROFILE_CONTEXT(socket);
     std::string buffer;
     if(!this->process(&buffer))
         return false;
