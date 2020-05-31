@@ -173,6 +173,14 @@ local function update_pos(e, x, y)
     end
 end
 
+local function update_pos(e, p)
+    local set_pos = Entity.set_pos
+    for i = 1, #e do
+        local i4 = 4 * i
+        nngn.entities:set_pos(e[i], p[i4 - 3], p[i4 - 2], 0)
+    end
+end
+
 local function update(prog, grid, forces, vel, pos_v, pos, entities)
     local dt = nngn.timing:fdt_s()
     local events0 = grid:update(prog, pos)

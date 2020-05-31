@@ -73,6 +73,10 @@ void Colliders::clear() {
     this->input.gravity.clear();
 }
 
+void Colliders::set_pos(Collider *p, vec3 pos) {
+    p->pos = pos;
+}
+
 bool Colliders::check_collisions(const Timing &t) {
     NNGN_LOG_CONTEXT_CF(Colliders);
     NNGN_PROFILE_CONTEXT(collision_check);

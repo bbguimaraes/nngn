@@ -79,7 +79,7 @@ end
 local function heartbeat()
     local v = {sun:dir()}
     for i = 1, 3 do v[i] = v[i] * -128 end
-    sun_dir:set_pos(table.unpack(v))
+    nngn.entities:set_pos(sun_dir, table.unpack(v))
 end
 
 map.map {

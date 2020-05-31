@@ -291,7 +291,7 @@ local function heartbeat()
         new_p = 64
     end
     if new_p then
-        door:set_pos(table.unpack(p))
+        nngn.entities:set_pos(door, table.unpack(p))
         door:set_vel(0, 0, 0)
     end
 end

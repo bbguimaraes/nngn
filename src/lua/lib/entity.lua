@@ -25,7 +25,9 @@ local function load(e, f, extra)
     if extra then for k, v in pairs(extra) do t[k] = v end end
     if t.name then nngn:entities():set_name(e, t.name) end
     if t.tag then nngn:entities():set_tag(e, t.tag) end
-    if t.pos then e:set_pos(t.pos[1] or 0, t.pos[2] or 0, t.pos[3] or 0) end
+    if t.pos then
+        nngn:entities():set_pos(e, t.pos[1] or 0, t.pos[2] or 0, t.pos[3] or 0)
+    end
     if t.vel then e:set_vel(t.vel[1] or 0, t.vel[2] or 0, t.vel[3] or 0) end
     if t.max_vel then e:set_max_vel(t.max_vel) end
     if t.renderer then

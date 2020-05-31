@@ -152,7 +152,7 @@ local function light(p, show)
         end
         pos[3] = 24
         if d.light then
-            d.light:set_pos(table.unpack(pos))
+            nngn.entities:set_pos(d.light, table.unpack(pos))
         else
             d.light = entity.load(nil, nil, {
                 pos = pos, parent = p.entity,
@@ -280,9 +280,9 @@ local function move_all(x, y, abs)
         local e <const> = p.entity
         local px, py, pz = e:pos()
         if abs then
-            e:set_pos(x, y - e:renderer():z_off(), pz)
+            nngn.entities:set_pos(e, x, y - e:renderer():z_off(), pz)
         else
-            e:set_pos(px + x, py + y, pz)
+            nngn.entities:set_pos(e, px + x, py + y, pz)
         end
     end
     if not camera.following() then

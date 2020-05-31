@@ -132,6 +132,7 @@ public:
     Collider *load(nngn::lua::table_view t);
     void remove(Collider *p);
     void clear(void);
+    void set_pos(Collider *p, vec3 pos);
     bool check_collisions(const Timing &t);
     void resolve_collisions(void) const;
     bool lua_on_collision(nngn::lua::state_view lua);

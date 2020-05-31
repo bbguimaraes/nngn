@@ -16,6 +16,7 @@ namespace nngn {
     struct Camera;
     struct Animation;
     struct Collider;
+    struct Colliders;
     struct Light;
     struct Renderer;
     struct Timing;
@@ -52,7 +53,11 @@ class Entities {
     nngn::static_vector<Entity> v = {};
     std::vector<std::array<char, 32>> names = {}, tags = {};
     std::vector<nngn::Hash> name_hashes = {}, tag_hashes = {};
+    nngn::Colliders *colliders = nullptr;
 public:
+    NNGN_NO_COPY(Entities)
+    Entities() = default;
+    void init(nngn::Colliders *c) { this->colliders = c; }
     size_t max() const { return this->v.capacity(); }
     size_t n() const { return this->v.size(); }
     void set_max(std::size_t n);
@@ -67,6 +72,7 @@ public:
     std::span<const char, 32> tag(const Entity &e) const;
     nngn::Hash name_hash(const Entity &e) const;
     nngn::Hash tag_hash(const Entity &e) const;
+    void set_pos(Entity *e, nngn::vec3 p);
     void set_name(Entity *e, std::string_view s);
     void set_tag(Entity *e, std::string_view s);
     void update(const nngn::Timing &t);

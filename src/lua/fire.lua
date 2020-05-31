@@ -73,11 +73,11 @@ local function cmd_release(p, d)
     local p0 <const> = {p.entity:pos()}
     local p1 <const> = {d.entity:pos()}
     d.entity:set_parent(nil)
-    d.entity:set_pos(p0[1] + p1[1], p0[2] + p1[2], 0)
+    nngn:entities():set_pos(d.entity, p0[1] + p1[1], p0[2] + p1[2], 0)
     d.entity:set_vel(table.unpack(d.vel))
     entity.load(d.entity, nil, {collider = COLLIDER0})
     d.light:set_parent(d.entity)
-    d.light:set_pos(0, -16, 8)
+    nngn:entities():set_pos(d.light, 0, -16, 8)
     d.state = STATE_RELEASED
 end
 

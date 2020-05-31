@@ -36,10 +36,6 @@ auto get(const Entity &e) {
     };
 }
 
-void set_pos(Entity &e, float x, float y, float z) {
-    e.set_pos({x, y, z});
-}
-
 void set_vel(Entity &e, float x, float y, float z) {
     e.set_vel({x, y, z});
 }
@@ -108,6 +104,10 @@ const char *tag(const Entities &es, const Entity &e) {
     return es.tag(e).data();
 }
 
+void set_pos(Entities &es, Entity *e, float x, float y, float z) {
+    es.set_pos(e, {x, y, z});
+}
+
 template<std::size_t N>
 void entities_set_pos(Entities &es, const nngn::lua_vector<std::byte> &v) {
     const auto n = v.size() / sizeof(float);
@@ -159,6 +159,7 @@ void register_entities(nngn::lua::table_view t) {
     t["by_tag_hash"] = by_tag_hash<lua_Integer>;
     t["name"] = name;
     t["tag"] = tag;
+    t["set_pos"] = set_pos;
     t["set_name"] = &Entities::set_name;
     t["set_tag"] = &Entities::set_tag;
     t["set_pos2"] = entities_set_pos<2>;

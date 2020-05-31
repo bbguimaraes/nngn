@@ -36,6 +36,9 @@ check_HEADERS += \
 %canon_reldir%_light_LDADD = $(check_LDADD)
 %canon_reldir%_light_SOURCES = \
 	src/entity.cpp \
+	src/collision/colliders.cpp \
+	src/collision/collision.cpp \
+	src/collision/native.cpp \
 	src/lua/user.cpp \
 	src/math/camera.cpp \
 	src/math/math.cpp \

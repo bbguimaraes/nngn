@@ -4,7 +4,7 @@
 
 #include "entity.h"
 
-#include "collision/colliders.h"
+#include "collision/collision.h"
 #include "math/camera.h"
 #include "math/math.h"
 #include "render/animation.h"
@@ -151,6 +151,12 @@ nngn::Hash Entities::tag_hash(const Entity &e) const {
     return ::tag_hash(const_cast<Entities*>(this), const_cast<Entity*>(&e));
 }
 
+void Entities::set_pos(Entity *e, nngn::vec3 p) {
+    e->set_pos(p);
+    if(e->collider)
+        this->colliders->set_pos(e->collider, p);
+}
+
 void Entities::set_name(Entity *e, std::string_view s) {
     copy(::name(this, e), &::name_hash(this, e), s);
 }
@@ -178,7 +184,7 @@ void Entities::update_children() {
     NNGN_PROFILE_CONTEXT(parents);
     for(auto &x : this->v)
         if(x.parent && x.parent->pos_updated())
-            set_pos(&x, x.p, x.p);
+            ::set_pos(&x, x.p, x.p);
 }
 
 void Entities::clear_flags() {
