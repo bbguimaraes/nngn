@@ -121,6 +121,7 @@ public:
     Collider *load(const sol::stack_table &t);
     void remove(Collider *p);
     void clear();
+    void set_pos(Collider *p, vec3 pos);
     bool check_collisions(const Timing &t);
     void resolve_collisions() const;
     void lua_on_collision(lua_State *L);

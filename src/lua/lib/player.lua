@@ -101,7 +101,7 @@ local function light(p, show)
         if pos[1] ~= 0 then pos[2] = pos[2] - 4 end
         pos[3] = 24
         if d.light then
-            d.light:set_pos(table.unpack(pos))
+            nngn.entities:set_pos(d.light, table.unpack(pos))
         else
             d.light = entity.load(nil, nil, {
                 pos = pos, parent = p:entity(),
@@ -202,8 +202,8 @@ local function move_all(x, y, abs)
     for i = 0, nngn.players:n() - 1 do
         local e = nngn.players:get(i):entity()
         local px, py, pz = e:pos()
-        if abs then e:set_pos(x, y - e:renderer():z_off(), pz)
-        else e:set_pos(px + x, py + y, pz) end
+        if abs then nngn.entities:set_pos(e, x, y - e:renderer():z_off(), pz)
+        else nngn.entities:set_pos(e, px + x, py + y, pz) end
     end
     if not camera.following() then
         local _, _, z = nngn.camera:pos()
@@ -271,14 +271,14 @@ local function fire(show)
         local p0 = {p:entity():pos()}
         local p1 = {d.entity:pos()}
         d.entity:set_parent(nil)
-        d.entity:set_pos(p0[1] + p1[1], p0[2] + p1[2], 0)
+        nngn.entities:set_pos(d.entity, p0[1] + p1[1], p0[2] + p1[2], 0)
         d.entity:set_vel(table.unpack(d.vel))
         entity.load(d.entity, nil, {
             collider = {
                 type = Collider.AABB,
                 bb = {-4, -8, 4, -4}, flags = Collider.TRIGGER}})
         d.light:set_parent(d.entity)
-        d.light:set_pos(0, -16, 8)
+        nngn.entities:set_pos(d.light, 0, -16, 8)
     end
 end
 

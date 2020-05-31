@@ -94,6 +94,7 @@ bool NNGN::init(int argc, const char *const *argv) {
         &this->textures, &this->fonts, &this->textbox, &this->grid,
         &this->colliders, &this->lighting, &this->map);
     this->animations.init(&this->math);
+    this->entities.init(&this->colliders);
     this->textbox.init(&this->fonts);
     this->lighting.init(&this->math);
     this->map.init(&this->textures);

@@ -123,7 +123,7 @@ local function update_pos(e, p)
     local set_pos = Entity.set_pos
     for i = 1, #e do
         local i4 = 4 * i
-        set_pos(e[i], p[i4 - 3], p[i4 - 2], 0)
+        nngn.entities:set_pos(e[i], p[i4 - 3], p[i4 - 2], 0)
     end
 end
 

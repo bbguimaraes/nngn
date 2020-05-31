@@ -17,6 +17,10 @@ check_HEADERS += \
 %canon_reldir%_entity_LDADD = $(check_LDADD)
 %canon_reldir%_entity_SOURCES = \
 	src/entity.cpp \
+	src/luastate.cpp \
+	src/collision/colliders.cpp \
+	src/collision/collision.cpp \
+	src/collision/native.cpp \
 	src/math/camera.cpp \
 	src/render/animation.cpp \
 	src/render/light.cpp \

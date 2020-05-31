@@ -70,8 +70,6 @@ NNGN_LUA_PROXY(Entity,
     "animation", [](const Entity &e) { return e.anim; },
     "light", [](const Entity &e) { return e.light; },
     "parent", [](const Entity &e) { return e.parent; },
-    "set_pos", [](Entity &e, float v0, float v1, float v2)
-        { e.set_pos({v0, v1, v2}); },
     "set_vel", [](Entity &e, float v0, float v1, float v2)
         { e.set_vel({v0, v1, v2}); },
     "set_acc", [](Entity &e, float v0, float v1, float v2)
@@ -96,5 +94,7 @@ NNGN_LUA_PROXY(Entities,
     "by_tag_hash", by_tag_hash,
     "name", name,
     "tag", tag,
+    "set_pos", [](Entities &es, Entity *e, float x, float y, float z)
+        { es.set_pos(e, {x, y, z}); },
     "set_name", &Entities::set_name,
     "set_tag", &Entities::set_tag)
