@@ -3,7 +3,7 @@ AUTOMAKE_OPTIONS = subdir-objects
 AM_CPPFLAGS = $(DEPS_CFLAGS) -I@srcdir@/src
 AM_CXXFLAGS = \
 	-std=c++20 -fno-exceptions -fno-rtti -fstrict-aliasing \
-	-O3 -DNDEBUG -fno-omit-frame-pointer \
+	-O3 -DNDEBUG -fno-omit-frame-pointer -mavx \
 	-Werror -Wall -Wextra -Wpedantic -pedantic-errors \
 	-Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy \
 	-Wdisabled-optimization -Wdouble-promotion -Weffc++ -Wformat=2 -Wimport \

@@ -1,7 +1,9 @@
 #include <algorithm>
+#include <xmmintrin.h>
 
 #include "collision/collision.h"
 #include "math/math.h"
+#include "os/platform.h"
 #include "timing/profile.h"
 #include "utils/log.h"
 
@@ -16,6 +18,15 @@ using nngn::GravityCollider;
 
 namespace {
 
+struct data_t {
+    struct aabb_t {
+        std::array<float, 1u << 16> x, y, r, m;
+    } sphere = {};
+};
+
+void init(
+    data_t *data,
+    std::span<const nngn::SphereCollider> sphere);
 void check_aabb(std::span<AABBCollider> aabb, Output *output);
 void check_bb(std::span<BBCollider> s, Output *output);
 void check_sphere(std::span<SphereCollider> s, Output *output);
@@ -47,6 +58,11 @@ inline bool check_bb_common(
 inline bool check_bb_sphere_common(
     const nngn::vec2 &c0, const nngn::vec2 &bl0, const nngn::vec2 &tr0,
     const nngn::vec2 &sc, float sr, nngn::vec2 *output);
+bool check_capacity(const std::vector<nngn::Collision> &v);
+template<typename T, typename U>
+bool old_add_collision(
+    T *c0, U *c1, const nngn::vec3 &v,
+    std::vector<nngn::Collision> *output);
 template<typename T, typename U>
 bool add_collision(
     T *c0, U *c1, const nngn::vec3 &v,
@@ -60,6 +76,8 @@ bool NativeBackend::check(
     const nngn::Timing&, Input *input, Output *output
 ) {
     { NNGN_STATS_CONTEXT(Colliders, &output->stats.counters); }
+    data_t data = {};
+    ::init(&data, input.sphere);
     check_aabb(input->aabb, output);
     check_bb(input->bb, output);
     check_sphere(input->sphere, output);
@@ -76,6 +94,28 @@ bool NativeBackend::check(
     for(std::size_t i = 0, n = v.size(); i < n; i += 4)
         v[i + 1] = v[i + 2] = v[i];
     return true;
+}
+
+void init(
+    data_t *data,
+    std::span<const nngn::SphereCollider> sphere
+) {
+//    data->sphere.x.clear();
+//    data->sphere.x.reserve(n);
+//    data->sphere.y.clear();
+//    data->sphere.y.reserve(n);
+//    data->sphere.r.clear();
+//    data->sphere.r.reserve(n);
+    auto p_x = data->sphere.x.data();
+    auto p_y = data->sphere.y.data();
+    auto p_r = data->sphere.r.data();
+    auto p_m = data->sphere.m.data();
+    for(auto &x : sphere) {
+        *p_x++ = x.pos.x;
+        *p_y++ = x.pos.y;
+        *p_r++ = x.r;
+        *p_m++ = x.m;
+    }
 }
 
 void check_aabb(std::span<AABBCollider> aabb, Output *output) {
@@ -97,7 +137,7 @@ void check_aabb(std::span<AABBCollider> aabb, Output *output) {
             const auto v = std::fabs(xoverlap) <= std::fabs(yoverlap)
                 ? nngn::vec3(-xoverlap, 0, 0)
                 : nngn::vec3(0, -yoverlap, 0);
-            if(!add_collision(&c0, &c1, v, &output->collisions))
+            if(!old_add_collision(&c0, &c1, v, &output->collisions))
                 return;
         }
     }
@@ -135,13 +175,16 @@ void check_bb(std::span<BBCollider> bb, Output *output) {
             v0 = nngn::Math::length2(v0) <= nngn::Math::length2(v1)
                 ? -rotate(v0, c1.cos, c1.sin)
                 : rotate(v1, c0.cos, c0.sin);
-            if(!add_collision(&c0, &c1, {v0, 0}, &output->collisions))
+            if(!old_add_collision(&c0, &c1, {v0, 0}, &output->collisions))
                 return;
         }
     }
 }
 
-void check_sphere(std::span<SphereCollider> sphere, Output *output) {
+void check_sphere(
+    const data_t &data,
+    std::span<SphereCollider> sphere, Output *output)
+{
     { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_pos); }
     { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_vel); }
     { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_mass); }
@@ -151,20 +194,55 @@ void check_sphere(std::span<SphereCollider> sphere, Output *output) {
     { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_exec_grid); }
     { NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_exec_barrier); }
     NNGN_STATS_CONTEXT(Colliders, &output->stats.sphere_exec);
-    for(auto i0 = begin(sphere), e = end(sphere); i0 != e; ++i0) {
-        auto &c0 = *i0;
-        for(auto i1 = i0 + 1; i1 != e; ++i1) {
-            auto &c1 = *i1;
-            const auto d = c0.pos - c1.pos;
-            const auto r = c0.r + c1.r;
-            const auto l2 = nngn::Math::length2(d);
-            if(l2 >= r * r || l2 == 0)
+    const auto n = sphere.size();
+    const __m128 inf = _mm_set1_ps(INFINITY);
+    __m128i id = _mm_set_epi32(3, 2, 1, 0);
+    for(size_t i0 = 0; i0 < n; i0 += 4) {
+        const __m128 center_x = _mm_load_ps(data.sphere.x.data() + i0);
+        const __m128 center_y = _mm_load_ps(data.sphere.y.data() + i0);
+        const __m128 radius = _mm_load_ps(data.sphere.r.data() + i0);
+        const __m128 mass = _mm_load_ps(data.sphere.m.data() + i0);
+        for(size_t i1 = i0 + 1; i1 < n; ++i1) {
+            const __m128 distance_x =
+                _mm_sub_ps(center_x, _mm_set1_ps(data.sphere.x[i1]));
+            const __m128 distance_y =
+                _mm_sub_ps(center_y, _mm_set1_ps(data.sphere.y[i1]));
+            const __m128 distance2_x = _mm_mul_ps(distance_x, distance_x);
+            const __m128 distance2_y = _mm_mul_ps(distance_y, distance_y);
+            const __m128 length2 = _mm_add_ps(distance2_x, distance2_y);
+            const __m128 radii =
+                _mm_add_ps(_mm_set1_ps(data.sphere.r[i1]), radius);
+            const __m128 dist_check = _mm_and_ps(
+                _mm_cmpneq_ps(length2, _mm_set1_ps(0)),
+                _mm_cmplt_ps(length2, _mm_mul_ps(radii, radii)));
+            const __m128 mass_check = _mm_and_ps(
+                _mm_cmpeq_ps(inf, mass),
+                _mm_cmpeq_ps(inf, _mm_set1_ps(data.sphere.m[i1])));
+            const __m128i id_check =
+                _mm_cmplt_epi32(id, _mm_set1_epi32(static_cast<int32_t>(i1)));
+            const __m128i check = _mm_and_si128(
+                _mm_castps_si128(_mm_andnot_ps(mass_check, dist_check)),
+                id_check);
+            int mask = _mm_movemask_epi8(check);
+            if(!mask)
                 continue;
-            const auto l = std::sqrt(l2);
-            const auto v = (r - l) / l * d;
-            if(!add_collision(&c0, &c1, v, &output->collisions))
-                return;
+            __m128 length = _mm_sqrt_ps(length2);
+            length = _mm_div_ps(_mm_sub_ps(radii, length), length);
+            length = _mm_and_ps(_mm_castsi128_ps(check), length);
+            const __m128 coll_x = _mm_mul_ps(distance_x, length);
+            const __m128 coll_y = _mm_mul_ps(distance_y, length);
+            std::array<float, 4> coll_res_x = {}, coll_res_y = {};
+            _mm_store_ps(coll_res_x.data(), coll_x);
+            _mm_store_ps(coll_res_y.data(), coll_y);
+            for(size_t i = 0; i < 4; ++i)
+                if(std::exchange(mask, mask >> 4) & 1)
+                    if(!add_collision(
+                            &sphere[i0 + i], &sphere[i1],
+                            {coll_res_x[i], coll_res_y[i], 0},
+                            &output->collisions))
+                        return;
         }
+        id = _mm_add_epi32(id, _mm_set1_epi32(4));
     }
 }
 
@@ -200,7 +278,7 @@ void check_plane(std::span<PlaneCollider>, Output *output) {
 //                        (v1.x * v0.w - v0.x * v1.w) / cross.z,
 //                        0};
 //            }
-//            if(!add_collision(&c0, &c1, v, &output->collisions))
+//            if(!old_add_collision(&c0, &c1, v, &output->collisions))
 //                return;
 //        }
 //    }
@@ -235,7 +313,7 @@ void check_aabb_bb(
                 continue;
             v0 = nngn::Math::length2(v0) <= nngn::Math::length2(v1)
                 ? -v0 : rotate(v1, c0.cos, c0.sin);
-            if(!add_collision(&c0, &c1, {v0, 0}, &output->collisions))
+            if(!old_add_collision(&c0, &c1, {v0, 0}, &output->collisions))
                 return;
         }
     }
@@ -255,7 +333,7 @@ void check_aabb_sphere(
             if(!check_bb_sphere_common(
                     c0.pos.xy(), c0.bl, c0.tr, c1.pos.xy(), c1.r, &v))
                 continue;
-            if(!add_collision(&c0, &c1, {v, 0}, &output->collisions))
+            if(!old_add_collision(&c0, &c1, {v, 0}, &output->collisions))
                 return;
         }
 }
@@ -279,7 +357,7 @@ void check_bb_sphere(
                     c1.r, &v))
                 continue;
             v = rotate(v, c0.cos, c0.sin);
-            if(!add_collision(&c0, &c1, {v, 0}, &output->collisions))
+            if(!old_add_collision(&c0, &c1, {v, 0}, &output->collisions))
                 return;
         }
     }
@@ -301,7 +379,7 @@ void check_sphere_plane(
             if(d >= -std::numeric_limits<float>::epsilon())
                 continue;
             v = n * -d;
-            if(!add_collision(&c0, &c1, v, &output->collisions))
+            if(!old_add_collision(&c0, &c1, v, &output->collisions))
                 return;
         }
 }
@@ -330,7 +408,7 @@ template<typename T> void check_gravity(
             if(l2 > c1.max_distance2)
                 continue;
             const auto v = d * (G * c1.m * c0.m / l2 / std::sqrt(l2));
-            if(!add_collision(&c0, &c1, v, &output->collisions))
+            if(!old_add_collision(&c0, &c1, v, &output->collisions))
                 return;
         }
     }
@@ -408,8 +486,17 @@ inline bool check_bb_sphere_common(
     return true;
 }
 
+bool check_capacity(const std::vector<nngn::Collision> &v) {
+    if constexpr(!nngn::Platform::debug)
+        return true;
+    if(v.size() < v.capacity())
+        return true;
+    nngn::Log::l() << "too many collisions\n";
+    return false;
+}
+
 template<typename T, typename U>
-bool add_collision(
+bool old_add_collision(
     T *c0, U *c1, const nngn::vec3 &v,
     std::vector<nngn::Collision> *out)
 {
@@ -417,10 +504,24 @@ bool add_collision(
     c1->flags.set(nngn::Collider::Flag::COLLIDING);
     if((std::isinf(c0->m) && std::isinf(c1->m)))
         return true;
-    if(out->size() == out->capacity()) {
-        nngn::Log::l() << "too many collisions\n";
+    if(!check_capacity(*out))
         return false;
-    }
+    // XXX
+    const auto l = nngn::Math::length(v);
+    out->push_back({
+        c0.entity, c1.entity, c0.m, c1.m, c0.flags, c1.flags, v / l, l});
+    return true;
+}
+
+template<typename T, typename U>
+bool add_collision(
+    T *c0, U *c1, const nngn::vec3 &v,
+    std::vector<nngn::Collision> *out)
+{
+    if(!check_capacity(*out))
+        return false;
+    c0->flags.set(nngn::Collider::Flag::COLLIDING);
+    c1->flags.set(nngn::Collider::Flag::COLLIDING);
     // XXX
     const auto l = nngn::Math::length(v);
     out->push_back({
