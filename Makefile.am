@@ -4,7 +4,7 @@ AM_CPPFLAGS = $(DEPS_CFLAGS) -I@srcdir@/src
 AM_CXXFLAGS = \
 	-std=c++20 -fno-exceptions -fno-rtti -fstrict-aliasing \
 	-O3 -DNDEBUG -DSOL_NO_EXCEPTIONS -DCL_TARGET_OPENCL_VERSION=120 \
-	-fno-omit-frame-pointer \
+	-fno-omit-frame-pointer -mavx \
 	-Werror -Wall -Wextra -Wpedantic -pedantic-errors \
 	-Wcast-align -Wcast-qual -Wconversion -Wctor-dtor-privacy \
 	-Wdisabled-optimization -Wdouble-promotion -Weffc++ -Wformat=2 -Wimport \

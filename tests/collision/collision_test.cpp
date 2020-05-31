@@ -127,6 +127,7 @@ void CollisionTest::sphere_sphere_collision_data() {
         { return nngn::SphereCollider({x, y, 0}, 0.5f); };
     QTest::addColumn<std::optional<nngn::vec3>>("coll");
     QTest::addColumn<nngn::SphereCollider>("c");
+    QTest::newRow("n") << no_coll << sphere(1.5f, 1.5f);
     QTest::newRow("n, l") << no_coll << sphere(0.5f, 1.5f);
     QTest::newRow("n, r") << no_coll << sphere(2.5f, 1.5f);
     QTest::newRow("n, b") << no_coll << sphere(1.5f, 0.5f);
@@ -150,10 +151,13 @@ void CollisionTest::sphere_sphere_collision() {
     QFETCH(const std::optional<nngn::vec3>, coll);
     QFETCH(const nngn::SphereCollider, c);
     this->colliders.clear();
-    this->colliders.set_max_colliders(2);
-    this->colliders.set_max_collisions(1);
+    // XXX
+    this->colliders.set_max_colliders(4);
+    this->colliders.set_max_collisions(8);
     this->colliders.add(nngn::SphereCollider{{1.5f, 1.5f, 0}, .5f});
     this->colliders.add(c);
+    this->colliders.add(nngn::SphereCollider{});
+    this->colliders.add(nngn::SphereCollider{});
     QVERIFY(this->colliders.check_collisions(nngn::Timing{}));
     const auto ret = this->colliders.collisions();
     if(coll) {

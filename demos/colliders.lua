@@ -8,7 +8,7 @@ player.set{"src/lson/null.lua"}
 
 require("nngn.lib.graphics").init()
 
-local N = 2 ^ 11
+local N = 2 ^ 12
 nngn.entities:set_max(N)
 nngn.graphics:resize_textures(2)
 nngn.textures:set_max(2)
@@ -17,12 +17,12 @@ nngn.colliders:set_max_colliders(N)
 nngn.renderers:set_max_colliders(N)
 nngn.colliders:set_max_collisions(32 * N)
 local colliders = {
-    {type = Collider.AABB, flags = Collider.SOLID, bb = 8},
-    {type = Collider.BB,
-     flags = Collider.SOLID, bb = 8, rot = nngn.math:rand()},
+--    {type = Collider.AABB, flags = Collider.SOLID, bb = 8},
+--    {type = Collider.BB,
+--     flags = Collider.SOLID, bb = 8, rot = nngn.math:rand()},
     {type = Collider.SPHERE, flags = Collider.SOLID, r = 4}}
 local n_col = #colliders
-local rnd = function() return (nngn.math:rand() - .5) * 256 end
+local rnd = function() return (nngn.math:rand() - .5) * 512 end
 for i = 1, N do
     entity.load(nil, nil, {
         pos = {rnd(), rnd(), 0},
