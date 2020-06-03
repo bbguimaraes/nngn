@@ -172,6 +172,51 @@ __kernel void sphere_collision(
 //    out[id] = f;
 }
 
+void check_sphere(
+        uint n, uint max_collisions, __global uint *counters,
+        __global const float4 *center_x_v, __global const float4 *center_y_v,
+        __global const float4 *radius_v, __global const float4 *mass_v,
+        __global struct collision *out) {
+    const uint id = get_global_id(0);
+    const float4 inf = INFINITY;
+    int4 ids = {id, id + 1, id + 2, id + 3};
+    const float4 center_x = center_x_v[id];
+    const float4 center_y = center_y_v[id];
+    const float4 radius = radius_v[id];
+    const float4 mass = mass_v[id];
+    for(size_t i = id + 1; i < n; ++i) {
+        // XXX
+        const float4 distance_x = center_x - center_x_v[i / 4][i % 4];
+        const float4 distance_y = center_y - center_y_v[i / 4][i % 4];
+        const float4 distance2_x = distance_x * distance_x;
+        const float4 distance2_y = distance_y * distance_y;
+        const float4 length2 = distance2_x + distance2_y;
+        const float4 radii = radius + radius_v[i / 4][i % 4];
+        const int4 dist_check = (length2 != 0) & (length2 < (radii * radii));
+        const int4 mass_check = (mass == inf) & (mass_v[i / 4][i % 4] == inf);
+        const int4 id_check = ids < (int)i;
+        const int4 check = (!mass_check & dist_check) & id_check;
+//        int mask = _mm_movemask_epi8(check);
+        // XXX
+//        if(check == (int4)0) // mask)
+//            continue;
+        float4 length = sqrt(length2);
+        length = (radii - length) / length;
+        length = select(length, (float4)0, check);
+        const float4 coll_x = distance_x * length;
+        const float4 coll_y = distance_y * length;
+        for(size_t j = 0; j < 4; ++j) {
+            if(!check[j])
+                continue;
+            const uint coll_id = atomic_inc(counters + 3);
+            if(coll_id >= max_collisions)
+                return;
+            out[coll_id] =
+                (struct collision){(float4)(coll_x[j], coll_y[j], 0, 0), id};
+        }
+    }
+}
+
 __kernel void aabb_bb_collision(
         uint n_aabb, uint n_bb, uint max_collisions, __global uint *counters,
         __global const struct AABBCollider *aabb,
