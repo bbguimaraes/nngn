@@ -1,4 +1,8 @@
-#include <sol/table.hpp>
+#include <lua.hpp>
+#include <ElysianLua/elysian_lua_function.hpp>
+#include <ElysianLua/elysian_lua_table.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include "../xxx_elysian_lua_push_int.h"
 
 #include "utils/log.h"
 
@@ -27,10 +31,10 @@ inline void update_bb(nngn::AABBCollider *c) {
 
 namespace nngn {
 
-void Collider::load(const sol::stack_table &t) {
-    if(const auto x = t.get<std::optional<Flag>>("flags"))
+void Collider::load(const elysian::lua::StaticStackTable &t) {
+    if(const auto x = t["flags"].get<std::optional<Flag>>())
         this->flags = {*x};
-    this->m = t.get_or<float>("m", 1);
+    this->m = t["m"].get<std::optional<float>>().value_or(1);
 }
 
 AABBCollider::AABBCollider(vec2 p_bl, vec2 p_tr)
@@ -41,14 +45,15 @@ void AABBCollider::update(size_t n, AABBCollider *v) {
         update_bb(v++);
 }
 
-void AABBCollider::load(const sol::stack_table &t) {
+void AABBCollider::load(const elysian::lua::StaticStackTable &t) {
     Collider::load(t);
-    if(const auto bb_size = t.get<std::optional<float>>("bb")) {
+    if(const auto bb_size = t["bb"].get<std::optional<float>>()) {
         const float s = *bb_size / 2.0f;
         set_bb(this, {-s, -s}, {s, s});
-    } else if(const auto bb = t.get<std::optional<sol::table>>("bb")) {
+    } else if(const auto bb =
+            t["bb"].get<std::optional<elysian::lua::Table>>()) {
         const auto bb_t = *bb;
-        switch(const auto n = bb_t.size()) {
+        switch(const auto n = bb_t.getLength()) {
         case 2: {
             const auto w_2 = bb_t[1].get<float>() / 2.0f;
             const auto h_2 = bb_t[2].get<float>() / 2.0f;
@@ -70,18 +75,18 @@ void BBCollider::update(size_t n, BBCollider *v) {
         update_bb(v++);
 }
 
-void BBCollider::load(const sol::stack_table &t) {
+void BBCollider::load(const elysian::lua::StaticStackTable &t) {
     AABBCollider::load(t);
-    if(const auto o = t.get<std::optional<float>>("rot")) {
+    if(const auto o = t["rot"].get<std::optional<float>>()) {
         const auto r = *o;
         this->cos = std::cos(r);
         this->sin = std::sin(r);
     }
 }
 
-void SphereCollider::load(const sol::stack_table &t) {
+void SphereCollider::load(const elysian::lua::StaticStackTable &t) {
     Collider::load(t);
-    if(const auto x = t.get<std::optional<float>>("r"))
+    if(const auto x = t["r"].get<std::optional<float>>())
         this->r = *x;
 }
 
@@ -90,9 +95,9 @@ void PlaneCollider::update(size_t n, PlaneCollider *v) {
         v->abcd[3] = -nngn::Math::dot(v->abcd.xyz(), v->pos);
 }
 
-void PlaneCollider::load(const sol::stack_table &t) {
+void PlaneCollider::load(const elysian::lua::StaticStackTable &t) {
     Collider::load(t);
-    if(const auto tt = t.get<std::optional<sol::table>>("n")) {
+    if(const auto tt = t["n"].get<std::optional<elysian::lua::Table>>()) {
         const auto tv = *tt;
         this->abcd[0] = tv[1];
         this->abcd[1] = tv[2];
@@ -100,7 +105,7 @@ void PlaneCollider::load(const sol::stack_table &t) {
     }
 }
 
-void GravityCollider::load(const sol::stack_table &t) {
+void GravityCollider::load(const elysian::lua::StaticStackTable &t) {
     Collider::load(t);
     const float d = t["max_distance"];
     this->max_distance2 = d * d;

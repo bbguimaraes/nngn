@@ -1,5 +1,7 @@
+#include <ElysianLua/elysian_lua_thread.hpp>
 #include <sol/state_view.hpp>
 #include <sol/usertype_proxy.hpp>
+#include "../xxx_elysian_lua_push_sol_table.h"
 
 #include "luastate.h"
 
@@ -32,7 +34,7 @@ template<void (Lighting::*f)(const nngn::vec4&)>
 static void s(Lighting *l, float v0, float v1, float v2, float v3)
     { (l->*f)({v0, v1, v2, v3}); }
 
-void set_ambient_anim(Lighting *l, const sol::table &t) {
+void set_ambient_anim(Lighting *l, const elysian::lua::StaticStackTable &t) {
     nngn::LightAnimation a;
     a.load(t);
     l->set_ambient_anim(a);

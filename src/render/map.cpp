@@ -1,4 +1,7 @@
-#include <sol/table.hpp>
+#include <ElysianLua/elysian_lua_function.hpp>
+#include <ElysianLua/elysian_lua_table.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include "../xxx_elysian_lua_push_int.h"
 
 #include "graphics/graphics.h"
 #include "graphics/texture.h"
@@ -61,7 +64,7 @@ bool Map::set_max(std::size_t n) {
 }
 
 std::vector<uvec2> Map::load_tiles(
-        size_t width, size_t height, const sol::stack_table &t) {
+        size_t width, size_t height, const elysian::lua::StaticStackTable &t) {
     std::vector<uvec2> ret;
     ret.reserve(width * height);
     for(size_t i = 1; i <= width * height * 2; i += 2)
@@ -119,7 +122,8 @@ bool Map::gen() const {
 bool Map::load(
         uint32_t t, float sscale,
         float trans_x, float trans_y, float scale_x, float scale_y,
-        unsigned width, unsigned height, const sol::stack_table &tiles) {
+        unsigned width, unsigned height,
+        const elysian::lua::StaticStackTable &tiles) {
     NNGN_LOG_CONTEXT_CF(Map);
     if(this->textures) {
         if(this->tex)

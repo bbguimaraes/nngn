@@ -1,5 +1,11 @@
+#include <lua.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include <ElysianLua/elysian_lua_thread.hpp>
 #include <sol/state_view.hpp>
 #include <sol/usertype_proxy.hpp>
+#include "../xxx_elysian_lua_push_int.h"
+#include "../xxx_elysian_lua_push_sol.h"
+#include "../xxx_elysian_lua_push_sol_table.h"
 
 #include "entity.h"
 #include "luastate.h"
@@ -20,17 +26,22 @@ size_t n_colliders(const Colliders &c) {
         + c.gravity().size();
 }
 
-auto collisions(const Colliders &c, sol::this_state sol) {
-    auto lua = sol::state_view(sol);
+auto collisions(sol::this_state sol, const Colliders &c) {
+    using elysian::lua::LuaTableValues;
+    using elysian::lua::LuaPair;
+    const elysian::lua::ThreadView el(sol);
     const auto &v = c.collisions();
     const auto n = v.size();
-    auto ret = sol::stack_table(
-        lua, sol::new_table(static_cast<int>(v.size())));
+    const auto ret = el.createTable(static_cast<int>(n));
     for(size_t i = 0; i < n; ++i) {
         const auto &x = v[i];
-        ret[i + 1] = lua.create_table_with(
-            1, x.entity0, 2, x.entity1,
-            3, lua.create_table_with(1, x.force.x, 2, x.force.y));
+        ret.setFieldRaw(i + 1, LuaTableValues{
+            LuaPair{1, sol_usertype_wrapper(x.entity0)},
+            LuaPair{2, sol_usertype_wrapper(x.entity1)},
+            LuaPair{3,
+                el.createTable(LuaTableValues{
+                    LuaPair{1, x.force.x},
+                    LuaPair{2, x.force.y}})}});
     }
     return ret;
 }

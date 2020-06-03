@@ -4,6 +4,8 @@
 #include <memory>
 #include <vector>
 
+#include <ElysianLua/elysian_lua_forward_declarations.hpp>
+
 #include "timing/stats.h"
 #include "utils/utils.h"
 
@@ -118,7 +120,7 @@ public:
     SphereCollider *add(const SphereCollider &c);
     PlaneCollider *add(const PlaneCollider &c);
     GravityCollider *add(const GravityCollider &c);
-    Collider *load(const sol::stack_table &t);
+    Collider *load(const elysian::lua::StaticStackTable &t);
     void remove(Collider *p);
     void clear();
     bool check_collisions(const Timing &t);

@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include <sol/forward.hpp>
+#include <ElysianLua/elysian_lua_forward_declarations.hpp>
 
 #include "math/vec2.h"
 #include "math/vec3.h"
@@ -18,7 +18,8 @@ class Textures;
 class Map {
 public:
     static std::vector<uvec2> load_tiles(
-        size_t width, size_t height, const sol::stack_table &tiles);
+        size_t width, size_t height,
+        const elysian::lua::StaticStackTable &tiles);
     void init(Textures *t) { this->textures = t; }
     u32 vbo() const { return this->m_vbo; }
     u32 ebo() const { return this->m_ebo; }
@@ -28,7 +29,7 @@ public:
         unsigned int tex, float sprite_scale,
         float trans_x, float trans_y, float scale_x, float scale_y,
         unsigned int width, unsigned int height,
-        const sol::stack_table &tiles);
+        const elysian::lua::StaticStackTable &tiles);
     bool enabled() const { return this->m_flags.is_set(Flag::ENABLED); }
     bool perspective() const
         { return this->m_flags.is_set(Flag::PERSPECTIVE); }

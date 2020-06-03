@@ -1,5 +1,7 @@
+#include <ElysianLua/elysian_lua_thread.hpp>
 #include <sol/state_view.hpp>
 #include <sol/usertype_proxy.hpp>
+#include "../xxx_elysian_lua_push_sol_table.h"
 
 #include "luastate.h"
 

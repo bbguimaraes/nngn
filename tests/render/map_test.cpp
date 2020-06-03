@@ -1,5 +1,9 @@
 #include <sstream>
-#include <sol/state_view.hpp>
+
+#include <ElysianLua/elysian_lua_table.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include <ElysianLua/elysian_lua_thread_view.hpp>
+#include "xxx_elysian_lua_push_int.h"
 
 #include "debug.h"
 #include "luastate.h"
@@ -74,9 +78,11 @@ namespace nngn {
 void MapTest::load_tiles() {
     LuaState lua;
     QVERIFY(lua.init());
-    auto t = sol::stack_table(lua.L, sol::new_table(12));
+    elysian::lua::LuaVM::initialize(lua.L);
+    const elysian::lua::ThreadView el(lua.L);
+    const auto t = el.createTable(12);
     for(unsigned int i = 0; i < 12; ++i)
-        t.raw_set(i + 1, i);
+        el.setTableRaw(t, i + 1, i);
     const auto v = nngn::Map::load_tiles(3, 2, t);
     QCOMPARE(v.size(), 6ul);
     QCOMPARE(v[0], nngn::uvec2( 0,  1));
@@ -90,6 +96,7 @@ void MapTest::load_tiles() {
 void MapTest::gen() {
     LuaState lua;
     QVERIFY(lua.init());
+    elysian::lua::LuaVM::initialize(lua.L);
     MapTestGraphics g;
     nngn::Map m;
     m.init(nullptr);
@@ -97,9 +104,10 @@ void MapTest::gen() {
     constexpr size_t w = 4, h = 5, n = w * h;
     constexpr size_t vsize = n * 4 * sizeof(nngn::Vertex);
     constexpr size_t isize = n * 6 * sizeof(uint32_t);
-    auto t = sol::stack_table(lua.L, sol::new_table(2 * n));
+    const elysian::lua::ThreadView el(lua.L);
+    const auto t = el.createTable(2 * n);
     for(size_t i = 0, n2 = 2 * n; i < n2; ++i)
-        t.raw_set(i + 1, i);
+        el.setTableRaw(t, i + 1, i);
     QVERIFY(m.load(1, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, w, h, t));
     QCOMPARE(g.vbo.size(), 4 * n);
     QCOMPARE(g.ebo.size(), 6 * n);

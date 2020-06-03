@@ -1,5 +1,9 @@
+#include <ElysianLua/elysian_lua_thread.hpp>
+#include "../xxx_elysian_lua_push_int.h"
+#include "../xxx_elysian_lua_as_table.h"
 #include <sol/state_view.hpp>
 #include <sol/usertype_proxy.hpp>
+#include "../xxx_elysian_lua_push_sol_table.h"
 
 #include "luastate.h"
 
@@ -21,8 +25,11 @@ auto gaussian_filter_v(size_t size, float std_dev) {
     return ret;
 }
 
-auto gaussian_filter(size_t size, float std_dev)
-    { return sol::as_table(gaussian_filter_v(size, std_dev)); }
+auto gaussian_filter(sol::this_state sol, size_t size, float std_dev) {
+    return as_table(
+        elysian::lua::ThreadView(sol),
+        gaussian_filter_v(size, std_dev));
+}
 
 template<typename D>
 void fill_rnd_vec_common(

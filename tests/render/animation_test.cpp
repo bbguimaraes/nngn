@@ -1,4 +1,6 @@
-#include <sol/state_view.hpp>
+#include <ElysianLua/elysian_lua_function.hpp>
+#include <ElysianLua/elysian_lua_table.hpp>
+#include <ElysianLua/elysian_lua_thread_view.hpp>
 
 #include "entity.h"
 #include "luastate.h"
@@ -18,20 +20,46 @@ void AnimationTest::initTestCase() {
 }
 
 void AnimationTest::init() {
-    auto sol = sol::state_view(this->lua.L);
-    const auto t = sol.create_table_with(
-        1, 32,
-        2, 64,
-        3, sol.create_table_with(
-            1, sol.create_table_with(
-                1, sol.create_table_with(1, 0, 2, 1, 3, 2),
-                2, sol.create_table_with(1, 2, 2, 3, 3, 4)),
-            2, sol.create_table_with(
-                1, sol.create_table_with(1,  5, 2,  6, 3,  7, 4,  8, 5,  9),
-                2, sol.create_table_with(1, 10, 2, 11, 3, 12, 4, 13, 5, 14)),
-            3, sol.create_table_with(
-                1, sol.create_table_with(1, 15, 2, 16, 3, 17, 4, 18, 5, 0))));
-    this->sprite.load(t);
+    using elysian::lua::LuaPair;
+    using elysian::lua::LuaTableValues;
+    elysian::lua::LuaVM::initialize(this->lua.L);
+    const elysian::lua::ThreadView el(this->lua.L);
+    this->sprite.load(el.createTable(elysian::lua::LuaTableValues{
+        LuaPair{1, 32},
+        LuaPair{2, 64},
+        LuaPair{3, LuaTableValues{
+            LuaPair{1, LuaTableValues{
+                LuaPair{1, LuaTableValues{
+                    LuaPair{1, 0},
+                    LuaPair{2, 1},
+                    LuaPair{3, 2}}},
+                LuaPair{2, LuaTableValues{
+                    LuaPair{1, 2},
+                    LuaPair{2, 3},
+                    LuaPair{3, 4}}}}},
+            LuaPair{2, LuaTableValues{
+                LuaPair{1,
+                    LuaTableValues{
+                        LuaPair{1, 5},
+                        LuaPair{2, 6},
+                        LuaPair{3, 7},
+                        LuaPair{4, 8},
+                        LuaPair{5, 9}}},
+                LuaPair{2,
+                    LuaTableValues{
+                        LuaPair{1, 10},
+                        LuaPair{2, 11},
+                        LuaPair{3, 12},
+                        LuaPair{4, 13},
+                        LuaPair{5, 14}}}}},
+            LuaPair{3, LuaTableValues{
+                LuaPair{1,
+                    LuaTableValues{
+                        LuaPair{1, 15},
+                        LuaPair{2, 16},
+                        LuaPair{3, 17},
+                        LuaPair{4, 18},
+                        LuaPair{5, 0}}}}}}}}));
 }
 
 void AnimationTest::load_data() {

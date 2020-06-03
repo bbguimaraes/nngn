@@ -1,4 +1,11 @@
-#include <sol/table.hpp>
+#include <cmath>
+
+#include <ElysianLua/elysian_lua_function.hpp>
+#include <ElysianLua/elysian_lua_table.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include "../xxx_elysian_lua_push_int.h"
+#include <sol/stack_push.hpp>
+#include <sol/usertype_core.hpp>
 
 #include "entity.h"
 #include "luastate.h"
@@ -150,7 +157,7 @@ PlaneCollider *Colliders::add(const PlaneCollider &c)
 GravityCollider *Colliders::add(const GravityCollider &c)
     { NNGN_LOG_CONTEXT("gravity"); return nngn::add(&this->input.gravity, c); }
 
-Collider *Colliders::load(const sol::stack_table &t) {
+Collider *Colliders::load(const elysian::lua::StaticStackTable &t) {
     NNGN_LOG_CONTEXT_CF(Colliders);
     const auto load = [this, &t](auto c) { c.load(t); return this->add(c); };
     switch(const Collider::Type type = t["type"]) {

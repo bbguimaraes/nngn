@@ -2,8 +2,19 @@
 #include <bit>
 #include <cstddef>
 
+#include <lua.hpp>
+#include <ElysianLua/elysian_lua_table.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include <ElysianLua/elysian_lua_thread.hpp>
+#include <ElysianLua/elysian_lua_variant.hpp>
+#include "../xxx_elysian_lua_as_table.h"
+#include "../xxx_elysian_lua_push_int.h"
+#include "../xxx_elysian_lua_string_view.h"
+#include <sol/sol.hpp>
 #include <sol/state_view.hpp>
 #include <sol/usertype_proxy.hpp>
+#include "../xxx_elysian_lua_push_sol.h"
+#include "../xxx_elysian_lua_push_sol_table.h"
 
 #include "luastate.h"
 
@@ -62,10 +73,20 @@ auto vector_size(Type t) {
     return ret;
 }
 
+template<typename T, typename Table>
+auto from_table(const Table &t) {
+    const auto n = t.getLength();
+    std::vector<T> ret;
+    ret.reserve(static_cast<size_t>(n));
+    for(lua_Integer i = 1; i <= n; ++i)
+        ret.push_back(t[i]);
+    return ret;
+}
+
 template<typename T>
 auto read_table(const auto &t, std::size_t i, std::size_t n, std::byte *p) {
     for(n += i; i < n; ++i, p += sizeof(T)) {
-        const auto v = t.template raw_get<T>(i);
+        const T v = t[i];
         std::memcpy(p, &v, sizeof(T));
     }
     return p;
@@ -73,7 +94,7 @@ auto read_table(const auto &t, std::size_t i, std::size_t n, std::byte *p) {
 
 auto write_table(auto *t, std::size_t i, std::size_t n, const auto *p) {
     for(n += i; i < n; ++i, ++p)
-        t->raw_set(i, *p);
+        t->setFieldRaw(i, *p);
     return p;
 }
 
@@ -110,10 +131,13 @@ decltype(auto) map_vector(Type t, auto &&def, auto &&f) {
     return map(t, i, f, i);
 }
 
-bool to_bytes(Type type, const sol::stack_table &t, std::vector<std::byte> *v) {
+bool to_bytes(
+    Type type, const elysian::lua::StaticStackTable &t,
+    std::vector<std::byte> *v
+) {
     NNGN_LOG_CONTEXT_F();
     return map_vector(type, false, [&t, v]<typename T>(T) {
-        const auto n = t.size();
+        const auto n = static_cast<std::size_t>(t.getLength());
         return check_size(n, *v)
             && (read_table<T>(t, 1, n, v->data()), true);
     });
@@ -124,8 +148,8 @@ auto read_vector(
     std::size_t off, std::size_t n, Type type
 ) {
     NNGN_LOG_CONTEXT_F();
-    using R = sol::table;
-    using O = std::optional<sol::table>;
+    using R = elysian::lua::StaticStackTable;
+    using O = std::optional<R>;
     return map_vector(type, O{}, [&sol, &v, off, n]<typename T>(T) mutable {
         constexpr auto size = sizeof(T);
         if(!n) {
@@ -133,7 +157,7 @@ auto read_vector(
                 return nngn::Log::l() << "invalid vector size for type\n", O{};
             n = v.size() / size;
         }
-        R ret = {sol, sol::new_table(static_cast<int>(n))};
+        R ret = elysian::lua::ThreadView(sol).createTable(static_cast<int>(n));
         write_table<T>(&ret, 1, n, v.data() + off * size);
         return O{ret};
     });
@@ -141,10 +165,10 @@ auto read_vector(
 
 bool fill_vector(
     std::vector<std::byte> *v, std::size_t off, std::size_t n,
-    Type type, const sol::stack_table &t
+    Type type, const elysian::lua::StaticStackTable &t
 ) {
     NNGN_LOG_CONTEXT_F();
-    std::vector<std::byte> tv(t.size());
+    std::vector<std::byte> tv(static_cast<std::size_t>(t.getLength()));
     if(!to_bytes(type, t, &tv))
         return false;
     const auto i = begin(*v) + static_cast<std::ptrdiff_t>(off);
@@ -164,25 +188,29 @@ auto write_scalar_type(const auto &t, std::size_t i, std::byte *p) {
 template<typename T>
 auto write_vector_type(const auto &t, std::size_t i, std::byte *p) {
     if constexpr(std::is_same_v<T, std::byte>)
-        if(const std::optional<std::string_view> v = t[i]) {
+        if(const auto v =
+                t[i].template get<std::optional<std::string_view>>()) {
             const auto n = v->size();
             std::memcpy(p, v->data(), n);
             return p + n;
         }
-    const sol::table tt = t[i];
-    return read_table<T>(tt, 1, tt.size(), p);
+    const elysian::lua::Table tt = t[i];
+    return read_table<T>(tt, 1, static_cast<std::size_t>(tt.getLength()), p);
 }
 
 bool write_vector(
-    std::vector<std::byte> *v, std::size_t off, const sol::stack_table &t
+    std::vector<std::byte> *v, std::size_t off,
+    const elysian::lua::StaticStackTable &t
 ) {
     NNGN_LOG_CONTEXT_F();
     auto *p = v->data() + off;
-    for(std::size_t i = 1, n = t.size(); i <= n;) {
+    const auto n = static_cast<std::size_t>(t.getLength());
+    for(std::size_t i = 1; i <= n;) {
         const Type type = t[i++];
         if(type == Type::DATA) {
-            const sol::table tt = t[i++];
-            const auto size = tt.get_or(1, std::size_t{});
+            const elysian::lua::Table tt = t[i++];
+            const auto size =
+                tt[1].get<std::optional<std::size_t>>().value_or(1);
             if(!check_size(p, size, *v))
                 return false;
             std::memcpy(p, tt[2], size);
@@ -196,8 +224,8 @@ bool write_vector(
                     && (p = write_scalar_type<T>(t, i++, p), true);
             },
             [v, &t, &p, &i]<typename T>(T) {
-                const sol::table tt = t[i++];
-                const auto nt = tt.size();
+                const elysian::lua::Table tt = t[i++];
+                const auto nt = static_cast<std::size_t>(tt.getLength());
                 return check_size(p, nt, *v)
                     && (p = read_table<T>(tt, 1, nt, p));
             },
@@ -242,10 +270,10 @@ bool read_buffer(
 
 bool fill_buffer(
     const Compute &c, std::uint32_t b, std::size_t off, std::size_t n,
-    Type type, const sol::stack_table &t
+    Type type, const elysian::lua::StaticStackTable &t
 ) {
     NNGN_LOG_CONTEXT_F();
-    std::vector<std::byte> v(t.size());
+    std::vector<std::byte> v(static_cast<std::size_t>(t.getLength()));
     if(!to_bytes(type, t, &v))
         return false;
     const auto size = vector_size(type);
@@ -301,7 +329,7 @@ auto create_program(Compute &c, std::string_view src, const char *opts)
     { return opt(c.create_program(src, opts)); }
 
 auto prof_info(
-    const Compute &c, Compute::ProfInfo info,
+    sol::this_state sol, const Compute &c, Compute::ProfInfo info,
     const sol::as_table_t<std::vector<Compute::Event>> &events
 ) {
     NNGN_LOG_CONTEXT_F();
@@ -311,47 +339,56 @@ auto prof_info(
         std::popcount(
             static_cast<std::underlying_type_t<Compute::ProfInfo>>(info)));
     std::vector<uint64_t> ret(n * pc);
-    using R = sol::as_table_t<decltype(ret)>;
-    return c.prof_info(info, n, v.data(), ret.data()) ? R(ret) : R{};
+    using O = sol::optional<sol::as_table_t<decltype(ret)>>;
+    return c.prof_info(info, n, v.data(), ret.data())
+        ? O{as_table(elysian::lua::ThreadView(sol), ret)}
+        : O{};
 }
 
-auto wait(
-    const Compute &c,
-    const sol::as_table_t<std::vector<Compute::Event>> &events
-) {
-    const auto &v = events.value();
+auto read_events(const elysian::lua::StaticStackTable &t) {
+    const auto n = t.getLength();
+    std::vector<Compute::Event> ret;
+    ret.reserve(static_cast<std::size_t>(n));
+    for(lua_Integer i = 1; i <= n; ++i)
+        ret.push_back(
+            t[i].get<sol_usertype_wrapper<Compute::Event>>().get());
+    return ret;
+}
+
+auto wait(const Compute &c, const elysian::lua::StaticStackTable &t) {
+    NNGN_LOG_CONTEXT_F();
+    const auto v = read_events(t);
     return c.wait(v.size(), v.data());
 }
 
 template<auto Compute::*f>
 bool release(Compute &c, std::uint32_t id) { return (c.*f)({{id}}); }
 
-bool release_events(
-    const Compute &c,
-    sol::as_table_t<std::vector<Compute::Event>> events
-) {
-    const auto &v = events.value();
+bool release_events(const Compute &c, const elysian::lua::StaticStackTable &t) {
+    NNGN_LOG_CONTEXT_F();
+    const auto v = read_events(t);
     return c.release_events(v.size(), v.data());
 }
 
 bool execute(
     Compute &c, std::uint32_t program, const std::string &func,
     Compute::ExecFlag flags,
-    sol::as_table_t<std::vector<std::size_t>> global_size,
-    sol::as_table_t<std::vector<std::size_t>> local_size,
-    const sol::stack_table &data,
-    std::optional<sol::object> wait_opt,
-    std::optional<sol::stack_table> events_opt
+    const elysian::lua::StaticStackTable &global_size,
+    const elysian::lua::StaticStackTable &local_size,
+    const elysian::lua::StaticStackTable &data,
+    std::optional<elysian::lua::Variant> wait_opt,
+    std::optional<elysian::lua::StaticStackTable> events_opt
 ) {
     NNGN_LOG_CONTEXT_F();
-    const auto data_size = [](const sol::stack_table &t) {
-        const auto n = t.size();
+    const auto data_size = [](const elysian::lua::StaticStackTable &t) {
+        const auto n = static_cast<std::size_t>(t.getLength());
         std::vector<std::size_t> ret;
         ret.reserve(n / 2);
         for(std::size_t i = 1; i <= n;) {
             const Type type = t[i++];
             if(type == Type::DATA)
-                ret.push_back(t[i][1].get_or(std::size_t{}));
+                ret.push_back(
+                    t[i][1].get<std::optional<std::size_t>>().value_or(0));
             else if(type == Type::LOCAL || Compute::is_handle_type(type))
                 ret.push_back(sizeof(std::uint32_t));
             else
@@ -360,17 +397,22 @@ bool execute(
                     [&ret]<typename T>(T) { ret.push_back(sizeof(T)); },
                     [&ret, &t, i]<typename T>(T) {
                         if constexpr(std::is_same_v<T, std::byte>)
-                            if(const std::optional<std::string_view> v = t[i])
+                            if(const auto v =
+                                    t[i].get<std::optional<std::string_view>>())
                                 return ret.push_back(v->size());
-                        ret.push_back(sizeof(T) * t.get<sol::table>(i).size());
+                        ret.push_back(
+                            sizeof(T) * static_cast<std::size_t>(
+                                t[i].get<elysian::lua::Table>().getLength()));
                     },
                     [type](auto) { invalid_type(type); });
             ++i;
         }
         return ret;
     };
-    const auto read_data = [](const sol::stack_table &t, auto *data_v) {
-        const auto n = t.size();
+    const auto read_data = [](
+        const elysian::lua::StaticStackTable &t, auto *data_v
+    ) {
+        const auto n = static_cast<std::size_t>(t.getLength());
         std::vector<Type> types;
         std::vector<const std::byte*> ret;
         types.reserve(n / 2);
@@ -400,14 +442,16 @@ bool execute(
         }
         return std::tuple(types, ret);
     };
-    const auto global_size_v = global_size.value();
+    const auto global_size_v = from_table<std::size_t>(global_size);
     const auto size = data_size(data);
     std::vector<std::byte> data_v(nngn::reduce(size));
     const auto [types, data_p] = read_data(data, &data_v);
     Compute::Events events = {};
     std::vector<Compute::Event> wait_v = {}, events_v = {};
     if(wait_opt) {
-        wait_v = wait_opt->as<sol::as_table_t<std::vector<Compute::Event>>>();
+        // TODO
+//        wait_v = std::move(
+//            wait_opt->as<sol::as_table_t<std::vector<Compute::Event>>>());
         events.n_wait = wait_v.size();
         events.wait_list = wait_v.data();
     }
@@ -418,31 +462,40 @@ bool execute(
     if(!c.execute(
             {{program}}, func, flags,
             static_cast<std::uint32_t>(global_size_v.size()),
-            global_size_v.data(), local_size.value().data(),
-            data.size() / 2, types.data(), size.data(), data_p.data(), events))
+            global_size_v.data(), from_table<std::size_t>(local_size).data(),
+            static_cast<std::size_t>(data.getLength()) / 2,
+            types.data(), size.data(), data_p.data(), events))
         return false;
-    if(auto &x = *events_opt; events_opt)
-        for(std::size_t i = 0, e = events_v.size(), b = x.size(); i < e; ++i)
-            x.raw_set(b + i + 1, events_v[i]);
+    if(auto &events_t = *events_opt; events_opt)
+        for(auto i = lua_Integer{},
+                e = static_cast<lua_Integer>(events_v.size()),
+                b = events_t.getLength();
+                i < e; ++i)
+            events_t.setFieldRaw(
+                b + i + 1,
+                sol_usertype_wrapper(events_v[static_cast<size_t>(i)]));
     return true;
 }
 
-std::optional<Compute::OpenCLParameters> opencl_params(sol::stack_table t) {
+auto opencl_params(const elysian::lua::StaticStackTable &t) {
     NNGN_LOG_CONTEXT_F();
-    Compute::OpenCLParameters ret = {};
-    for(const auto &[k, v] : t) {
-        const auto ko = k.as<std::optional<std::string_view>>();
+    const auto el = t.getThread();
+    std::optional<Compute::OpenCLParameters> ret = {{}};
+    t.iterate([el, &ret]() {
+        const auto ko = el->toValue<std::optional<std::string_view>>(-2);
         if(!ko) {
             nngn::Log::l() << "only string keys are allowed\n";
-            return std::nullopt;
+            ret = sol::nullopt;
+            return false;
         }
         const auto ks = *ko;
         if(ks == "debug")
-            ret.debug = v.as<bool>();
+            ret->debug = el->toValue<bool>(-1);
         else if(ks == "preferred_device")
-            ret.preferred_device = v.as<Compute::DeviceType>();
-    }
-    return {ret};
+            ret->preferred_device = el->toValue<Compute::DeviceType>(-1);
+        return true;
+    });
+    return ret;
 }
 
 }
@@ -482,7 +535,8 @@ NNGN_LUA_PROXY(Compute,
     "END", sol::var(Compute::ProfInfo::END),
     "PROF_INFO_ALL", sol::var(Compute::ProfInfo::PROF_INFO_ALL),
     "opencl_params", opencl_params,
-    "get_limits", [](Compute &c) { return sol::as_table(c.get_limits()); },
+    "get_limits", [](sol::this_state sol, Compute &c)
+        { return as_table(elysian::lua::ThreadView(sol), c.get_limits()); },
     "platform_name", &Compute::platform_name,
     "device_name", &Compute::device_name,
     "create_vector", [](std::size_t n) { return std::vector<std::byte>(n); },

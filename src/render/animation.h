@@ -6,7 +6,7 @@
 #include <memory>
 #include <vector>
 
-#include <sol/forward.hpp>
+#include <ElysianLua/elysian_lua_forward_declarations.hpp>
 
 #include "math/math.h"
 #include "math/vec2.h"
@@ -37,7 +37,7 @@ private:
     };
 public:
     AnimationFunction() noexcept : linear() {}
-    void load(const sol::table &t);
+    void load(const elysian::lua::StaticStackTable &t);
     vec3 update(const Timing &t, Math::rnd_generator_t *rnd);
     bool done() const;
 };
@@ -60,7 +60,7 @@ private:
     std::chrono::microseconds timer = {};
     bool updated = true;
 public:
-    void load(const sol::table &t);
+    void load(const elysian::lua::StaticStackTable &t);
     void load(SpriteAnimation *o);
     auto cur_track() const { return this->m_cur_track; }
     auto track_count() const { return this->m_group->size(); }
@@ -73,7 +73,7 @@ class LightAnimation : public Animation {
     std::chrono::milliseconds rate = {}, timer = {};
     AnimationFunction f = {};
 public:
-    void load(const sol::table &t);
+    void load(const elysian::lua::StaticStackTable &t);
     void update(
         const Timing &t, Math::rnd_generator_t *rnd,
         float *a, bool *updated);
@@ -94,7 +94,7 @@ public:
     size_t n_light() const { return this->light.size(); }
     void set_max(size_t n);
     void remove(Animation *p);
-    Animation *load(const sol::table &t);
+    Animation *load(const elysian::lua::StaticStackTable &t);
     void update(const Timing &t);
 };
 

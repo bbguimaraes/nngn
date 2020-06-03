@@ -1,4 +1,11 @@
+#include <lua.hpp>
+#include <ElysianLua/elysian_lua_table.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include <ElysianLua/elysian_lua_thread.hpp>
 #include <sol/state_view.hpp>
+#include <sol/usertype_proxy.hpp>
+#include "xxx_elysian_lua_push_sol.h"
+#include "xxx_elysian_lua_push_sol_table.h"
 
 #include "entity.h"
 #include "luastate.h"
@@ -82,6 +89,7 @@ bool NNGN::init(int argc, const char *const *argv) {
     nngn::Profile::init();
     if(!this->lua.init())
         return false;
+    elysian::lua::LuaVM::initialize(this->lua.L);
     auto sol = sol::state_view(this->lua.L);
     sol["nngn"] = this;
     sol["deref"] = [](void *p) { return *static_cast<uintptr_t*>(p); };
@@ -244,9 +252,11 @@ NNGN_LUA_PROXY(NNGN,
     "set_compute", &NNGN::set_compute,
     "set_graphics", &NNGN::set_graphics,
     "remove_entity", &NNGN::remove_entity,
-    "remove_entity_v", [](NNGN &nngn, const sol::table &t) {
-        for(size_t i = 1, n = t.size(); i <= n; ++i)
-            nngn.remove_entity(t[i]);
+    "remove_entity_v", [](
+            NNGN &nngn, const elysian::lua::StaticStackTable &t) {
+        for(lua_Integer i = 1, n = t.getLength(); i <= n; ++i)
+            nngn.remove_entity(
+                t[i].get<sol_usertype_wrapper<Entity*>>().get());
     },
     "exit", &NNGN::exit,
     "die", &NNGN::die)

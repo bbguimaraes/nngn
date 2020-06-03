@@ -2,7 +2,10 @@
 #include <cstring>
 #include <span>
 
-#include <sol/table.hpp>
+#include <ElysianLua/elysian_lua_function.hpp>
+#include <ElysianLua/elysian_lua_table.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include "../xxx_elysian_lua_push_int.h"
 
 #include "entity.h"
 
@@ -885,7 +888,7 @@ bool Renderers::set_graphics(Graphics *g) {
         });
 }
 
-Renderer *Renderers::load(const sol::stack_table &t) {
+Renderer *Renderers::load(const elysian::lua::StaticStackTable &t) {
     const auto load = [&t](auto &v, const char *name) {
         if(v.size() == v.capacity()) {
             Log::l()

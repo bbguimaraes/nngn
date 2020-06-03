@@ -1,7 +1,7 @@
 #ifndef NNGN_RENDER_RENDERERS_H
 #define NNGN_RENDER_RENDERERS_H
 
-#include <sol/forward.hpp>
+#include <ElysianLua/elysian_lua_forward_declarations.hpp>
 
 #include "math/vec2.h"
 #include "math/vec3.h"
@@ -30,13 +30,13 @@ struct SpriteRenderer : Renderer {
     static void uv_coords(
         const uvec2 &uv0, const uvec2 &uv1,
         const uvec2 &scale, vec2 *p);
-    void load(const sol::stack_table &t);
+    void load(const elysian::lua::StaticStackTable &t);
 };
 
 struct CubeRenderer : Renderer {
     vec3 color = {1, 1, 1};
     float size = 0;
-    void load(const sol::stack_table &t);
+    void load(const elysian::lua::StaticStackTable &t);
 };
 
 struct VoxelRenderer : Renderer {

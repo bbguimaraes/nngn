@@ -1,5 +1,9 @@
+#include <ElysianLua/elysian_lua_stack.hpp>
+#include <ElysianLua/elysian_lua_thread.hpp>
 #include <sol/state_view.hpp>
 #include <sol/usertype_proxy.hpp>
+#include "xxx_elysian_lua_push_sol.h"
+#include "xxx_elysian_lua_push_sol_table.h"
 
 #include "entity.h"
 #include "luastate.h"
@@ -12,11 +16,12 @@
 namespace {
 
 auto to_table(sol::state_view sol, Entities &es, auto &&f) {
-    auto ret = sol.create_table();
+    const elysian::lua::ThreadView el(sol);
+    const auto ret = el.createTable();
     std::size_t i = 1;
     for(auto b = es.begin(), e = es.end(); b != e; ++b)
         if(std::invoke(f, *b))
-            ret.raw_set(i++, &*b);
+            ret.setFieldRaw(i++, sol_usertype_wrapper(*b));
     return ret;
 }
 

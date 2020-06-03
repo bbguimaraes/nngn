@@ -1,5 +1,10 @@
+#include <lua.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include <ElysianLua/elysian_lua_thread.hpp>
 #include <sol/state_view.hpp>
 #include <sol/usertype_proxy.hpp>
+#include "../xxx_elysian_lua_push_sol.h"
+#include "../xxx_elysian_lua_push_sol_table.h"
 
 #include "luastate.h"
 
@@ -12,16 +17,24 @@ using nngn::SpriteAnimation;
 
 namespace {
 
-auto load_v(sol::this_state sol, Animations &a, const sol::stack_table &t) {
-    auto ret = sol::stack_table(sol, sol::new_table(1));
-    for(size_t i = 1, n = t.size(); i <= n; ++i)
-        ret.raw_set(i, a.load(t[i]));
+auto load_v(Animations &a, const elysian::lua::StaticStackTable &t) {
+    const auto &L = *t.getThread();
+    const auto n = t.getLength();
+    const elysian::lua::StaticStackTable ret =
+        L.createTable(static_cast<int>(n));
+    const auto top = L.getTop() + 1;
+    for(lua_Integer i = 1; i <= n; ++i) {
+        L.push(t[i]);
+        const auto ti = L.toValue<elysian::lua::StaticStackTable>(top);
+        ret.setFieldRaw(i, sol_usertype_wrapper(a.load(ti)));
+        L.pop(1);
+    }
     return ret;
 }
 
-auto remove_v(Animations &a, const sol::stack_table &t) {
-    for(size_t i = 1, n = t.size(); i <= n; ++i)
-        a.remove(t[i]);
+auto remove_v(Animations &a, const elysian::lua::StaticStackTable &t) {
+    for(lua_Integer i = 1, n = t.getLength(); i <= n; ++i)
+        a.remove(t[i].get<sol_usertype_wrapper<Animation*>>().get());
 }
 
 }

@@ -1,7 +1,7 @@
 #ifndef NNGN_COLLISION_COLLIDERS_H
 #define NNGN_COLLISION_COLLIDERS_H
 
-#include <sol/forward.hpp>
+#include <ElysianLua/elysian_lua_forward_declarations.hpp>
 
 #include "math/vec2.h"
 #include "math/vec3.h"
@@ -24,7 +24,7 @@ struct Collider {
     Collider() = default;
     explicit Collider(vec3 p) : pos(p) {}
     Collider(vec3 p, float p_m) : pos(p), m(p_m) {}
-    void load(const sol::stack_table &t);
+    void load(const elysian::lua::StaticStackTable &t);
 };
 
 struct AABBCollider : Collider {
@@ -34,7 +34,7 @@ struct AABBCollider : Collider {
     AABBCollider() = default;
     AABBCollider(vec2 p_bl, vec2 p_tr);
     static void update(size_t n, AABBCollider *v);
-    void load(const sol::stack_table &t);
+    void load(const elysian::lua::StaticStackTable &t);
 };
 
 struct BBCollider : AABBCollider {
@@ -43,14 +43,14 @@ struct BBCollider : AABBCollider {
     BBCollider(vec2 p_bl, vec2 p_tr, float p_cos, float p_sin) :
         AABBCollider(p_bl, p_tr), cos(p_cos), sin(p_sin) {}
     static void update(size_t n, BBCollider *v);
-    void load(const sol::stack_table &t);
+    void load(const elysian::lua::StaticStackTable &t);
 };
 
 struct SphereCollider : Collider {
     float r = 0;
     SphereCollider() = default;
     SphereCollider(vec3 p_pos, float p_r) : Collider(p_pos), r(p_r) {}
-    void load(const sol::stack_table &t);
+    void load(const elysian::lua::StaticStackTable &t);
 };
 
 struct PlaneCollider : Collider {
@@ -58,7 +58,7 @@ struct PlaneCollider : Collider {
     PlaneCollider() = default;
     PlaneCollider(vec3 p, vec4 v) : Collider(p), abcd(v) {}
     static void update(size_t n, PlaneCollider *v);
-    void load(const sol::stack_table &t);
+    void load(const elysian::lua::StaticStackTable &t);
 };
 
 struct GravityCollider : Collider {
@@ -67,7 +67,7 @@ struct GravityCollider : Collider {
     GravityCollider() = default;
     GravityCollider(vec3 p, float p_m, float max_distance)
         : Collider(p, p_m), max_distance2(max_distance * max_distance) {}
-    void load(const sol::stack_table &t);
+    void load(const elysian::lua::StaticStackTable &t);
 };
 
 }

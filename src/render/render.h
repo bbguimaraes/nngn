@@ -6,7 +6,7 @@
 #include <unordered_set>
 #include <vector>
 
-#include <sol/forward.hpp>
+#include <ElysianLua/elysian_lua_forward_declarations.hpp>
 
 #include "graphics/graphics.h"
 #include "math/vec2.h"
@@ -122,7 +122,7 @@ public:
     void set_perspective(bool p);
     void set_zsprites(bool z);
     bool set_graphics(Graphics *g);
-    Renderer *load(const sol::stack_table &t);
+    Renderer *load(const elysian::lua::StaticStackTable &t);
     void remove(Renderer *p);
     void add_selection(const Renderer *p);
     void remove_selection(const Renderer *p);

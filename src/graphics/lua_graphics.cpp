@@ -1,7 +1,11 @@
 #include <optional>
+#include <string_view>
 
+#include <ElysianLua/elysian_lua_thread.hpp>
+#include "../xxx_elysian_lua_string_view.h"
 #include <sol/state_view.hpp>
 #include <sol/usertype_proxy.hpp>
+#include "../xxx_elysian_lua_push_sol_table.h"
 
 #include "luastate.h"
 
@@ -14,76 +18,88 @@ using nngn::Graphics;
 
 namespace {
 
-std::optional<Graphics::TerminalParameters> terminal_params(
-        const sol::stack_table &t) {
+auto terminal_params(const elysian::lua::StaticStackTable &t) {
     NNGN_LOG_CONTEXT_F();
-    Graphics::TerminalParameters ret = {};
-    for(const auto &[k, v] : t) {
-        const auto ko = k.as<std::optional<std::string_view>>();
+    const auto el = t.getThread();
+    std::optional<Graphics::TerminalParameters> ret = {};
+    t.iterate([el, &ret]() {
+        const auto ko = el->toValue<std::optional<std::string_view>>(-2);
         if(!ko) {
             nngn::Log::l() << "only string keys are allowed\n";
-            return std::nullopt;
+            ret = {};
+            return false;
         }
         const auto ks = *ko;
         if(ks == "fd")
-            ret.fd = v.as<int>();
+            ret->fd = static_cast<int>(el->toValue<lua_Integer>(-1));
         else if(ks == "mode") {
             using M = Graphics::TerminalMode;
-            ret.mode = static_cast<M>(v.as<std::underlying_type_t<M>>());
+            ret->mode = static_cast<M>(
+                el->toValue<std::underlying_type_t<M>>(-1));
         }
-    }
-    return {ret};
+        return true;
+    });
+    return ret;
 }
 
-std::optional<Graphics::OpenGLParameters> opengl_params(
-        const sol::stack_table &t) {
+auto opengl_params(const elysian::lua::StaticStackTable &t) {
     NNGN_LOG_CONTEXT_F();
-    Graphics::OpenGLParameters ret = {};
-    for(const auto &[k, v] : t) {
-        const auto ko = k.as<std::optional<std::string_view>>();
+    const auto el = t.getThread();
+    std::optional<Graphics::OpenGLParameters> ret = {{}};
+    t.iterate([el, &ret]() {
+        const auto ko = el->toValue<std::optional<std::string_view>>(-2);
         if(!ko) {
             nngn::Log::l() << "only string keys are allowed\n";
-            return std::nullopt;
+            ret = {};
+            return false;
         }
         const auto ks = *ko;
         if(ks == "hidden")
-            ret.flags.set(Graphics::Parameters::Flag::HIDDEN, v.as<bool>());
+            ret->flags.set(
+                Graphics::Parameters::Flag::HIDDEN, el->toValue<bool>(-1));
         else if(ks == "debug")
-            ret.flags.set(Graphics::Parameters::Flag::DEBUG, v.as<bool>());
+            ret->flags.set(
+                Graphics::Parameters::Flag::DEBUG, el->toValue<bool>(-1));
         else if(ks == "maj")
-            ret.maj = v.as<int>();
+            ret->maj = static_cast<int>(el->toValue<lua_Integer>(-1));
         else if(ks == "min")
-            ret.min = v.as<int>();
-    }
-    return {ret};
+            ret->min = static_cast<int>(el->toValue<lua_Integer>(-1));
+        return true;
+    });
+    return ret;
 }
 
-std::optional<Graphics::VulkanParameters> vulkan_params(
-        const sol::stack_table &t) {
+auto vulkan_params(const elysian::lua::StaticStackTable &t) {
     NNGN_LOG_CONTEXT_F();
-    Graphics::VulkanParameters ret = {};
-    for(const auto &[k, v] : t) {
-        const auto ko = k.as<std::optional<std::string_view>>();
+    const auto el = t.getThread();
+    std::optional<Graphics::VulkanParameters> ret = {{}};
+    t.iterate([el, &ret]() {
+        const auto ko = el->toValue<std::optional<std::string_view>>(-2);
         if(!ko) {
             nngn::Log::l() << "only string keys are allowed\n";
-            return std::nullopt;
+            ret = {};
+            return false;
         }
         const auto ks = *ko;
         if(ks == "hidden")
-            ret.flags.set(Graphics::Parameters::Flag::HIDDEN, v.as<bool>());
+            ret->flags.set(
+                Graphics::Parameters::Flag::HIDDEN, el->toValue<bool>(-1));
         else if(ks == "debug")
-            ret.flags.set(Graphics::Parameters::Flag::DEBUG, v.as<bool>());
+            ret->flags.set(
+                Graphics::Parameters::Flag::DEBUG, el->toValue<bool>(-1));
         else if(ks == "version") {
-            const auto tt = v.as<sol::table>();
-            ret.version = Graphics::Version{
-                .major = tt[1].get_or(std::uint32_t{}),
-                .minor = tt[2].get_or(std::uint32_t{}),
-                .patch = tt[3].get_or(std::uint32_t{}),
+            const auto tt = el->toValue<elysian::lua::Table>(-1);
+            ret->version = Graphics::Version{
+                .major = tt[1].get<std::optional<std::uint32_t>>().value_or(0),
+                .minor = tt[2].get<std::optional<std::uint32_t>>().value_or(0),
+                .patch = tt[3].get<std::optional<std::uint32_t>>().value_or(0),
                 .name = {}};
         } else if(ks == "log_level")
-            ret.log_level = v.as<Graphics::LogLevel>();
-    }
-    return {ret};
+            ret->log_level = static_cast<Graphics::LogLevel>(
+                el->toValue<std::underlying_type_t<Graphics::LogLevel>>(-1));
+        return true;
+    });
+    return ret;
 }
 
 auto create(Graphics::Backend b, std::optional<const void*> params) {

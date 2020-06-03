@@ -1,12 +1,19 @@
 #include <algorithm>
 
-#include <sol/table.hpp>
+#include <lua.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include <ElysianLua/elysian_lua_thread_view.hpp>
+#include "../xxx_elysian_lua_match.h"
+#include "../xxx_elysian_lua_push_int.h"
+#include <sol/stack.hpp>
+#include "../xxx_elysian_lua_push_sol.h"
 
 #include "entity.h"
 
 #include "timing/profile.h"
 #include "timing/timing.h"
 #include "utils/log.h"
+#include "utils/scoped.h"
 #include "utils/utils.h"
 
 #include "animation.h"
@@ -16,19 +23,19 @@
 namespace nngn {
 
 static SpriteAnimation::Group load_group(
-        const uvec2 &scale, const sol::table &t) {
-    const auto read_table = [](const sol::table &tt, auto f) {
+        const uvec2 &scale, const elysian::lua::StaticStackTable &t) {
+    const auto read_table = [](const elysian::lua::Table &tt, auto f) {
         std::vector<decltype(f({}))> v;
-        const auto n = tt.size();
+        const auto n = static_cast<size_t>(tt.getLength());
         v.reserve(n);
         for(size_t i = 1; i <= n; ++i)
             v.push_back(f(tt[i]));
         return v;
     };
-    const auto read_frame = [&scale](const sol::table &tt) {
+    const auto read_frame = [&scale](const elysian::lua::Table &tt) {
         SpriteAnimation::Frame ret = {};
         std::array<uvec2, 2> c = {};
-        switch(const auto n = tt.size()) {
+        switch(const auto n = tt.getLength()) {
         default: Log::l() << "invalid frame length " << n << std::endl; break;
         case 3:
             c[0] = {tt[1], tt[2]};
@@ -44,13 +51,14 @@ static SpriteAnimation::Group load_group(
         SpriteRenderer::uv_coords(c[0], c[1], scale, ret.uv.data());
         return ret;
     };
-    return read_table(t, [read_table, &read_frame](const sol::table &tt)
-        { return read_table(tt, read_frame); });
+    return read_table(t,
+        [read_table, &read_frame](const elysian::lua::Table &tt)
+            { return read_table(tt, read_frame); });
 }
 
-void AnimationFunction::load(const sol::table &t) {
+void AnimationFunction::load(const elysian::lua::StaticStackTable &t) {
     using D = std::uniform_real_distribution<float>;
-    switch(this->type = t.get_or("type", Type{})) {
+    switch(this->type = t["type"].get<std::optional<Type>>().value_or(Type{})) {
     case Type::NONE: break;
     case Type::LINEAR:
         this->linear = {t["v"], t["step_s"], t["end"]};
@@ -59,7 +67,7 @@ void AnimationFunction::load(const sol::table &t) {
         this->rnd_f = D(t["min"], t["max"]);
         break;
     case Type::RANDOM_3F: {
-        const sol::table min = t["min"], max = t["max"];
+        const elysian::lua::Table min = t["min"], max = t["max"];
         this->rnd_3f = {
             D(min[1], max[1]),
             D(min[2], max[2]),
@@ -98,9 +106,15 @@ bool AnimationFunction::done() const {
     };
 }
 
-void SpriteAnimation::load(const sol::table &t) {
+void SpriteAnimation::load(const elysian::lua::StaticStackTable &t) {
     NNGN_LOG_CONTEXT_CF(SpriteAnimation);
-    this->m_group = std::make_shared<Group>(load_group({t[1], t[2]}, t[3]));
+    const auto el = t.getThread();
+    t[3].push(el);
+    const auto pop = make_scoped([el] { el->pop(1); });
+    this->m_group = std::make_shared<Group>(
+        load_group(
+            {t[1], t[2]},
+            el->toValue<elysian::lua::StaticStackTable>(el->getTop())));
 }
 
 void SpriteAnimation::load(SpriteAnimation *o) {
@@ -153,14 +167,13 @@ void SpriteAnimation::update(const Timing &t) {
     r->flags |= Renderer::Flag::UPDATED;
 }
 
-void LightAnimation::load(const sol::table &t) {
-    if(const auto o = t.get<std::optional<decltype(this->rate)>>("rate_ms"))
-        this->rate = *o;
-    if(const auto o = t.get<std::optional<decltype(this->timer)>>("timer_ms"))
-        this->timer = *o;
-    this->f = {};
-    if(const auto o = t.get<std::optional<sol::table>>("f"))
-        this->f.load(*o);
+void LightAnimation::load(const elysian::lua::StaticStackTable &t) {
+    this->rate = std::chrono::milliseconds(t["rate_ms"]);
+    this->timer = std::chrono::milliseconds(t["timer_ms"]);
+    const auto el = t.getThread();
+    t["f"].push(el);
+    const auto pop = make_scoped([el] { el->pop(1); });
+    this->f.load(el->toValue<elysian::lua::StaticStackTable>(el->getTop()));
 }
 
 void LightAnimation::update(
@@ -200,7 +213,7 @@ void Animations::remove(Animation *p) {
         remove(&this->light);
 }
 
-Animation *Animations::load(const sol::table &t) {
+Animation *Animations::load(const elysian::lua::StaticStackTable &t) {
     NNGN_LOG_CONTEXT_CF(Animations);
     const auto load = [](const char *n, auto *v, auto &&...args) {
         if(v->size() == v->capacity()) {
@@ -211,14 +224,20 @@ Animation *Animations::load(const sol::table &t) {
         ret.load(args...);
         return &ret;
     };
-    if(auto *const a = t.get_or<SpriteAnimation*>("sprite", nullptr))
-        return load("sprite", &this->sprite, a);
-    if(const auto o = t.get<std::optional<sol::table>>("sprite"))
-        return load("sprite", &this->sprite, *o);
-    if(const auto o = t.get<std::optional<sol::table>>("light"))
-        return load("light", &this->light, *o);
-    Log::l() << "no animation data\n";
-    return nullptr;
+    Animation *ret = nullptr;
+    match(
+        t["sprite"],
+        [this, &ret, load](sol_usertype_wrapper<SpriteAnimation&> a)
+            { ret = load("sprite", &this->sprite, &*a); },
+        [this, &ret, load](const elysian::lua::StaticStackTable &tt)
+            { ret = load("sprite", &this->sprite, tt); });
+    match(
+        t["light"],
+        [this, &ret, load](const elysian::lua::StaticStackTable &tt)
+            { ret = load("light", &this->light, tt); });
+    if(!ret)
+        Log::l() << "no animation data\n";
+    return ret;
 }
 
 void Animations::update(const Timing &t) {

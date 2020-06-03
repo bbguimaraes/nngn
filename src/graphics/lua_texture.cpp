@@ -1,5 +1,13 @@
+#include <string_view>
+
+#include <lua.hpp>
+#include <ElysianLua/elysian_lua_table_proxy.hpp>
+#include <ElysianLua/elysian_lua_thread.hpp>
+#include "../xxx_elysian_lua_push_int.h"
+#include "../xxx_elysian_lua_string_view.h"
 #include <sol/state_view.hpp>
 #include <sol/usertype_proxy.hpp>
+#include "../xxx_elysian_lua_push_sol_table.h"
 
 #include "luastate.h"
 
@@ -19,14 +27,13 @@ auto update_data(
 
 auto dump(const sol::this_state sol, const Textures &t) {
     const auto v = t.dump();
-    auto ret = sol::stack_table(
-        sol, sol::new_table(static_cast<int>(v.size())));
+    const elysian::lua::ThreadView el(sol);
+    const auto ret = el.createTable(static_cast<int>(v.size()));
     for(size_t i = 0, n = v.size(); i < n; ++i) {
         const auto &[name, count] = v[i];
-        auto ti = sol::stack_table(sol, sol::new_table(2));
-        ti.raw_set(1, name);
-        ti.raw_set(2, count);
-        ret.raw_set(i + 1, ti);
+        ret.setFieldRaw(i, el.createTable(elysian::lua::LuaTableValues{
+            elysian::lua::LuaPair{1, name},
+            elysian::lua::LuaPair{2, count}}));
     }
     return ret;
 }
