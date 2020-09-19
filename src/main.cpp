@@ -16,6 +16,7 @@
 #include "math/math.h"
 #include "os/platform.h"
 #include "os/socket.h"
+#include "ray/tracer.h"
 #include "render/animation.h"
 #include "render/grid.h"
 #include "render/light.h"
@@ -47,6 +48,7 @@ struct NNGN {
     nngn::Schedule schedule = {};
     std::unique_ptr<nngn::Compute> compute = {};
     std::unique_ptr<nngn::Graphics> graphics = {};
+    nngn::ray::tracer tracer = {};
     nngn::FPS fps = {};
     nngn::Socket socket = {};
     LuaState lua = {};
@@ -86,6 +88,9 @@ bool NNGN::init(int argc, const char *const *argv) {
     sol["nngn"] = this;
     sol["deref"] = [](void *p) { return *static_cast<uintptr_t*>(p); };
     this->schedule.init(&this->timing);
+    this->tracer.init(
+        &this->math,
+        nngn::Graphics::TEXTURE_EXTENT, nngn::Graphics::TEXTURE_EXTENT);
     this->input.input.init(this->lua.L);
     this->input.mouse.init(this->lua.L);
     if(!this->fonts.init())
@@ -148,12 +153,16 @@ bool NNGN::set_graphics(
     this->fonts.graphics = g.get();
     this->textures.set_graphics(g.get());
     g->set_size_callback(
-        &this->camera, [](void *p, auto s)
-            { static_cast<nngn::Camera*>(p)->set_screen(s); });
+        this, [](void *p, auto s) {
+            auto np = static_cast<NNGN*>(p);
+            np->camera.set_screen(s);
+            np->tracer.camera()->set_screen(s);
+        });
     g->set_camera({
         &this->camera.flags.t, &this->camera.screen,
         &this->camera.proj, &this->camera.hud_proj, &this->camera.view});
     this->camera.set_screen(g->window_size());
+    this->tracer.camera()->set_screen(g->window_size());
     g->set_lighting({
         &this->lighting.ubo(),
         &this->lighting.dir_proj(), &this->lighting.point_proj(),
@@ -194,6 +203,14 @@ int NNGN::loop() {
     this->textbox.clear_updated();
     if(this->lighting.update(this->timing))
         this->graphics->set_lighting_updated();
+    if(this->tracer.trace(this->timing)) {
+        static std::vector<std::byte> tracer_tex(nngn::Graphics::TEXTURE_SIZE);
+        this->tracer.write_tex(
+            nngn::Graphics::TEXTURE_EXTENT,
+            static_cast<std::byte*>(tracer_tex.data()));
+        if(!this->textures.update_data(2, tracer_tex.data()))
+            return 1;
+    }
     if(!this->graphics->render() || !this->graphics->vsync())
         return 1;
     nngn::Profile::swap();
@@ -223,6 +240,7 @@ NNGN_LUA_PROXY(NNGN,
         [](const NNGN &nngn) { return nngn.compute.get(); }),
     "graphics", sol::property(
         [](const NNGN &nngn) { return nngn.graphics.get(); }),
+    "tracer", sol::readonly(&NNGN::tracer),
     "fps", sol::readonly(&NNGN::fps),
     "socket", sol::readonly(&NNGN::socket),
     "lua", sol::readonly(&NNGN::lua),

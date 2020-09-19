@@ -19,7 +19,7 @@ AM_LDFLAGS = -fuse-ld=gold -Wl,--threads,--preread-archive-symbols
 BUILT_SOURCES =
 noinst_HEADERS =
 
-bin_PROGRAMS = @NNGN_BIN@
+bin_PROGRAMS = @NNGN_BIN@ demos/ray
 EXTRA_PROGRAMS = nngn nngn.js
 
 nngn_LDADD = $(DEPS_LIBS)
@@ -46,6 +46,26 @@ nngn_js_LDFLAGS = \
 	--embed-file $(srcdir)/maps/@maps \
 	--embed-file /usr/share/fonts/TTF/DejaVuSans.ttf@DejaVuSans.ttf
 nngn_js_LDADD = $(DEPS_LIBS)
+
+demos_ray_CXXFLAGS = $(AM_CXXFLAGS)
+demos_ray_LDADD = $(DEPS_LIBS) -lpthread
+demos_ray_SOURCES = \
+	demos/ray.cpp \
+	src/luastate.cpp \
+	src/math/camera.cpp src/math/math.cpp \
+	src/timing/timing.cpp \
+	src/utils/log.cpp \
+	src/ray/dielectric.cpp src/ray/lambertian.cpp src/ray/metal.cpp \
+	src/ray/sphere.cpp src/ray/tracer.cpp src/ray/lua_tracer.cpp
+
+noinst_HEADERS += \
+	src/ray/dielectric.h src/ray/lambertian.h src/ray/material.h \
+	src/ray/metal.h src/ray/ray.h src/ray/sphere.h src/ray/tracer.h
+
+nngn_SOURCES += \
+	src/ray/dielectric.cpp src/ray/lambertian.cpp src/ray/metal.cpp \
+	src/ray/sphere.cpp src/ray/tracer.cpp src/ray/lua_tracer.cpp
+
 
 TESTS = $(check_PROGRAMS)
 check_PROGRAMS =
