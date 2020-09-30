@@ -38,6 +38,29 @@ float rnd_gen_next(rnd_gen *b) {
     return 2.3283064365387e-10f * (state.x ^ state.y ^ state.z ^ state.w);
 }
 
+float3 rnd_in_unit_sphere(rnd_gen *b) {
+    for(;;) {
+        float3 ret = {
+            rnd_gen_next(b) * 2.0f - 1.0f,
+            rnd_gen_next(b) * 2.0f - 1.0f,
+            rnd_gen_next(b) * 2.0f - 1.0f};
+        if(dot(ret, ret) < 1.0f)
+            return ret;
+    }
+}
+
+float3 rnd_unit_vector(rnd_gen *b) {
+    const float a = rnd_gen_next(b) * (float)TAU;
+    const float z = rnd_gen_next(b) * 2.0f - 1.0f;
+    const float r = sqrt(1.0f - z * z);
+    return (float3){r * cos(a), r * sin(a), z};
+}
+
+float3 rnd_in_hemisphere(float3 n, rnd_gen *b) {
+    const float3 v = rnd_in_unit_sphere(b);
+    return dot(v, n) > 0.0f ? v : -v;
+}
+
 camera camera_init(
     float3 pos, float3 eye, float3 up,
     float vfov, float aspect
@@ -122,13 +145,25 @@ bool world_hit(
     return hit_anything;
 }
 
-float3 color(uint n_spheres, __global const sphere *spheres, ray r) {
+float3 color(
+    uint max_depth, rnd_gen *rnd,
+    uint n_spheres, __global const sphere *spheres, ray r
+) {
+    float t_max = T_MAX;
+    float3 att = {1, 1, 1};
     hit_record rec = {};
-    if(world_hit(T_MAX, n_spheres, spheres, &r, &rec))
-        return 0.5f * (rec.normal + 1.0f);
-    const float3 unit_direction = normalize(r.dir);
-    const float t = 0.5f * (unit_direction.y + 1.0f);
-    return (1 - t) * (float3){1, 1, 1} + t * (float3){0.5f, 0.7f, 1.0f};
+    while(max_depth--) {
+        if(world_hit(t_max, n_spheres, spheres, &r, &rec)) {
+            att *= 0.5f;
+            r = (ray){
+                .pos = rec.pos,
+                .dir = rnd_in_hemisphere(rec.normal, rnd)};
+        } else {
+            const float t = 0.5f * (normalize(r.dir).y + 1.0f);
+            return att * ((1 - t) * SKY_TOP + t * SKY_BOTTOM);
+        }
+    }
+    return (float3){0, 0, 0};
 }
 
 void merge_pixel(uint i, float3 c, __global float3 *tex) {
@@ -144,7 +179,8 @@ float3 trace_pixel(
 ) {
     const float u = ((float)x + rnd_gen_next(rnd)) / (float)(conf->w - 1);
     const float v = ((float)y + rnd_gen_next(rnd)) / (float)(conf->h - 1);
-    return color(conf->n_spheres, spheres, camera_ray(c, u, v));
+    return color(
+        conf->max_depth, rnd, conf->n_spheres, spheres, camera_ray(c, u, v));
 }
 
 __kernel void trace(
@@ -174,7 +210,7 @@ __kernel void write_tex(
     out += w * y;
     const float m = 256.0f - FLT_EPSILON;
     for(__global const float3 *const e = in + w; in != e; ++in) {
-        const float3 c = *in * m;
+        const float3 c = sqrt(*in) * m;
         *out++ = (uchar4){c[0], c[1], c[2], 255};
     }
 }
