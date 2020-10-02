@@ -10,6 +10,10 @@ local SAMPLES = 1024
 local MAX_DEPTH = 64
 local RND_STATE_SIZE = IMG_WIDTH * IMG_HEIGHT / BLOCK_SIZE ^ 2 * 4
 local RND_STATE_BYTES = RND_STATE_SIZE * Compute.SIZEOF_UINT
+local MATERIAL_TYPE_BITS = 1
+local MATERIAL_TYPE_LAMBERTIAN = 0
+local MATERIAL_TYPE_METAL = 1
+local MATERIAL_METAL = 1 << (32 - MATERIAL_TYPE_BITS)
 
 local tracer = {
     i_samples = 0,
@@ -21,9 +25,26 @@ function tracer:init()
     self.local_size = nngn.compute:get_limits()[Compute.WORK_GROUP_SIZE + 1]
     self:init_tex()
     self:init_rnd()
-    local n_spheres = self:init_spheres{
-        0, 0, -1, 0.5,
-        0, -100.5, -1, 100.0}
+    local n_spheres = self:init_spheres{{
+        pos = {0, -100.5, -1},
+        radius = 100.0,
+        material = {type = MATERIAL_TYPE_LAMBERTIAN, albedo = {0.8, 0.8, 0}},
+    }, {
+        pos = {0, 0, -1},
+        radius = 0.5,
+        material = {type = MATERIAL_TYPE_LAMBERTIAN, albedo = {0.7, 0.3, 0.3}},
+    }, {
+        pos = {-1, 0, -1},
+        radius = 0.5,
+        material = {
+            type = MATERIAL_TYPE_METAL,
+            albedo = {0.8, 0.8, 0.8}, fuzz = 0.3},
+    }, {
+        pos = {1, 0, -1},
+        radius = 0.5,
+        material = {
+            type = MATERIAL_TYPE_METAL,
+            albedo = {0.8, 0.6, 0.2}, fuzz = 1}}}
     self:init_conf(n_spheres)
 end
 
@@ -45,6 +66,9 @@ function tracer:create_prog()
         "-D TAU=" .. (2 * math.pi) .. "f",
         "-D T_MIN=0.001f",
         "-D T_MAX=INFINITY",
+        "-D MATERIAL_TYPE_LAMBERTIAN=" .. MATERIAL_TYPE_LAMBERTIAN .. "U",
+        "-D MATERIAL_TYPE_METAL=" .. MATERIAL_TYPE_METAL .. "U",
+        "-D MATERIAL_TYPE_BITS=" .. MATERIAL_TYPE_BITS .. "U",
         "-D SKY_TOP=\"((float3){1, 1, 1})\"",
         "-D SKY_BOTTOM=\"((float3){0.5f, 0.7f, 1.0f})\""}
     self.prog = assert(
@@ -69,15 +93,79 @@ function tracer:init_rnd()
 end
 
 function tracer:init_spheres(t)
-    local size = #t
-    local n = size // 4
-    assert(n * 4 == size)
-    local bytes = 4 * Compute.SIZEOF_FLOAT * n
-    self.sphere_buffer = assert(nngn.compute:create_buffer(
-        Compute.READ_ONLY, Compute.FLOATV, bytes))
+    local SF3 = 3 * Compute.SIZEOF_FLOAT
+    local SF4 = 4 * Compute.SIZEOF_FLOAT
+    local type_lamb, type_metal = MATERIAL_TYPE_LAMBERTIAN, MATERIAL_TYPE_METAL
+    local n = #t
+    local n_materials = {[type_lamb] = 0, [type_metal] = 0}
+    for _, s in ipairs(t) do
+        local type = s.material.type
+        local count = n_materials[type]
+        if count == nil then error("invalid material: " .. mat.type) end
+        n_materials[type] = count + 1
+    end
+    local sphere_bytes = 2 * SF4 * n
+    local lamb_bytes = SF4 * n_materials[type_lamb]
+    local metal_bytes = SF4 * n_materials[type_metal]
+    local vector = Compute.create_vector(sphere_bytes)
+    local lamb_vector = Compute.create_vector(lamb_bytes)
+    local metal_vector = Compute.create_vector(metal_bytes)
+    Compute.fill_vector(vector, 0, sphere_bytes, Compute.BYTEV, {0})
+    Compute.fill_vector(lamb_vector, 0, lamb_bytes, Compute.BYTEV, {0})
+    Compute.fill_vector(metal_vector, 0, metal_bytes, Compute.BYTEV, {0})
+    local sphere_off, lamb_off, metal_off = 0, 0, 0
+    local i_materials = {[type_lamb] = 0, [type_metal] = 0}
+    for _, s in ipairs(t) do
+        Compute.write_vector(vector, sphere_off, {
+            Compute.FLOATV, s.pos,
+            Compute.FLOAT, s.radius})
+        sphere_off = sphere_off + SF4
+        local mat = s.material
+        local i_mat = i_materials[mat.type]
+        if mat.type == type_lamb then
+            Compute.write_vector(vector, sphere_off, {Compute.UINT, i_mat})
+            Compute.write_vector(
+                lamb_vector, lamb_off, {Compute.FLOATV, mat.albedo})
+            lamb_off = lamb_off + SF4
+            i_materials[type_lamb] = i_mat + 1
+        elseif mat.type == type_metal then
+            Compute.write_vector(
+                vector, sphere_off, {Compute.UINT, MATERIAL_METAL | i_mat})
+            Compute.write_vector(metal_vector, metal_off, {
+                Compute.FLOATV, mat.albedo,
+                Compute.FLOAT, mat.fuzz})
+            metal_off = metal_off + SF4
+            i_materials[type_metal] = i_mat + 1
+        else
+            error("invalid material: " .. mat.type)
+        end
+        sphere_off = sphere_off + SF4
+        assert(sphere_off <= sphere_bytes)
+        assert(lamb_off <= lamb_bytes)
+        assert(metal_off <= metal_bytes)
+        assert(i_materials[type_lamb] <= n_materials[type_lamb])
+        assert(i_materials[type_metal] <= n_materials[type_metal])
+    end
+    assert(sphere_off == sphere_bytes)
+    assert(lamb_off == lamb_bytes)
+    assert(metal_off == metal_bytes)
+    assert(i_materials[type_lamb] == n_materials[type_lamb])
+    assert(i_materials[type_metal] == n_materials[type_metal])
+    local buffer = assert(nngn.compute:create_buffer(
+        Compute.READ_ONLY, Compute.FLOATV, sphere_bytes))
     nngn.compute:write_buffer(
-        self.sphere_buffer, 0, size, Compute.FLOATV,
-        Compute.to_bytes(Compute.FLOATV, t))
+        buffer, 0, sphere_bytes, Compute.BYTEV, vector)
+    local lamb_buffer = assert(nngn.compute:create_buffer(
+        Compute.READ_ONLY, Compute.FLOATV, lamb_bytes))
+    nngn.compute:write_buffer(
+        lamb_buffer, 0, lamb_bytes, Compute.FLOATV, lamb_vector)
+    local metal_buffer = assert(nngn.compute:create_buffer(
+        Compute.READ_ONLY, Compute.FLOATV, metal_bytes))
+    nngn.compute:write_buffer(
+        metal_buffer, 0, metal_bytes, Compute.FLOATV, metal_vector)
+    self.lambertian_buffer = lamb_buffer
+    self.metal_buffer = metal_buffer
+    self.sphere_buffer = buffer
     return n
 end
 
@@ -128,6 +216,8 @@ function tracer:trace()
         Compute.DATA, {self.conf_bytes, Compute.vector_data(self.conf)},
         Compute.UINT, self.i_samples,
         Compute.BUFFER, self.rnd_buffer,
+        Compute.BUFFER, self.lambertian_buffer,
+        Compute.BUFFER, self.metal_buffer,
         Compute.BUFFER, self.sphere_buffer,
         Compute.BUFFER, self.tex}
     nngn.compute:execute(table.unpack(args))

@@ -11,13 +11,19 @@ typedef struct {
 
 typedef struct { float3 pos, dir; } ray;
 
+typedef struct { float3 albedo; } lambertian;
+typedef struct { float4 albedo_fuzz; } metal;
+typedef struct { uint i; } material_idx;
+typedef struct { float4 c_r; material_idx material; } sphere;
+
 typedef struct {
     float3 pos, normal;
     float t;
+    material_idx material;
     bool front_face;
 } hit_record;
 
-typedef struct { float4 c_r; } sphere;
+float3 vec_reflect(float3 v, float3 n) { return v - 2 * n * dot(v, n); }
 
 // https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-37-efficient-random-number-generation-and-application
 // https://math.stackexchange.com/questions/337782/pseudo-random-number-generation-on-the-gpu
@@ -90,6 +96,51 @@ ray camera_ray(const camera *c, float s, float t) {
 
 float3 ray_at(const ray *r, float t) { return r->pos + t * r->dir; }
 
+void lambertian_apply(
+    __global const lambertian *l, const hit_record *rec,
+    rnd_gen *rnd, ray *r, float3 *attenuation
+) {
+    *r = (ray){.pos = rec->pos, .dir = rnd_in_hemisphere(rec->normal, rnd)};
+    *attenuation *= l->albedo;
+}
+
+float3 metal_albedo(__global const metal *m) { return m->albedo_fuzz.xyz; }
+float3 metal_fuzz(__global const metal *m) { return m->albedo_fuzz[3]; }
+
+bool metal_apply(
+    __global const metal *m, const hit_record *rec,
+    rnd_gen *rnd, ray *r, float3 *attenuation
+) {
+    const float3 refl =
+        vec_reflect(normalize(r->dir), rec->normal)
+        + metal_fuzz(m) * rnd_in_unit_sphere(rnd);
+    if(dot(refl, rec->normal) < 0)
+        return false;
+    *r = (ray){.pos = rec->pos, .dir = refl};
+    *attenuation *= metal_albedo(m);
+    return true;
+}
+
+bool material_apply(
+    const hit_record *rec,
+    __global const lambertian *lambertians,
+    __global const metal *metals,
+    rnd_gen *rnd, ray *r, float3 *attenuation
+) {
+    const uint mat = rec->material.i;
+    const int mat_shift = 32 - MATERIAL_TYPE_BITS;
+    const uint mat_type = mat >> mat_shift;
+    const uint mat_idx = mat & ~(UINT_MAX << mat_shift);
+    switch(mat_type) {
+    case MATERIAL_TYPE_LAMBERTIAN:
+        lambertian_apply(lambertians + mat_idx, rec, rnd, r, attenuation);
+        return true;
+    case MATERIAL_TYPE_METAL:
+        return metal_apply(metals + mat_idx, rec, rnd, r, attenuation);
+    default: return false;
+    }
+}
+
 float3 sphere_center(__global const sphere *s) { return s->c_r.xyz; }
 float sphere_radius(__global const sphere *s) { return s->c_r[3]; }
 
@@ -103,6 +154,7 @@ void sphere_hit_record(
     rec->t = t;
     rec->pos = p;
     rec->normal = front_face ? n : -n;
+    rec->material = s->material;
     rec->front_face = front_face;
 }
 
@@ -146,18 +198,19 @@ bool world_hit(
 }
 
 float3 color(
-    uint max_depth, rnd_gen *rnd,
-    uint n_spheres, __global const sphere *spheres, ray r
+    uint max_depth, rnd_gen *rnd, uint n_spheres,
+    __global const lambertian *lambertians,
+    __global const metal *metals,
+    __global const sphere *spheres,
+    ray r
 ) {
     float t_max = T_MAX;
     float3 att = {1, 1, 1};
     hit_record rec = {};
     while(max_depth--) {
         if(world_hit(t_max, n_spheres, spheres, &r, &rec)) {
-            att *= 0.5f;
-            r = (ray){
-                .pos = rec.pos,
-                .dir = rnd_in_hemisphere(rec.normal, rnd)};
+            if(!material_apply(&rec, lambertians, metals, rnd, &r, &att))
+                break;
         } else {
             const float t = 0.5f * (normalize(r.dir).y + 1.0f);
             return att * ((1 - t) * SKY_TOP + t * SKY_BOTTOM);
@@ -174,18 +227,23 @@ void merge_pixel(uint i, float3 c, __global float3 *tex) {
 
 float3 trace_pixel(
     tracer_conf *conf, const camera *c, rnd_gen *rnd,
+    __global const lambertian *lambertians,
+    __global const metal *metals,
     __global const sphere *spheres,
     uint x, uint y
 ) {
     const float u = ((float)x + rnd_gen_next(rnd)) / (float)(conf->w - 1);
     const float v = ((float)y + rnd_gen_next(rnd)) / (float)(conf->h - 1);
     return color(
-        conf->max_depth, rnd, conf->n_spheres, spheres, camera_ray(c, u, v));
+        conf->max_depth, rnd, conf->n_spheres,
+        lambertians, metals, spheres, camera_ray(c, u, v));
 }
 
 __kernel void trace(
     tracer_conf conf, uint i_samples,
     __global const rnd_gen *rnd_p,
+    __global const lambertian *lambertians,
+    __global const metal *metals,
     __global const sphere *spheres,
     __global float3 *tex
 ) {
@@ -197,7 +255,8 @@ __kernel void trace(
     rnd_gen rnd = rnd_p[id];
     for(uint y = BLOCK_SIZE * id0, ye = y + BLOCK_SIZE; y < ye; ++y)
         for(uint x = BLOCK_SIZE * id1, xe = x + BLOCK_SIZE; x < xe; ++x) {
-            const float3 pixel = trace_pixel(&conf, &c, &rnd, spheres, x, y);
+            const float3 pixel = trace_pixel(
+                &conf, &c, &rnd, lambertians, metals, spheres, x, y);
             merge_pixel(i_samples, pixel, tex + conf.w * (conf.w - y - 1) + x);
         }
 }
