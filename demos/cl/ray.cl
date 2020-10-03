@@ -13,6 +13,7 @@ typedef struct { float3 pos, dir; } ray;
 
 typedef struct { float3 albedo; } lambertian;
 typedef struct { float4 albedo_fuzz; } metal;
+typedef struct { float n1_n0; } dielectric;
 typedef struct { uint i; } material_idx;
 typedef struct { float4 c_r; material_idx material; } sphere;
 
@@ -24,6 +25,19 @@ typedef struct {
 } hit_record;
 
 float3 vec_reflect(float3 v, float3 n) { return v - 2 * n * dot(v, n); }
+
+float3 vec_refract(float3 v, float3 n, float n1_n0) {
+    v = normalize(v);
+    const float d = dot(v, n);
+    const float disc = 1 - n1_n0 * n1_n0 * (1 - d * d);
+    return disc <= 0 ? (float3)0 : n1_n0 * (v - (n * d)) - n * sqrt(disc);
+}
+
+float schlick(float cos, float n1_n0) {
+    float r0 = (1.0f - n1_n0) / (1.0f + n1_n0);
+    r0 *= r0;
+    return r0 + (1.0f - r0) * pow(1.0f - cos, 5);
+}
 
 // https://developer.nvidia.com/gpugems/gpugems3/part-vi-gpu-computing/chapter-37-efficient-random-number-generation-and-application
 // https://math.stackexchange.com/questions/337782/pseudo-random-number-generation-on-the-gpu
@@ -121,10 +135,26 @@ bool metal_apply(
     return true;
 }
 
+void dielectric_apply(
+    __global const dielectric *d, const hit_record *rec,
+    rnd_gen *rnd, ray *r, float3 *attenuation
+) {
+    const float3 n = rec->normal;
+    const float3 dir = normalize(r->dir);
+    const float n1_n0 = rec->front_face ? 1.0f / d->n1_n0 : d->n1_n0;
+    const float cos = fmin(dot(-dir, n), 1.0f);
+    const float sin = sqrt(1.0f - cos * cos);
+    if(n1_n0 * sin > 1.0f || rnd_gen_next(rnd) < schlick(cos, n1_n0))
+        *r = (ray){.pos = rec->pos, .dir = vec_reflect(dir, n)};
+    else
+        *r = (ray){.pos = rec->pos, .dir = vec_refract(dir, n, n1_n0)};
+}
+
 bool material_apply(
     const hit_record *rec,
     __global const lambertian *lambertians,
     __global const metal *metals,
+    __global const dielectric *dielectrics,
     rnd_gen *rnd, ray *r, float3 *attenuation
 ) {
     const uint mat = rec->material.i;
@@ -137,6 +167,9 @@ bool material_apply(
         return true;
     case MATERIAL_TYPE_METAL:
         return metal_apply(metals + mat_idx, rec, rnd, r, attenuation);
+    case MATERIAL_TYPE_DIELECTRIC:
+        dielectric_apply(dielectrics + mat_idx, rec, rnd, r, attenuation);
+        return true;
     default: return false;
     }
 }
@@ -201,6 +234,7 @@ float3 color(
     uint max_depth, rnd_gen *rnd, uint n_spheres,
     __global const lambertian *lambertians,
     __global const metal *metals,
+    __global const dielectric *dielectrics,
     __global const sphere *spheres,
     ray r
 ) {
@@ -209,7 +243,8 @@ float3 color(
     hit_record rec = {};
     while(max_depth--) {
         if(world_hit(t_max, n_spheres, spheres, &r, &rec)) {
-            if(!material_apply(&rec, lambertians, metals, rnd, &r, &att))
+            if(!material_apply(
+                    &rec, lambertians, metals, dielectrics, rnd, &r, &att))
                 break;
         } else {
             const float t = 0.5f * (normalize(r.dir).y + 1.0f);
@@ -229,6 +264,7 @@ float3 trace_pixel(
     tracer_conf *conf, const camera *c, rnd_gen *rnd,
     __global const lambertian *lambertians,
     __global const metal *metals,
+    __global const dielectric *dielectrics,
     __global const sphere *spheres,
     uint x, uint y
 ) {
@@ -236,7 +272,7 @@ float3 trace_pixel(
     const float v = ((float)y + rnd_gen_next(rnd)) / (float)(conf->h - 1);
     return color(
         conf->max_depth, rnd, conf->n_spheres,
-        lambertians, metals, spheres, camera_ray(c, u, v));
+        lambertians, metals, dielectrics, spheres, camera_ray(c, u, v));
 }
 
 __kernel void trace(
@@ -244,6 +280,7 @@ __kernel void trace(
     __global const rnd_gen *rnd_p,
     __global const lambertian *lambertians,
     __global const metal *metals,
+    __global const dielectric *dielectrics,
     __global const sphere *spheres,
     __global float3 *tex
 ) {
@@ -256,7 +293,8 @@ __kernel void trace(
     for(uint y = BLOCK_SIZE * id0, ye = y + BLOCK_SIZE; y < ye; ++y)
         for(uint x = BLOCK_SIZE * id1, xe = x + BLOCK_SIZE; x < xe; ++x) {
             const float3 pixel = trace_pixel(
-                &conf, &c, &rnd, lambertians, metals, spheres, x, y);
+                &conf, &c, &rnd, lambertians, metals, dielectrics,
+                spheres, x, y);
             merge_pixel(i_samples, pixel, tex + conf.w * (conf.w - y - 1) + x);
         }
 }

@@ -10,10 +10,13 @@ local SAMPLES = 1024
 local MAX_DEPTH = 64
 local RND_STATE_SIZE = IMG_WIDTH * IMG_HEIGHT / BLOCK_SIZE ^ 2 * 4
 local RND_STATE_BYTES = RND_STATE_SIZE * Compute.SIZEOF_UINT
-local MATERIAL_TYPE_BITS = 1
+local MATERIAL_TYPE_BITS = 2
 local MATERIAL_TYPE_LAMBERTIAN = 0
 local MATERIAL_TYPE_METAL = 1
+local MATERIAL_TYPE_DIELECTRIC = 2
 local MATERIAL_METAL = 1 << (32 - MATERIAL_TYPE_BITS)
+local MATERIAL_DIELECTRIC =
+    MATERIAL_TYPE_DIELECTRIC << (32 - MATERIAL_TYPE_BITS)
 
 local tracer = {
     i_samples = 0,
@@ -32,19 +35,21 @@ function tracer:init()
     }, {
         pos = {0, 0, -1},
         radius = 0.5,
-        material = {type = MATERIAL_TYPE_LAMBERTIAN, albedo = {0.7, 0.3, 0.3}},
+        material = {type = MATERIAL_TYPE_LAMBERTIAN, albedo = {0.1, 0.2, 0.5}},
     }, {
         pos = {-1, 0, -1},
         radius = 0.5,
-        material = {
-            type = MATERIAL_TYPE_METAL,
-            albedo = {0.8, 0.8, 0.8}, fuzz = 0.3},
+        material = {type = MATERIAL_TYPE_DIELECTRIC, n1_n0 = 1.5},
+    }, {
+        pos = {-1, 0, -1},
+        radius = -0.45,
+        material = {type = MATERIAL_TYPE_DIELECTRIC, n1_n0 = 1.5},
     }, {
         pos = {1, 0, -1},
         radius = 0.5,
         material = {
             type = MATERIAL_TYPE_METAL,
-            albedo = {0.8, 0.6, 0.2}, fuzz = 1}}}
+            albedo = {0.8, 0.6, 0.2}, fuzz = 0}}}
     self:init_conf(n_spheres)
 end
 
@@ -68,6 +73,7 @@ function tracer:create_prog()
         "-D T_MAX=INFINITY",
         "-D MATERIAL_TYPE_LAMBERTIAN=" .. MATERIAL_TYPE_LAMBERTIAN .. "U",
         "-D MATERIAL_TYPE_METAL=" .. MATERIAL_TYPE_METAL .. "U",
+        "-D MATERIAL_TYPE_DIELECTRIC=" .. MATERIAL_TYPE_DIELECTRIC .. "U",
         "-D MATERIAL_TYPE_BITS=" .. MATERIAL_TYPE_BITS .. "U",
         "-D SKY_TOP=\"((float3){1, 1, 1})\"",
         "-D SKY_BOTTOM=\"((float3){0.5f, 0.7f, 1.0f})\""}
@@ -93,11 +99,12 @@ function tracer:init_rnd()
 end
 
 function tracer:init_spheres(t)
-    local SF3 = 3 * Compute.SIZEOF_FLOAT
-    local SF4 = 4 * Compute.SIZEOF_FLOAT
-    local type_lamb, type_metal = MATERIAL_TYPE_LAMBERTIAN, MATERIAL_TYPE_METAL
+    local SF = Compute.SIZEOF_FLOAT
+    local SF3, SF4 = 3 * SF, 4 * SF
+    local type_lamb, type_metal, type_diel =
+        MATERIAL_TYPE_LAMBERTIAN, MATERIAL_TYPE_METAL, MATERIAL_TYPE_DIELECTRIC
     local n = #t
-    local n_materials = {[type_lamb] = 0, [type_metal] = 0}
+    local n_materials = {[type_lamb] = 0, [type_metal] = 0, [type_diel] = 0}
     for _, s in ipairs(t) do
         local type = s.material.type
         local count = n_materials[type]
@@ -107,14 +114,17 @@ function tracer:init_spheres(t)
     local sphere_bytes = 2 * SF4 * n
     local lamb_bytes = SF4 * n_materials[type_lamb]
     local metal_bytes = SF4 * n_materials[type_metal]
+    local diel_bytes = SF * n_materials[type_diel]
     local vector = Compute.create_vector(sphere_bytes)
     local lamb_vector = Compute.create_vector(lamb_bytes)
     local metal_vector = Compute.create_vector(metal_bytes)
+    local diel_vector = Compute.create_vector(diel_bytes)
     Compute.fill_vector(vector, 0, sphere_bytes, Compute.BYTEV, {0})
     Compute.fill_vector(lamb_vector, 0, lamb_bytes, Compute.BYTEV, {0})
     Compute.fill_vector(metal_vector, 0, metal_bytes, Compute.BYTEV, {0})
-    local sphere_off, lamb_off, metal_off = 0, 0, 0
-    local i_materials = {[type_lamb] = 0, [type_metal] = 0}
+    Compute.fill_vector(diel_vector, 0, diel_bytes, Compute.BYTEV, {0})
+    local sphere_off, lamb_off, metal_off, diel_off = 0, 0, 0, 0
+    local i_materials = {[type_lamb] = 0, [type_metal] = 0, [type_diel] = 0}
     for _, s in ipairs(t) do
         Compute.write_vector(vector, sphere_off, {
             Compute.FLOATV, s.pos,
@@ -136,6 +146,13 @@ function tracer:init_spheres(t)
                 Compute.FLOAT, mat.fuzz})
             metal_off = metal_off + SF4
             i_materials[type_metal] = i_mat + 1
+        elseif mat.type == type_diel then
+            Compute.write_vector(
+                vector, sphere_off, {Compute.UINT, MATERIAL_DIELECTRIC | i_mat})
+            Compute.write_vector(
+                diel_vector, diel_off, {Compute.FLOAT, mat.n1_n0})
+            diel_off = diel_off + SF
+            i_materials[type_diel] = i_mat + 1
         else
             error("invalid material: " .. mat.type)
         end
@@ -143,14 +160,18 @@ function tracer:init_spheres(t)
         assert(sphere_off <= sphere_bytes)
         assert(lamb_off <= lamb_bytes)
         assert(metal_off <= metal_bytes)
+        assert(diel_off <= diel_bytes)
         assert(i_materials[type_lamb] <= n_materials[type_lamb])
         assert(i_materials[type_metal] <= n_materials[type_metal])
+        assert(i_materials[type_diel] <= n_materials[type_diel])
     end
     assert(sphere_off == sphere_bytes)
     assert(lamb_off == lamb_bytes)
     assert(metal_off == metal_bytes)
+    assert(diel_off == diel_bytes)
     assert(i_materials[type_lamb] == n_materials[type_lamb])
     assert(i_materials[type_metal] == n_materials[type_metal])
+    assert(i_materials[type_diel] == n_materials[type_diel])
     local buffer = assert(nngn.compute:create_buffer(
         Compute.READ_ONLY, Compute.FLOATV, sphere_bytes))
     nngn.compute:write_buffer(
@@ -163,8 +184,13 @@ function tracer:init_spheres(t)
         Compute.READ_ONLY, Compute.FLOATV, metal_bytes))
     nngn.compute:write_buffer(
         metal_buffer, 0, metal_bytes, Compute.FLOATV, metal_vector)
+    local diel_buffer = assert(nngn.compute:create_buffer(
+        Compute.READ_ONLY, Compute.FLOATV, diel_bytes))
+    nngn.compute:write_buffer(
+        diel_buffer, 0, diel_bytes, Compute.FLOATV, diel_vector)
     self.lambertian_buffer = lamb_buffer
     self.metal_buffer = metal_buffer
+    self.dielectric_buffer = diel_buffer
     self.sphere_buffer = buffer
     return n
 end
@@ -218,6 +244,7 @@ function tracer:trace()
         Compute.BUFFER, self.rnd_buffer,
         Compute.BUFFER, self.lambertian_buffer,
         Compute.BUFFER, self.metal_buffer,
+        Compute.BUFFER, self.dielectric_buffer,
         Compute.BUFFER, self.sphere_buffer,
         Compute.BUFFER, self.tex}
     nngn.compute:execute(table.unpack(args))
