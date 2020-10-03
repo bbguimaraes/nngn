@@ -6,7 +6,8 @@ typedef struct {
 typedef struct { uint4 state; } rnd_gen;
 
 typedef struct {
-    float3 origin, lower_left_corner, horizontal, vertical;
+    float3 origin, lower_left_corner, horizontal, vertical, u, v, w;
+    float lens_radius;
 } camera;
 
 typedef struct { float3 pos, dir; } ray;
@@ -69,6 +70,16 @@ float3 rnd_in_unit_sphere(rnd_gen *b) {
     }
 }
 
+float3 rnd_in_unit_disk(rnd_gen *b) {
+    for(;;) {
+        const float3 p = {
+            rnd_gen_next(b) * 2.0f - 1.0f,
+            rnd_gen_next(b) * 2.0f - 1.0f, 0};
+        if(dot(p, p) < 1)
+            return p;
+    }
+}
+
 float3 rnd_unit_vector(rnd_gen *b) {
     const float a = rnd_gen_next(b) * (float)TAU;
     const float z = rnd_gen_next(b) * 2.0f - 1.0f;
@@ -83,7 +94,7 @@ float3 rnd_in_hemisphere(float3 n, rnd_gen *b) {
 
 camera camera_init(
     float3 pos, float3 eye, float3 up,
-    float vfov, float aspect
+    float vfov, float aspect, float aperture, float focus_dist
 ) {
     const float h = tan(vfov / 2.0f);
     const float viewport_height = 2.0f * h;
@@ -91,21 +102,29 @@ camera camera_init(
     const float3 w = normalize(eye - pos);
     const float3 u = normalize(cross(up, w));
     const float3 v = cross(w, u);
-    const float3 horizontal = viewport_width * u;
-    const float3 vertical = viewport_height * v;
+    const float3 horizontal = focus_dist * viewport_width * u;
+    const float3 vertical = focus_dist * viewport_height * v;
+    const float3 lower_left_corner =
+        eye - horizontal / 2.0f - vertical / 2.0f - focus_dist * w;
     return (camera){
         .origin = eye,
         .horizontal = horizontal,
         .vertical = vertical,
-        .lower_left_corner = eye - horizontal / 2.0f - vertical / 2.0f - w};
+        .lower_left_corner = lower_left_corner,
+        .u = u,
+        .v = v,
+        .w = w,
+        .lens_radius = aperture / 2.0f};
 }
 
-ray camera_ray(const camera *c, float s, float t) {
+ray camera_ray(const camera *c, rnd_gen *rnd, float s, float t) {
+    const float3 rd = c->lens_radius * rnd_in_unit_disk(rnd);
+    const float3 offset = c->u * rd.x + c->v * rd.y;
     float3 dir = c->lower_left_corner;
     dir += s * c->horizontal;
     dir += t * c->vertical;
-    dir -= c->origin;
-    return (ray){.pos = c->origin, .dir = dir};
+    dir -= c->origin + offset;
+    return (ray){.pos = c->origin + offset, .dir = dir};
 }
 
 float3 ray_at(const ray *r, float t) { return r->pos + t * r->dir; }
@@ -272,7 +291,7 @@ float3 trace_pixel(
     const float v = ((float)y + rnd_gen_next(rnd)) / (float)(conf->h - 1);
     return color(
         conf->max_depth, rnd, conf->n_spheres,
-        lambertians, metals, dielectrics, spheres, camera_ray(c, u, v));
+        lambertians, metals, dielectrics, spheres, camera_ray(c, rnd, u, v));
 }
 
 __kernel void trace(
@@ -286,7 +305,8 @@ __kernel void trace(
 ) {
     const camera c = camera_init(
         conf.camera.pos, conf.camera.eye, conf.camera.up,
-        PI / 2.0f, (float)conf.w / (float)conf.h);
+        PI / 9.0f, (float)conf.w / (float)conf.h, 2.0f,
+        distance(conf.camera.pos, conf.camera.eye));
     const uint id0 = get_global_id(0), id1 = get_global_id(1);
     const uint id = get_global_size(0) * id1 + id0;
     rnd_gen rnd = rnd_p[id];

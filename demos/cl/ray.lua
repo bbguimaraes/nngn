@@ -59,7 +59,8 @@ function tracer:init_camera()
     nngn_camera.reset()
     c:set_perspective(true)
     c:set_max_vel(4)
-    c:look_at(0, 0, -1, 0, 0, 0, 0, 1, 0)
+    c:look_at(0, 0, -1, 3, 3, 2, 0, 1, 0)
+    c:set_zoom(math.sqrt(3 ^ 3) - 1)
     self.camera = c
 end
 
