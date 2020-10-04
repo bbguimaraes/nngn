@@ -2,6 +2,14 @@ dofile("src/lua/path.lua")
 local nngn_camera = require "nngn.lib.camera"
 local nngn_math = require "nngn.lib.math"
 
+local vec3 = nngn_math.vec3
+
+local rand = (function()
+    local m = nngn.math
+    local f = Math.rand
+    return function() return f(m) end
+end)()
+
 local IMG_WIDTH, IMG_HEIGHT = 512, 512
 local IMG_BYTES = 4 * IMG_WIDTH * IMG_HEIGHT
 local INTERNAL_TEX_BYTES = 3 * Compute.SIZEOF_FLOAT * IMG_WIDTH * IMG_HEIGHT
@@ -28,28 +36,52 @@ function tracer:init()
     self.local_size = nngn.compute:get_limits()[Compute.WORK_GROUP_SIZE + 1]
     self:init_tex()
     self:init_rnd()
-    local n_spheres = self:init_spheres{{
-        pos = {0, -100.5, -1},
-        radius = 100.0,
-        material = {type = MATERIAL_TYPE_LAMBERTIAN, albedo = {0.8, 0.8, 0}},
-    }, {
-        pos = {0, 0, -1},
-        radius = 0.5,
-        material = {type = MATERIAL_TYPE_LAMBERTIAN, albedo = {0.1, 0.2, 0.5}},
-    }, {
-        pos = {-1, 0, -1},
-        radius = 0.5,
-        material = {type = MATERIAL_TYPE_DIELECTRIC, n1_n0 = 1.5},
-    }, {
-        pos = {-1, 0, -1},
-        radius = -0.45,
-        material = {type = MATERIAL_TYPE_DIELECTRIC, n1_n0 = 1.5},
-    }, {
-        pos = {1, 0, -1},
-        radius = 0.5,
+    local spheres = {}
+    table.insert(spheres, {
+        pos ={0, -1000, 0},
+        radius = 1000,
+        material = {type = MATERIAL_TYPE_LAMBERTIAN, albedo = {0.5, 0.5, 0.5}}})
+    local spread = 2
+    for a = -spread, spread - 1 do
+        for b = -spread, spread - 1 do
+            local center = vec3(a + 0.9 * rand(), 0.2, b + 0.9 * rand())
+            if center:len_sq() <= 0.9 * 0.9 then
+                goto continue
+            end
+            local sphere = {pos = center, radius = 0.2}
+            local mat = rand()
+            if mat < 0.8 then
+                mat = {
+                    type = MATERIAL_TYPE_LAMBERTIAN,
+                    albedo = nngn_math.vec3_rand(rand)
+                        * nngn_math.vec3_rand(rand)}
+            elseif mat < 0.95 then
+                mat = {
+                    type = MATERIAL_TYPE_METAL,
+                    albedo = nngn_math.vec3_rand(rand) / vec3(2) + vec3(0.5),
+                    fuzz = rand(0, 0.5)}
+            else
+                mat = {type = MATERIAL_TYPE_DIELECTRIC, n1_n0 = 1.5}
+            end
+            sphere.material = mat
+            table.insert(spheres, sphere)
+            ::continue::
+        end
+    end
+    table.insert(spheres, {
+        pos ={0, 1, 0},
+        radius = 1,
+        material = {type = MATERIAL_TYPE_DIELECTRIC, n1_n0 = 1.5}})
+    table.insert(spheres, {
+        pos ={-4, 1, 0},
+        radius = 1,
+        material = {type = MATERIAL_TYPE_LAMBERTIAN, albedo = {0.4, 0.2, 0.1}}})
+    table.insert(spheres, {
+        pos ={4, 1, 0},
+        radius = 1,
         material = {
-            type = MATERIAL_TYPE_METAL,
-            albedo = {0.8, 0.6, 0.2}, fuzz = 0}}}
+            type = MATERIAL_TYPE_METAL, albedo = {0.7, 0.6, 0.5}, fuzz = 0}})
+    local n_spheres = self:init_spheres(spheres)
     self:init_conf(n_spheres)
 end
 
@@ -59,8 +91,8 @@ function tracer:init_camera()
     nngn_camera.reset()
     c:set_perspective(true)
     c:set_max_vel(4)
-    c:look_at(0, 0, -1, 3, 3, 2, 0, 1, 0)
-    c:set_zoom(math.sqrt(3 ^ 3) - 1)
+    c:look_at(0, 0, 0, 13, 2, 3, 0, 1, 0)
+    c:set_zoom(10)
     self.camera = c
 end
 
@@ -213,9 +245,9 @@ end
 function tracer:update_camera()
     if not self.camera:update(nngn.timing) then return end
     self.i_samples = 0
-    local p = nngn_math.vec3(self.camera:pos())
-    local e = nngn_math.vec3(self.camera:eye())
-    p = p + (p - e) * nngn_math.vec3(self.camera:zoom())
+    local p = vec3(self.camera:pos())
+    local e = vec3(self.camera:eye())
+    p = p + (p - e) * vec3(self.camera:zoom())
     Compute.write_vector(
         self.conf, 4 * Compute.SIZEOF_UINT,
         {Compute.FLOATV, {p[1], p[2], p[3], 0, e[1], e[2], e[3], 0}})
@@ -229,7 +261,27 @@ end
 
 function tracer:done() return self.i_samples == SAMPLES end
 
+local a = 0
+local t0_init, t1_init = 60, 60
+local t0, t1 = nil, t1_init
 function tracer:trace()
+    if t0 then
+        t0 = t0 - 1
+        if t0 == 0 then
+            t0 = nil
+            t1 = t1_init
+        end
+    elseif t1 then
+        t1 = t1 - 1
+        if t1 == 0 then
+            t1 = nil
+            t0 = t0_init
+        else
+            self.camera:look_at(
+                0, 0, 0, 10 * math.sin(a), 2, 10 * math.cos(a), 0, 1, 0)
+            a = a + math.sin(math.pi * 1 - t1 / t1_init) / 32
+        end
+    end
     self:update_camera()
     self:update_rnd()
     local events = {}

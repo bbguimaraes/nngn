@@ -305,7 +305,7 @@ __kernel void trace(
 ) {
     const camera c = camera_init(
         conf.camera.pos, conf.camera.eye, conf.camera.up,
-        PI / 9.0f, (float)conf.w / (float)conf.h, 2.0f,
+        PI / 9.0f, (float)conf.w / (float)conf.h, 0.1f,
         distance(conf.camera.pos, conf.camera.eye));
     const uint id0 = get_global_id(0), id1 = get_global_id(1);
     const uint id = get_global_size(0) * id1 + id0;
