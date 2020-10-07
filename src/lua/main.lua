@@ -18,7 +18,7 @@ function on_collision(e0, e1, ...)
     end
 end
 
-camera.reset()
+camera.reset(2)
 player.set{
     "src/lson/crono.lua", "src/lson/link.lua", "src/lson/link_sh.lua",
     "src/lson/fairy0.lua", "src/lson/chocobo.lua", "src/lson/null.lua"}
@@ -65,10 +65,10 @@ tracer:add_sphere({-4, 1, 0}, 1, tracer:add_lambertian({.4, .2, .1}))
 tracer:add_sphere({4, 1, 0}, 1, tracer:add_metal({.7, .6, .5}, 0))
 tracer:add_sphere({0, -1000, 0}, 1000, tracer:add_lambertian(math.vec3(.5)))
 
-camera.reset(1)
-camera.set(c)
-camera.set_max_vel(2)
 local c = tracer:camera()
+camera.set(c)
+camera.reset(1)
+camera.set_max_vel(2)
 c:look_at(0, 0, 0, 13, 2, 3, 0, 1, 0)
 
 local tex = {}

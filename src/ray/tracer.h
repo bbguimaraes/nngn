@@ -37,7 +37,7 @@ public:
 
 class tracer {
     enum Flag {
-        ENABLED,
+        ENABLED = 1u << 0,
     };
     Flags<Flag> flags = {};
     static constexpr size_t max_depth = 64;

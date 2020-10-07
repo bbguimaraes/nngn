@@ -14,7 +14,7 @@ local IMG_WIDTH, IMG_HEIGHT = 512, 512
 local IMG_BYTES = 4 * IMG_WIDTH * IMG_HEIGHT
 local INTERNAL_TEX_BYTES = 3 * Compute.SIZEOF_FLOAT * IMG_WIDTH * IMG_HEIGHT
 local BLOCK_SIZE, LOCAL_SIZE = 8, 16
-local SAMPLES = 1024
+local SAMPLES = 1024 * 1024
 local MAX_DEPTH = 64
 local RND_STATE_SIZE = IMG_WIDTH * IMG_HEIGHT / BLOCK_SIZE ^ 2 * 4
 local RND_STATE_BYTES = RND_STATE_SIZE * Compute.SIZEOF_UINT
@@ -69,15 +69,15 @@ function tracer:init()
         end
     end
     table.insert(spheres, {
-        pos ={0, 1, 0},
+        pos = {0, 1, 0},
         radius = 1,
         material = {type = MATERIAL_TYPE_DIELECTRIC, n1_n0 = 1.5}})
     table.insert(spheres, {
-        pos ={-4, 1, 0},
+        pos = {-4, 1, 0},
         radius = 1,
         material = {type = MATERIAL_TYPE_LAMBERTIAN, albedo = {0.4, 0.2, 0.1}}})
     table.insert(spheres, {
-        pos ={4, 1, 0},
+        pos = {4, 1, 0},
         radius = 1,
         material = {
             type = MATERIAL_TYPE_METAL, albedo = {0.7, 0.6, 0.5}, fuzz = 0}})

@@ -10,12 +10,19 @@ using tracer = nngn::ray::tracer;
 
 namespace {
 
-auto add_lambertian(tracer &t, const sol::stack_table &a)
-    { return t.add_lambertian(nngn::vec3(a[1], a[2], a[3])); }
-auto add_metal(tracer &t, const sol::stack_table &a, float f)
-    { return t.add_metal(nngn::vec3(a[1], a[2], a[3]), f); }
+auto add_lambertian(tracer &t, const sol::stack_table &a) {
+    return static_cast<nngn::ray::material*>(
+        t.add_lambertian(nngn::vec3(a[1], a[2], a[3])));
+}
+
+auto add_metal(tracer &t, const sol::stack_table &a, float f) {
+    return static_cast<nngn::ray::material*>(
+        t.add_metal(nngn::vec3(a[1], a[2], a[3]), f));
+}
+
 auto add_dielectric(tracer &t, float n)
-    { return t.add_dielectric(n); }
+    { return static_cast<nngn::ray::material*>(t.add_dielectric(n)); }
+
 auto add_sphere(
         tracer &t, const sol::stack_table &c, float r, nngn::ray::material *m)
     { return t.add_sphere(nngn::vec3(c[1], c[2], c[3]), r, m); }
