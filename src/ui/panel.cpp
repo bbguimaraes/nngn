@@ -6,6 +6,8 @@
 #include <QtWidgets/QLabel>
 #include <QtWidgets/QLineEdit>
 
+#include "utils.hpp"
+
 namespace {
 
 auto widget(QLayout *l, auto i) {
@@ -17,20 +19,18 @@ auto widget(QLayout *l, auto i) {
 }
 
 std::size_t update_visible(QLayout *l, const QString &filter) {
+    auto v = impero::layout_widget_view(l) | impero::as<QLabel*>;
     if(filter.isEmpty()) {
-        for(int i = 0, n = l->count(); i < n; ++i)
-            if(auto *w = widget(l, i))
-                w->setVisible(true);
+        for(auto *l : v)
+            l->setVisible(true);
         return static_cast<std::size_t>(l->count());
     }
-    std::size_t ret = {};
-    for(int i = 0, n = l->count(); i < n; ++i)
-        if(auto *w = static_cast<QLabel*>(widget(l, i))) {
-            const bool visible = w->text().contains(filter);
-            w->setVisible(visible);
-            ret += static_cast<std::size_t>(visible);
-        }
-    return ret;
+    return impero::accumulate(
+        v | std::views::transform([&filter](auto *l) {
+            const bool b = l->text().contains(filter);
+            l->setVisible(b);
+            return static_cast<std::size_t>(b);
+        }));
 }
 
 template<bool S>
