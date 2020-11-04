@@ -1,3 +1,6 @@
+#include <utility>
+
+#include <QCommandLineParser>
 #include <QProcess>
 #include <QScreen>
 
@@ -11,6 +14,16 @@
 #include "ui/widget.hpp"
 
 namespace {
+
+QStringList parse_args(const QCoreApplication &app) {
+    QCommandLineParser parser;
+    parser.setApplicationDescription("impero");
+    parser.addHelpOption();
+    parser.addVersionOption();
+    parser.addPositionalArgument("commands...", "list of available commands");
+    parser.process(app);
+    return parser.positionalArguments();
+}
 
 void update_filter(QWidget *w) {
     w->adjustSize();
@@ -33,11 +46,10 @@ bool exec_command(std::string_view c) {
     return p.waitForFinished(-1);
 }
 
-auto load_commands(char **argv) {
+auto load_commands(QStringList &&args) {
     std::vector<impero::ExecCommand<exec_command>> ret = {};
-    ++argv;
-    while(*argv)
-        ret.emplace_back(*argv++);
+    for(auto &&x : std::move(args))
+        ret.emplace_back(std::move(x).toStdString());
     return ret;
 }
 
@@ -45,7 +57,7 @@ auto load_commands(char **argv) {
 
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
-    auto cmds = load_commands(argv);
+    auto cmds = load_commands(parse_args(app));
     QWidget parent;
     impero::Widget w(&parent);
     QLineEdit e;
