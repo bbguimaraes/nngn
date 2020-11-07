@@ -18,17 +18,17 @@ auto widget(QLayout *l, auto i) {
     return w;
 }
 
-std::size_t update_visible(QLayout *l, const QString &filter) {
+std::size_t update_enabled(QLayout *l, const QString &filter) {
     auto v = impero::layout_widget_view(l) | impero::as<QLabel*>;
     if(filter.isEmpty()) {
         for(auto *l : v)
-            l->setVisible(true);
+            l->setEnabled(true);
         return static_cast<std::size_t>(l->count());
     }
     return impero::accumulate(
         v | std::views::transform([&filter](auto *l) {
             const bool b = l->text().contains(filter);
-            l->setVisible(b);
+            l->setEnabled(b);
             return static_cast<std::size_t>(b);
         }));
 }
@@ -54,8 +54,8 @@ std::size_t move_selection(QLayout *l, std::size_t i) {
         i = (i + inc) % n;
         w = widget(l, i);
         assert(w);
-    } while(i != cur && !w->isVisible());
-    if(i != cur || w->isVisible())
+    } while(i != cur && !w->isEnabled());
+    if(i != cur || w->isEnabled())
         set_selected<true>(static_cast<QLabel*>(w));
     return i;
 }
@@ -66,21 +66,21 @@ namespace impero {
 
 Panel::Panel(QWidget *p) : QWidget(p) { new QGridLayout(this); }
 
-void Panel::add_command(std::string_view s) {
+void Panel::add_command(std::string_view s, int row, int col) {
     auto *const l = new QLabel(QString::fromUtf8(s.data(), s.size()));
-    this->layout()->addWidget(l);
+    static_cast<QGridLayout*>(this->layout())->addWidget(l, row, col);
     l->setContentsMargins(4, 4, 4, 4);
     l->setAutoFillBackground(true);
-    if(!this->n_visible++)
+    if(!this->n_enabled++)
         set_selected<true>(l);
 }
 
 void Panel::update_filter(const QString &filter) {
     auto *const l = this->layout();
-    const auto prev = this->n_visible;
-    if(!(this->n_visible = update_visible(l, filter)))
+    const auto prev = this->n_enabled;
+    if(!(this->n_enabled = update_enabled(l, filter)))
         set_selected<false>(l, this->cur);
-    else if(!widget(l, this->cur)->isVisible())
+    else if(!widget(l, this->cur)->isEnabled())
         this->move_selection(true);
     else if(!prev)
         set_selected<true>(l, this->cur);
@@ -88,7 +88,7 @@ void Panel::update_filter(const QString &filter) {
 }
 
 void Panel::move_selection(bool forward) {
-    if(!this->n_visible)
+    if(!this->n_enabled)
         return;
     this->cur = forward
         ? ::move_selection<true>(this->layout(), this->cur)
@@ -96,7 +96,7 @@ void Panel::move_selection(bool forward) {
 }
 
 void Panel::select_command(void) const {
-    if(!this->n_visible)
+    if(!this->n_enabled)
         return;
     assert(this->cur < static_cast<std::size_t>(this->layout()->count()));
     emit this->command_selected(this->cur);

@@ -1,3 +1,4 @@
+#include <cmath>
 #include <utility>
 
 #include <QCommandLineParser>
@@ -50,14 +51,17 @@ auto load_commands(QStringList &&args) {
     std::vector<impero::ExecCommand<exec_command>> ret = {};
     for(auto &&x : std::move(args))
         ret.emplace_back(std::move(x).toStdString());
-    return ret;
+    const auto n = ret.size();
+    const auto cols =
+        n / std::max(std::size_t{1}, static_cast<std::size_t>(std::sqrt(n)));
+    return std::tuple(ret, cols);
 }
 
 }
 
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
-    auto cmds = load_commands(parse_args(app));
+    auto [cmds, n_rows] = load_commands(parse_args(app));
     QWidget parent;
     impero::Widget w(&parent);
     QLineEdit e;
@@ -86,8 +90,8 @@ int main(int argc, char **argv) {
         });
     w.setWindowFlags(Qt::Popup);
     e.setFocus();
-    for(auto &x : cmds)
-        p.add_command(x.command());
+    for(std::size_t i = 0, n = cmds.size(); i < n; ++i)
+        p.add_command(cmds[i].command(), i % n_rows, i / n_rows);
     update_filter();
     w.show();
     if(auto ret = app.exec())
