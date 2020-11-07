@@ -1,4 +1,5 @@
 #include <cmath>
+#include <iostream>
 #include <utility>
 
 #include <QCommandLineParser>
@@ -11,19 +12,46 @@
 #include <QtWidgets/QWidget>
 
 #include "cmd/command.hpp"
+#include "conf/conf.hpp"
 #include "ui/panel.hpp"
 #include "ui/widget.hpp"
 
 namespace {
 
-QStringList parse_args(const QCoreApplication &app) {
+struct Arguments {
+    enum Flag : uint8_t {
+        VALID = 1 << 0, DEFAULTS = 1 << 1,
+    };
+    Flag flags;
+    std::string from_file;
+    QStringList positional;
+};
+
+Arguments parse_args(const QCoreApplication &app) {
+    using Flag = Arguments::Flag;
+    const auto defaults = QCommandLineOption(
+        "defaults", "Load commands from default locations", "yes|no");
+    const auto from_file = QCommandLineOption(
+        {"f", "from-file"}, "Load commands from a file.", "path");
     QCommandLineParser parser;
     parser.setApplicationDescription("impero");
     parser.addHelpOption();
     parser.addVersionOption();
+    parser.addOption(defaults);
+    parser.addOption(from_file);
     parser.addPositionalArgument("commands...", "list of available commands");
     parser.process(app);
-    return parser.positionalArguments();
+    Arguments::Flag flags = Flag::VALID;
+    if(const auto v = parser.value(defaults); v.isEmpty() || v == "yes")
+        flags = static_cast<Flag>(flags | Flag::DEFAULTS);
+    else if(v != "no") {
+        flags = static_cast<Flag>(flags & ~Flag::VALID);
+        std::cerr << "invalid value for \"defaults\" argument\n";
+    }
+    return {
+        .flags = flags,
+        .from_file = parser.value(from_file).toStdString(),
+        .positional = parser.positionalArguments()};
 }
 
 void update_filter(QWidget *w) {
@@ -47,9 +75,15 @@ bool exec_command(std::string_view c) {
     return p.waitForFinished(-1);
 }
 
-auto load_commands(QStringList &&args) {
+auto load_commands(Arguments &&args) {
     std::vector<impero::ExecCommand<exec_command>> ret = {};
-    for(auto &&x : std::move(args))
+    if(args.flags & Arguments::Flag::DEFAULTS)
+        for(auto &&x : impero::Configuration::from_default_file())
+            ret.emplace_back(std::move(x).cmd);
+    if(!args.from_file.empty())
+        for(auto &&x : impero::Configuration::from_file(args.from_file))
+            ret.emplace_back(std::move(x).cmd);
+    for(auto &&x : std::move(args.positional))
         ret.emplace_back(std::move(x).toStdString());
     const auto n = ret.size();
     const auto cols =
@@ -61,7 +95,10 @@ auto load_commands(QStringList &&args) {
 
 int main(int argc, char **argv) {
     QApplication app(argc, argv);
-    auto [cmds, n_rows] = load_commands(parse_args(app));
+    auto args = parse_args(app);
+    if(!(args.flags & Arguments::Flag::VALID))
+        return EXIT_FAILURE;
+    auto [cmds, n_rows] = load_commands(std::move(args));
     QWidget parent;
     impero::Widget w(&parent);
     QLineEdit e;

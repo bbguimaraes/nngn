@@ -14,6 +14,7 @@ target_compile_options(
 find_package(Qt5 COMPONENTS Core Widgets REQUIRED)
 add_executable(
     impero
+    src/conf/conf.cpp
     src/ui/panel.cpp
     src/ui/widget.cpp
     src/main.cpp)
