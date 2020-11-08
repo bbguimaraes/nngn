@@ -18,6 +18,8 @@ $ # Reads commands from a file
 $ impero --from-file path/to/file
 ```
 
+![demo](https://bbguimaraes.com/files/impero/impero.gif)
+
 building
 --------
 
