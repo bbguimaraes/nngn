@@ -23,7 +23,7 @@ struct Platform {
     static std::span<const char *const> argv;
     static std::filesystem::path src_dir;
     static bool init(int argc, const char *const *argv);
-    static int loop(int (*loop)());
+    static int loop(int (*loop)(void));
 };
 
 }

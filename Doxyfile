@@ -1,0 +1,35 @@
+PROJECT_NAME           = nngn
+OUTPUT_DIRECTORY       = ./docs
+USE_MDFILE_AS_MAINPAGE = ./README.md
+HTML_EXTRA_STYLESHEET  = docs/custom.css docs/custom_dark_theme.css
+
+# General configuration.
+ALWAYS_DETAILED_SEC    = YES
+CALLER_GRAPH           = YES
+CALL_GRAPH             = YES
+DOT_GRAPH_MAX_NODES    = 128
+ENABLE_PREPROCESSING   = YES
+EXTRACT_ALL            = YES
+EXTRACT_ANON_NSPACES   = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+GENERATE_LATEX         = NO
+GENERATE_TREEVIEW      = YES
+HAVE_DOT               = YES
+INTERACTIVE_SVG        = YES
+JAVADOC_AUTOBRIEF      = YES
+MACRO_EXPANSION        = YES
+RECURSIVE              = YES
+WARNINGS               = YES
+WARN_IF_INCOMPLETE_DOC = NO
+WARN_IF_UNDOCUMENTED   = NO
+
+# Used in a few places to adjust definitions for documentation purposes.
+PREDEFINED += DOXYGEN
+
+# Enable all platform definitions.
+PREDEFINED = \
+    NNGN_PLATFORM_HAS_GLFW
+
+# TODO remove when Doxygen 1.9.3 is available
+PREDEFINED += decltype(x)=

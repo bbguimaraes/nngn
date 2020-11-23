@@ -1,8 +1,6 @@
 #include <csignal>
 #include <cstring>
 
-#include <unistd.h>
-
 #include "platform.h"
 
 #include "utils/log.h"
@@ -36,7 +34,7 @@ bool Platform::init(int argc_, const char *const *argv_) {
     return true;
 }
 
-int Platform::loop(int (*loop)()) {
+int Platform::loop(int (*loop)(void)) {
     int ret = {};
     while((ret = loop()) == -1);
     return ret;

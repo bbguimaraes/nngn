@@ -1,3 +1,12 @@
+/**
+ * \dir src
+ * \brief Main source directory (C++20).
+ *
+ * Only a minimal amount of core source lives directly under this directory.
+ * Most code is placed under modules in each subdirectory (see the documentation
+ * of each of them for details).  Dependencies between modules are kept to a
+ * minimum and with few exceptional cases the dependency graph is a DAG.
+ */
 #include "graphics/graphics.h"
 #include "os/platform.h"
 #include "utils/log.h"

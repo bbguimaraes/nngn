@@ -8,6 +8,19 @@ Graphics/physics/game engine.
 - [documentation](https://bbguimaraes.com/nngn/docs)
 - [building](#building)
 
+Documentation
+-------------
+
+Documentation generated from comments using `Doxygen` is available
+[here](https://bbguimaraes.com/nngn/docs).  It can of course also be read inline
+in the source code.  Source code is organized in the following directories:
+
+- [`src`](https://bbguimaraes.com/nngn/docs/dir_68267d1309a1af8e8297ef4c3efbcdba.html):
+  main source code directory.  Most of the code is contained in one of the
+  subdirectories, which form mostly-independent modules.
+- `scripts`: auxiliary scripts for building and interacting with the program.
+- `tests`: unit and integration tests for the C++ and Lua components.
+
 Building
 --------
 
@@ -19,6 +32,12 @@ make
 ```
 
 See [dependencies](#dependencies) for the required packages.
+
+The following build environments are regularly tested and known to work:
+
+- Linux with GCC/Clang
+- [FreeBSD with GCC/Clang](#freebsd)
+- [Windows with `mingw`](#mingw)
 
 ### MinGW
 

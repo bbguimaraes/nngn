@@ -41,9 +41,18 @@ CLEANFILES =
 
 .PHONY: \
 	check-programs \
+	clean-docs \
+	docs \
 	tidy
 
 check-programs: $(TESTS)
+clean-local: clean-docs
+clean-docs:
+	cd @srcdir@ && rm -rf docs/html docs/latex
+
+docs:
+	cd @srcdir@ && doxygen $(DOXYGEN_ARGS)
+	sed -i 's|&lt;\(/\)\?tt&gt;|<\1code>|g' @srcdir@/docs/html/index.html
 
 tidy: $(nngn_SOURCES:.cpp=.cpp.tidy)
 %.tidy: %
