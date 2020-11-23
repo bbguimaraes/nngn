@@ -1,3 +1,17 @@
+/**
+ * \dir
+ * \brief Graphics back ends.
+ *
+ * Several graphics back ends are supported, substitutable at runtime:
+ *
+ * - \ref nngn::GLFWBackend "GLFWBackend": base for back ends that use GLFW.
+ * - \ref nngn::Pseudograph "Pseudograph": headless back end for testing.
+ *
+ * The following areas of the screenshots page show some of the graphics
+ * capabilities:
+ *
+ * - https://bbguimaraes.com/nngn/screenshots/engine.html
+ */
 #ifndef NNGN_GRAPHICS_GRAPHICS_H
 #define NNGN_GRAPHICS_GRAPHICS_H
 
