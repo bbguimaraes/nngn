@@ -39,9 +39,17 @@ CLEANFILES =
 
 .PHONY: \
 	check-programs \
+	clean-docs \
+	docs \
 	tidy
 
 check-programs: $(TESTS)
+clean-local: clean-docs
+clean-docs:
+	cd @srcdir@ && rm -rf docs/html docs/latex
+
+docs:
+	cd @srcdir@ && doxygen
 
 tidy: $(nngn_SOURCES:.cpp=.cpp.tidy)
 %.tidy: %
