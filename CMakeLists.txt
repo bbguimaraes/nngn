@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.0)
 project(impero)
+option(ENABLE_TESTS "build test binaries")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -21,3 +22,8 @@ add_executable(
 target_include_directories(impero PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 target_link_libraries(impero PRIVATE Qt5::Widgets warning_flags)
+
+if(ENABLE_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
