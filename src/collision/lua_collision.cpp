@@ -47,7 +47,8 @@ auto stats() {
 using nngn::lua::var;
 
 NNGN_LUA_PROXY(CollisionBackend,
-    "native", nngn::Colliders::native_backend)
+    "native", nngn::Colliders::native_backend,
+    "compute", nngn::Colliders::compute_backend)
 NNGN_LUA_PROXY(Colliders,
     "STATS_IDX", var(Colliders::STATS_IDX),
     "STATS_N_EVENTS", var(Colliders::Stats::N_EVENTS),

@@ -1,6 +1,10 @@
 local function default_backends()
-    return {
+    local t = {
         {CollisionBackend.native, {}}}
+    if nngn.compute then
+        table.insert(t, 1, {CollisionBackend.compute, {nngn.compute}})
+    end
+    return t
 end
 
 local function init(backends)

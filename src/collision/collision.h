@@ -1,6 +1,13 @@
 /**
  * \dir src/collision
  * \brief Collision detection and resolution for various collider object types.
+ *
+ * Collision detection can be done using native code or through a compute back end.
+ *
+ * - \ref anonymous_namespace{compute.cpp}::ComputeBackend "ComputeBackend":
+ *   main/default back end, uses a compute back end for acceleration if available.
+ * - \ref anonymous_namespace{native.cpp}::NativeBackend "NativeBackend":
+ *   native CPU code alternative.
  */
 #ifndef NNGN_COLLISION_H
 #define NNGN_COLLISION_H
@@ -19,6 +26,7 @@ struct Entity;
 
 namespace nngn {
 
+struct Compute;
 struct Timing;
 
 struct Collision {
@@ -95,6 +103,7 @@ public:
     using Stats = CollisionStats;
     static constexpr std::size_t STATS_IDX = 1;
     static std::unique_ptr<Backend> native_backend();
+    static std::unique_ptr<Backend> compute_backend(Compute *c);
     NNGN_MOVE_ONLY(Colliders)
     Colliders(void);
     ~Colliders(void);
