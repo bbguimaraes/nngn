@@ -1,5 +1,6 @@
 #include "entity.h"
 
+#include "compute/compute.h"
 #include "lua/function.h"
 #include "lua/register.h"
 #include "lua/table.h"
@@ -13,10 +14,15 @@ using CollisionBackend = nngn::Colliders::Backend;
 
 NNGN_LUA_DECLARE_USER_TYPE(Entity)
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Collider, "Collider")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Compute, "Compute")
 
 namespace {
 auto native(void) {
     return nngn::Colliders::native_backend().release();
+}
+
+auto compute(nngn::Compute *c) {
+    return nngn::Colliders::compute_backend(c).release();
 }
 
 template<auto f>
@@ -82,6 +88,7 @@ void set_backend(Colliders &c, Colliders::Backend *p) {
 
 void register_backend(nngn::lua::table_view t) {
     t["native"] = native;
+    t["compute"] = compute;
 }
 
 void register_colliders(nngn::lua::table_view t) {

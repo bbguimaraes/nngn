@@ -9,6 +9,7 @@ nngn_SOURCES += \
 	%reldir%/main.cpp
 
 EXTRA_DIST += \
+	%reldir%/cl \
 	%reldir%/glsl \
 	%reldir%/lson
 
