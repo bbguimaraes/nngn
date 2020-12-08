@@ -15,6 +15,7 @@ nngn_SOURCES += \
 	%reldir%/player.cpp
 
 EXTRA_DIST += \
+	%reldir%/cl \
 	%reldir%/glsl \
 	%reldir%/lson \
 	%reldir%/lua

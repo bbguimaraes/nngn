@@ -41,7 +41,8 @@ auto stats() { return sol::as_table(*nngn::Stats::u64_data<Colliders>()); }
 }
 
 NNGN_LUA_PROXY(CollisionBackend,
-    "native", nngn::Colliders::native_backend)
+    "native", nngn::Colliders::native_backend,
+    "compute", nngn::Colliders::compute_backend)
 NNGN_LUA_PROXY(Colliders,
     sol::no_constructor,
     "STATS_IDX", sol::var(Colliders::STATS_IDX),

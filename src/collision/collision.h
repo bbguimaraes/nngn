@@ -14,6 +14,7 @@ struct Entity;
 
 namespace nngn {
 
+struct Compute;
 struct Timing;
 
 struct Collision {
@@ -92,6 +93,7 @@ public:
     using Stats = CollisionStats;
     static constexpr size_t STATS_IDX = 1;
     static std::unique_ptr<Backend> native_backend();
+    static std::unique_ptr<Backend> compute_backend(Compute *c);
     NNGN_NO_COPY(Colliders)
     Colliders();
     ~Colliders();
