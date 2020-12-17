@@ -8,6 +8,8 @@
  *   main/default Vulkan renderer.
  * - \ref anonymous_namespace{opengl.cpp}::OpenGLBackend "OpenGLBackend": OpenGL
  *   ES / OpenGL 4 renderer.
+ * - \ref anonymous_namespace{terminal.cpp}::TerminalBackend "TerminalBackend":
+ *   software ASCII rasterizer.
  * - \ref nngn::Pseudograph "Pseudograph": headless back end for testing.
  *
  * The following areas of the screenshots page show some of the graphics
@@ -126,7 +128,8 @@ struct Graphics {
     using mouse_button_callback_f = void (*)(void*, int, int, int);
     using mouse_move_callback_f = void (*)(void*, dvec2);
     enum class Backend : u8 {
-        PSEUDOGRAPH, OPENGL_BACKEND, OPENGL_ES_BACKEND, VULKAN_BACKEND,
+        PSEUDOGRAPH, TERMINAL_BACKEND,
+        OPENGL_BACKEND, OPENGL_ES_BACKEND, VULKAN_BACKEND,
     };
     enum class LogLevel { DEBUG, WARNING, ERROR };
     enum class PresentMode { IMMEDIATE, MAILBOX, FIFO, FIFO_RELAXED, };
@@ -137,6 +140,15 @@ struct Graphics {
         Flags<Flag> flags = {};
     };
     struct Version { u32 major, minor, patch; const char *name; };
+    enum class TerminalFlag : u8 {
+        CLEAR = 1u << 0,
+        REPOSITION = 1u << 1,
+        HIDE_CURSOR = 1u << 2,
+    };
+    struct TerminalParameters {
+        int fd = -1;
+        TerminalFlag flags = {};
+    };
     struct OpenGLParameters : Parameters { int maj = {}, min = {}; };
     struct VulkanParameters : Parameters {
         Version version = {};

@@ -36,4 +36,5 @@ CLEANFILES += \
 	$(srcdir)/scripts/shaders.sh vk $(SHADERS_GL) > $@ || { rm $@; exit 1; }
 
 include %reldir%/opengl/Makefile.am
+include %reldir%/terminal/Makefile.am
 include %reldir%/vulkan/Makefile.am

@@ -11,10 +11,30 @@
 using nngn::u32;
 using nngn::Graphics;
 
+NNGN_LUA_DECLARE_USER_TYPE(Graphics::TerminalParameters, "TerminalParameters")
 NNGN_LUA_DECLARE_USER_TYPE(Graphics::OpenGLParameters, "OpenGLParameters")
 NNGN_LUA_DECLARE_USER_TYPE(Graphics::VulkanParameters, "VulkanParameters")
 
 namespace {
+
+std::optional<Graphics::TerminalParameters> terminal_params(
+    nngn::lua::table_view t)
+{
+    NNGN_LOG_CONTEXT_F();
+    Graphics::TerminalParameters ret = {};
+    for(const auto &[k, v] : t) {
+        const auto ks = k.get<std::optional<std::string_view>>();
+        if(!ks) {
+            nngn::Log::l() << "only string keys are allowed\n";
+            return {};
+        }
+        if(*ks == "fd")
+            ret.fd = v.get<int>();
+        else if(*ks == "flags")
+            ret.flags = v.get<Graphics::TerminalFlag>();
+    }
+    return ret;
+}
 
 std::optional<Graphics::OpenGLParameters> opengl_params(
     nngn::lua::table_view t)
@@ -268,15 +288,20 @@ void set_n_swap_chain_images(Graphics &g, lua_Integer n) {
 void register_graphics(nngn::lua::table_view t) {
     t["TEXTURE_SIZE"] = Graphics::TEXTURE_SIZE;
     t["PSEUDOGRAPH"] = Graphics::Backend::PSEUDOGRAPH;
+    t["TERMINAL_BACKEND"] = Graphics::Backend::TERMINAL_BACKEND;
     t["OPENGL_BACKEND"] = Graphics::Backend::OPENGL_BACKEND;
     t["OPENGL_ES_BACKEND"] = Graphics::Backend::OPENGL_ES_BACKEND;
     t["VULKAN_BACKEND"] = Graphics::Backend::VULKAN_BACKEND;
     t["LOG_LEVEL_DEBUG"] = Graphics::LogLevel::DEBUG;
     t["LOG_LEVEL_WARNING"] = Graphics::LogLevel::WARNING;
     t["LOG_LEVEL_ERROR"] = Graphics::LogLevel::ERROR;
+    t["TERMINAL_FLAG_CLEAR"] = Graphics::TerminalFlag::CLEAR;
+    t["TERMINAL_FLAG_REPOSITION"] = Graphics::TerminalFlag::REPOSITION;
+    t["TERMINAL_FLAG_HIDE_CURSOR"] = Graphics::TerminalFlag::HIDE_CURSOR;
     t["CURSOR_MODE_NORMAL"] = Graphics::CursorMode::NORMAL;
     t["CURSOR_MODE_HIDDEN"] = Graphics::CursorMode::HIDDEN;
     t["CURSOR_MODE_DISABLED"] = Graphics::CursorMode::DISABLED;
+    t["terminal_params"] = terminal_params;
     t["opengl_params"] = opengl_params;
     t["vulkan_params"] = vulkan_params;
     t["create_backend"] = create;
@@ -315,5 +340,6 @@ NNGN_LUA_DECLARE_USER_TYPE(Graphics::Parameters)
 NNGN_LUA_DECLARE_USER_TYPE(Graphics)
 NNGN_LUA_PROXY(Graphics, register_graphics)
 NNGN_LUA_PROXY(Graphics::Parameters)
+NNGN_LUA_PROXY(Graphics::TerminalParameters)
 NNGN_LUA_PROXY(Graphics::OpenGLParameters)
 NNGN_LUA_PROXY(Graphics::VulkanParameters)

@@ -49,11 +49,24 @@ struct range_to {
     }
 };
 
+constexpr auto *data_end(std::ranges::contiguous_range auto &&r) {
+    return std::data(r) + std::size(r);
+}
+
 /* TODO libc++
 constexpr auto enumerate(std::ranges::range auto &&r, auto i = std::size_t{}) {
     return std::views::transform(
         FWD(r), [i](auto &&x) mutable { return std::pair{i++, FWD(x)}; });
 } */
+
+template<typename T>
+void resize_and_init(T *p, std::size_t n, auto &&f) {
+    auto &v = *p;
+    const auto prev = v.size();
+    v.resize(n);
+    for(std::size_t i = prev; i < n; ++i)
+        FWD(f)(&v[i]);
+}
 
 template<typename V>
 void set_capacity(V *v, size_t n) {

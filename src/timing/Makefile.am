@@ -1,6 +1,7 @@
 noinst_HEADERS += \
 	%reldir%/adhoc.h \
 	%reldir%/fps.h \
+	%reldir%/limit.h \
 	%reldir%/profile.h \
 	%reldir%/schedule.h \
 	%reldir%/stats.h \
@@ -8,6 +9,7 @@ noinst_HEADERS += \
 nngn_SOURCES += \
 	%reldir%/adhoc.cpp \
 	%reldir%/fps.cpp \
+	%reldir%/limit.cpp \
 	%reldir%/lua_fps.cpp \
 	%reldir%/lua_profile.cpp \
 	%reldir%/lua_schedule.cpp \

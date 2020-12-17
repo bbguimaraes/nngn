@@ -13,6 +13,14 @@ local BACK_ENDS <const> = {
         Graphics.OPENGL_BACKEND,
         Graphics.opengl_params{maj = 4, min = 2, debug = Platform.debug},
     },
+    terminal = {
+        Graphics.TERMINAL_BACKEND,
+        Graphics.terminal_params{
+            flags =
+                Graphics.TERMINAL_FLAG_REPOSITION
+                | Graphics.TERMINAL_FLAG_HIDE_CURSOR,
+        },
+    },
     pseudograph = {Graphics.PSEUDOGRAPH},
 }
 
@@ -20,6 +28,7 @@ local BACK_END_LIST <const> = {
     BACK_ENDS.vulkan,
     BACK_ENDS.opengl_es,
     BACK_ENDS.opengl,
+    BACK_ENDS.terminal,
     BACK_ENDS.pseudograph,
 }
 
@@ -42,6 +51,7 @@ return {
     VULKAN = BACK_ENDS.vulkan,
     OPENGL_ES = BACK_ENDS.opengl_es,
     OPENGL = BACK_ENDS.opengl,
+    TERMINAL = BACK_ENDS.terminal,
     PSEUDOGRAPH = BACK_ENDS.pseudograph,
     init = init,
 }
