@@ -12,6 +12,24 @@ using nngn::Graphics;
 
 namespace {
 
+std::optional<Graphics::TerminalParameters> terminal_params(
+    nngn::lua::table_view t
+) {
+    NNGN_LOG_CONTEXT_F();
+    Graphics::TerminalParameters ret = {};
+    for(const auto &[k, v] : t) {
+        const auto ko = k.as<std::optional<std::string_view>>();
+        if(!ko) {
+            nngn::Log::l() << "only string keys are allowed\n";
+            return std::nullopt;
+        }
+        const auto ks = *ko;
+        if(ks == "fd")
+            ret.fd = v.as<int>();
+    }
+    return {ret};
+}
+
 std::optional<Graphics::OpenGLParameters> opengl_params(
     nngn::lua::table_view t
 ) {
@@ -251,6 +269,7 @@ auto stats(Graphics *g, nngn::lua::state_arg lua_) {
 NNGN_LUA_PROXY(Graphics,
     "TEXTURE_SIZE", nngn::lua::var(Graphics::TEXTURE_SIZE),
     "PSEUDOGRAPH", nngn::lua::var(Graphics::Backend::PSEUDOGRAPH),
+    "TERMINAL_BACKEND", nngn::lua::var(Graphics::Backend::TERMINAL_BACKEND),
     "OPENGL_BACKEND", nngn::lua::var(Graphics::Backend::OPENGL_BACKEND),
     "OPENGL_ES_BACKEND", nngn::lua::var(Graphics::Backend::OPENGL_ES_BACKEND),
     "VULKAN_BACKEND", nngn::lua::var(Graphics::Backend::VULKAN_BACKEND),
@@ -260,6 +279,7 @@ NNGN_LUA_PROXY(Graphics,
     "CURSOR_MODE_NORMAL", nngn::lua::var(Graphics::CursorMode::NORMAL),
     "CURSOR_MODE_HIDDEN", nngn::lua::var(Graphics::CursorMode::HIDDEN),
     "CURSOR_MODE_DISABLED", nngn::lua::var(Graphics::CursorMode::DISABLED),
+    "terminal_params", terminal_params,
     "opengl_params", opengl_params,
     "vulkan_params", vulkan_params,
     "create_backend", create,

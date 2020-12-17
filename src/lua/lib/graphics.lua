@@ -11,7 +11,9 @@ local function default_backends()
     }, {
         Graphics.OPENGL_BACKEND,
         Graphics.opengl_params{maj = 4, min = 2, debug = debug},
-    }, {Graphics.PSEUDOGRAPH}}
+    },
+    {Graphics.TERMINAL_BACKEND},
+    {Graphics.PSEUDOGRAPH}}
 end
 
 local function init(backends)
