@@ -15,6 +15,7 @@ nngn_SOURCES += \
 	%reldir%/shaders.cpp \
 	%reldir%/shaders_gl.cpp \
 	%reldir%/shaders_vk.cpp \
+	%reldir%/terminal.cpp \
 	%reldir%/texture.cpp
 
 BUILT_SOURCES += \

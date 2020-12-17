@@ -57,7 +57,8 @@ struct Graphics {
     using mouse_button_callback_f = void (*)(void*, int, int, int);
     using mouse_move_callback_f = void (*)(void*, dvec2);
     enum class Backend : u8 {
-        PSEUDOGRAPH, OPENGL_BACKEND, OPENGL_ES_BACKEND, VULKAN_BACKEND,
+        PSEUDOGRAPH, TERMINAL_BACKEND,
+        OPENGL_BACKEND, OPENGL_ES_BACKEND, VULKAN_BACKEND,
     };
     enum class LogLevel { DEBUG, WARNING, ERROR };
     enum class PresentMode { IMMEDIATE, MAILBOX, FIFO, FIFO_RELAXED, };
@@ -68,6 +69,7 @@ struct Graphics {
         Flags<Flag> flags = {};
     };
     struct Version { u32 major, minor, patch; const char *name; };
+    struct TerminalParameters { int fd = -1; };
     struct OpenGLParameters : Parameters { int maj = {}, min = {}; };
     struct VulkanParameters : Parameters {
         Version version = {};
