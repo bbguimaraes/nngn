@@ -6,7 +6,7 @@ local texture = require "nngn.lib.texture"
 
 require("nngn.lib.graphics").init()
 
-local USE_COLLIDERS = false --true
+local USE_COLLIDERS = true
 local USE_COMPUTE = true
 
 local N = math.tointeger(2 ^ 12)
@@ -19,12 +19,16 @@ local G = 9.8 * TILE_SIZE
 nngn:set_compute(
     Compute.OPENCL_BACKEND,
     Compute.opencl_params{debug = true})
-nngn.entities:set_max(N)
-nngn.renderers:set_max_sprites(N)
+nngn.entities:set_max(N + 6)
+nngn.renderers:set_max_sprites(N + 5)
 nngn.graphics:resize_textures(3)
 nngn.textures:set_max(3)
 assert(nngn.textures:load(texture.NNGN))
 nngn.colliders:set_max_colliders(N)
+nngn.colliders:set_max_collisions(2 * N)
+nngn.colliders:set_resolve(false)
+nngn.grid:set_dimensions(32, 128)
+camera.reset(8)
 
 local LIMITS = nngn.compute:get_limits()
 local LOCAL_SIZE = math.min(N, LIMITS[Compute.WORK_GROUP_SIZE + 1])
@@ -66,7 +70,7 @@ local function init_pos(n, pos_b)
         Compute.to_bytes(Compute.FLOATV, center_y)))
     assert(nngn.compute:fill_buffer(
         radius_buf, 0, N, Compute.FLOATV, {PARTICLE_SIZE / 2}))
-    assert(nngn.compute:fill_buffer()mass_buf, 0, N, Compute.FLOATV, {1})
+    assert(nngn.compute:fill_buffer(mass_buf, 0, N, Compute.FLOATV, {1}))
     assert(nngn.compute:fill_buffer(
         vel_x_buf, 0, N, Compute.FLOATV, {0}))
     assert(nngn.compute:fill_buffer(
@@ -299,10 +303,11 @@ input.input:add(string.byte(" "), Input.SEL_PRESS, function()
     hearbeat_key = nngn.schedule:next(Schedule.HEARTBEAT, heartbeat)
 end)
 local explosion
-nngn.input:register_binding(string.byte("E"), Input.BIND_PRESS, function()
+input.input:remove(string.byte("E"))
+input.input:add(string.byte("E"), Input.SEL_PRESS, function()
     local timer = 250
     local collider = entities[1]:collider()
-    load_entity(entities[1], nil, {
+    entity.load(entities[1], nil, {
         collider = {
             type = Collider.GRAVITY, flags = Collider.SOLID,
             m = -1e14, max_distance = 32}})
@@ -316,8 +321,3 @@ nngn.input:register_binding(string.byte("E"), Input.BIND_PRESS, function()
             explosion = nil
         end)}
 end)
-
-nngn.grid:set_dimensions(32, 128)
-nngn.colliders:set_max_collisions(2 * N)
-nngn.colliders:set_resolve(false)
-camera.reset(8)
