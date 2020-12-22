@@ -6,6 +6,9 @@ local texture = require "nngn.lib.texture"
 
 require("nngn.lib.graphics").init()
 
+local USE_COLLIDERS = true
+local USE_COMPUTE = true
+
 local N <const> = math.tointeger(2 ^ 12)
 local PARTICLE_SIZE <const> = 4
 local SIZE <const> = 512
@@ -24,6 +27,8 @@ nngn:renderers():set_max_sprites(N)
 nngn:graphics():resize_textures(3)
 nngn:textures():set_max(3)
 assert(nngn:textures():load(texture.NNGN))
+nngn:colliders():set_max_collisions(2 * N)
+nngn:colliders():set_max_colliders(N)
 
 local LIMITS <const> = nngn:compute():get_limits()
 local LOCAL_SIZE <const> = LIMITS[Compute.WORK_GROUP_SIZE + 1]
@@ -119,6 +124,41 @@ local vel_b <const> = assert(nngn:compute():create_buffer(
 local pos_b <const> = assert(nngn:compute():create_buffer(
     Compute.READ_WRITE, Compute.FLOATV, BUFFER_SIZE))
 
+local gravity = {}
+if USE_COLLIDERS then
+    for _, t in ipairs({
+        {{SIZE / -2, 0, 0}, {1, SIZE}, { 1, 0, 0}},
+        {{SIZE /  2, 0, 0}, {1, SIZE}, { -1, 0, 0}},
+        {{0, SIZE / -2, 0}, {SIZE, 1}, {0,  1, 0}},
+        {{0, SIZE /  2, 0}, {SIZE, 1}, {0, -1, 0}},
+    }) do
+        entity.load(nil, nil, {
+            pos = t[1],
+            renderer = {
+                type = Renderer.SPRITE, tex = 1,
+                size = t[2], scale = {512, 512}, coords = {1, 0}},
+            collider = {
+                type = Collider.PLANE, flags = Collider.SOLID,
+                m = 1/0, n = t[3]}})
+    end
+    local star = dofile("src/lson/star.lua")
+    table.insert(gravity, entity.load(nil, nil, {
+        renderer = star.renderer,
+        collider = {
+            type = Collider.GRAVITY, flags = Collider.SOLID,
+            m = -1e14, max_distance = 1024,
+        },
+    }))
+    table.insert(gravity, entity.load(nil, nil, {
+        pos = {rnd_pos(), rnd_pos()},
+        renderer = star.renderer,
+        collider = {
+            type = Collider.GRAVITY, flags = Collider.SOLID,
+            m = 1e14, max_distance = 1024,
+        },
+    }))
+end
+
 assert(nngn:compute():fill_buffer(
     forces_b, 0, BUFFER_SIZE, Compute.FLOATV, {0}))
 assert(nngn:compute():fill_buffer(
@@ -180,11 +220,19 @@ input.install()
 
 local input_v = Compute.create_vector(Compute.FLOATV, 2)
 local function heartbeat()
-    local vel_scale = 16 * TILE_SIZE
-    assert(Compute.write_vector(input_v, 0, {
-        Compute.FLOATV, {vel_scale * player[1], vel_scale * player[2]}}))
-    assert(nngn:compute():write_buffer(forces_b, 0, 2, Compute.FLOATV, input_v))
-    update(prog, grid, forces_b, vel_b, pos_v, pos_b, entities)
+    local vel_scale = 1024
+    if USE_COLLIDERS then
+        local pa = {entities[1]:acc()}
+        pa[1] = pa[1] + vel_scale * player[1]
+        pa[2] = pa[2] + vel_scale * player[2]
+        gravity[1]:set_acc(table.unpack(pa))
+    elseif USE_COMPUTE then
+        assert(Compute.write_vector(input_v, 0, {
+            Compute.FLOATV, {vel_scale * player[1], vel_scale * player[2]}}))
+        assert(nngn:compute():write_buffer(
+            forces_b, 0, 2, Compute.FLOATV, input_v))
+        update(prog, grid, forces_b, vel_b, pos_v, pos_b, entities)
+    end
 end
 
 local hearbeat_key
