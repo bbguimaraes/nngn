@@ -1,4 +1,6 @@
-nngn:set_graphics(Graphics.TERMINAL_BACKEND)
+nngn:set_graphics(
+    Graphics.TERMINAL_BACKEND,
+    Graphics.terminal_params{mode = Graphics.TERMINAL_MODE_COLORED})
 dofile "src/lua/all.lua"
 
 local animation = require "nngn.lib.animation"

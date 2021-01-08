@@ -71,6 +71,10 @@ requires std::is_enum_v<T>
 inline constexpr auto to_underlying_type(T t)
     { return static_cast<std::underlying_type_t<T>>(t); }
 
+/** Compares the address of two pointers. */
+inline bool ptr_cmp(const auto *p0, const auto *p1)
+    { return static_cast<const void*>(p0) == static_cast<const void*>(p1); }
+
 /** Similar to the stdlib's \c offsetof, but using member data pointers. */
 template<typename T>
 std::size_t offsetof_ptr(auto T::*p) {
