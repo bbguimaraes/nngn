@@ -26,6 +26,10 @@ std::optional<Graphics::TerminalParameters> terminal_params(
         const auto ks = *ko;
         if(ks == "fd")
             ret.fd = v.as<int>();
+        else if(ks == "mode") {
+            using M = Graphics::TerminalMode;
+            ret.mode = static_cast<M>(v.as<std::underlying_type_t<M>>());
+        }
     }
     return {ret};
 }
@@ -276,6 +280,8 @@ NNGN_LUA_PROXY(Graphics,
     "LOG_LEVEL_DEBUG", nngn::lua::var(Graphics::LogLevel::DEBUG),
     "LOG_LEVEL_WARNING", nngn::lua::var(Graphics::LogLevel::WARNING),
     "LOG_LEVEL_ERROR", nngn::lua::var(Graphics::LogLevel::ERROR),
+    "TERMINAL_MODE_ASCII", nngn::lua::var(Graphics::TerminalMode::ASCII),
+    "TERMINAL_MODE_COLORED", nngn::lua::var(Graphics::TerminalMode::COLORED),
     "CURSOR_MODE_NORMAL", nngn::lua::var(Graphics::CursorMode::NORMAL),
     "CURSOR_MODE_HIDDEN", nngn::lua::var(Graphics::CursorMode::HIDDEN),
     "CURSOR_MODE_DISABLED", nngn::lua::var(Graphics::CursorMode::DISABLED),

@@ -141,7 +141,11 @@ struct Graphics {
         Flags<Flag> flags = {};
     };
     struct Version { u32 major, minor, patch; const char *name; };
-    struct TerminalParameters { int fd = -1; };
+    enum class TerminalMode { ASCII, COLORED };
+    struct TerminalParameters {
+        int fd = -1;
+        TerminalMode mode = TerminalMode::ASCII;
+    };
     struct OpenGLParameters : Parameters { int maj = {}, min = {}; };
     struct VulkanParameters : Parameters {
         Version version = {};

@@ -32,12 +32,14 @@ std::unique_ptr<Graphics> graphics_create_backend<backend>(const void*) {
 
 #include "math/math.h"
 #include "timing/timing.h"
+#include "utils/ranges.h"
 
 #include "pseudo.h"
 
 using namespace std::literals;
 
 using nngn::u32, nngn::u64;
+using Mode = nngn::Graphics::TerminalMode;
 
 namespace {
 
@@ -51,6 +53,12 @@ struct VT100EscapeCodes {
 struct VT520EscapeCodes {
     static constexpr auto show_cursor = "\x1b[?25h"sv;
     static constexpr auto hide_cursor = "\x1b[?25l"sv;
+};
+
+/** ANSI escape code sequences. */
+struct ANSIEscapeCode {
+    static constexpr auto reset_color = "\x1b[39;49m"sv;
+    static constexpr auto bg_color_24bit = "\x1b[48;2;"sv;
 };
 
 /** Handles interactions with the output terminal. */
@@ -99,6 +107,7 @@ public:
 
 /** Buffer holding texture image data. */
 struct Texture {
+    using texel3 = nngn::vec3_base<std::uint8_t>;
     using texel4 = nngn::vec4_base<std::uint8_t>;
     void copy(const std::uint8_t *p);
     texel4 sample(nngn::vec2 uv) const;
@@ -108,14 +117,46 @@ private:
 
 class FrameBuffer {
 public:
+    explicit FrameBuffer(Mode m);
     /** Pointer to the content. */
     std::span<char> span() { return this->v; }
+    /** Changes the size and clears the content according to the mode. */
     void resize_and_clear(nngn::uvec2 s);
     /** Write pixel at <tt>{x, y}</tt> with \c color. */
-    void write(std::size_t x, std::size_t y, Texture::texel4 color);
-    /** Inverts the Y coord. of all pixels. */
+    void write(std::size_t x, std::size_t y, Texture::texel4 color)
+        { (this->*wf)(x, y, color); }
+    /** Inverts the Y coord. of all pixels, must be called before \ref dedup. */
     void flip();
+    /**
+     * Eliminates redundant information, possibly reducing the size.
+     * Unique elements will be in <tt>span(0, dedup())</tt>.
+     */
+    std::size_t dedup();
 private:
+    using write_f = void (FrameBuffer::*)(
+        std::size_t, std::size_t, Texture::texel4);
+    struct ColoredPixel {
+        static constexpr auto CMD = ANSIEscapeCode::bg_color_24bit;
+        std::array<char, CMD.size()> cmd = nngn::to_array<CMD.size()>(CMD);
+        std::array<char, 3> r = nngn::to_array("000");
+        char semicolon0 = ';';
+        std::array<char, 3> g = nngn::to_array("000");
+        char semicolon1 = ';';
+        std::array<char, 3> b = nngn::to_array("000");
+        char m = 'm', space = ' ';
+        ColoredPixel() = default;
+        explicit ColoredPixel(Texture::texel3 color);
+        auto operator<=>(const ColoredPixel&) const = default;
+        static bool cmp_rgb(const ColoredPixel &lhs, const ColoredPixel &rhs);
+    };
+    static_assert(std::has_unique_object_representations_v<ColoredPixel>);
+    std::size_t pixel_size() const;
+    std::size_t size_bytes() const;
+    void write_ascii(std::size_t x, std::size_t y, Texture::texel4 color);
+    void write_colored(std::size_t x, std::size_t y, Texture::texel4 color);
+    Mode mode;
+    // TODO separate render targets, bulk writes
+    write_f wf;
     std::vector<char> v = {};
     nngn::uvec2 size = {};
 };
@@ -165,7 +206,7 @@ class TerminalBackend final : public nngn::Pseudograph {
     std::vector<Texture> textures = {};
     std::vector<std::vector<std::byte>> buffers = {{}};
     std::vector<std::pair<u32, u32>> rendered_buffers = {};
-    FrameBuffer framebuffer = {};
+    FrameBuffer framebuffer;
     auto version() const -> Version final { return {0, 0, 0, "terminal"}; }
     bool init() final { return this->term.init(); }
     int swap_interval() const final { return this->frame_limiter.interval(); }
@@ -189,13 +230,15 @@ class TerminalBackend final : public nngn::Pseudograph {
     bool render() final;
 public:
     NNGN_MOVE_ONLY(TerminalBackend)
-    TerminalBackend(int fd) : term(fd) {}
+    TerminalBackend(int fd, Mode mode) : term(fd), framebuffer(mode) {}
     ~TerminalBackend(void) final = default;
 };
 
 Terminal::Terminal(int fd_) : fd(fd_) {}
 
 Terminal::~Terminal() {
+    this->write(ANSIEscapeCode::reset_color);
+    this->write(VT520EscapeCodes::show_cursor);
     this->write(1, "\n");
     if(fclose(this->f))
         nngn::Log::perror("fclose");
@@ -272,18 +315,67 @@ auto Texture::sample(nngn::vec2 uv) const -> texel4 {
     return this->data[size * i.y + i.x];
 }
 
-void FrameBuffer::resize_and_clear(nngn::uvec2 s) {
-    this->size = s;
-    constexpr auto fill = ' ';
-    const auto n = nngn::Math::product(s);
-    const auto old = this->v.size();
-    if(n != old)
-        this->v.resize(n, fill);
-    const auto b = begin(this->v);
-    std::fill(b, b + static_cast<std::ptrdiff_t>(old), fill);
+FrameBuffer::ColoredPixel::ColoredPixel(Texture::texel3 color) {
+    std::snprintf(
+        this->r.data(), 12, "%03u;%03u;%03u",
+        color[0], color[1], color[2]);
 }
 
-void FrameBuffer::write(std::size_t x, std::size_t y, Texture::texel4 color) {
+bool FrameBuffer::ColoredPixel::cmp_rgb(
+    const ColoredPixel &lhs, const ColoredPixel &rhs
+) {
+    constexpr auto off0 = offsetof(ColoredPixel, r);
+    constexpr auto off1 = offsetof(ColoredPixel, m);
+    static_assert(off0 < off1);
+    constexpr auto n = off1 - off0;
+    return std::memcmp(lhs.r.data(), rhs.r.data(), n) == 0;
+}
+
+FrameBuffer::FrameBuffer(Mode m) :
+    mode(m),
+    wf(
+        m == Mode::ASCII ? &FrameBuffer::write_ascii
+        : m == Mode::COLORED ? &FrameBuffer::write_colored
+        : nullptr) {}
+
+std::size_t FrameBuffer::pixel_size() const {
+    switch(this->mode) {
+    case Mode::COLORED: return sizeof(ColoredPixel);
+    case Mode::ASCII:
+    default: return 1;
+    }
+}
+
+std::size_t FrameBuffer::size_bytes() const
+    { return this->pixel_size() * nngn::Math::product(this->size); }
+
+void FrameBuffer::resize_and_clear(nngn::uvec2 s) {
+    this->size = s;
+    const auto n = this->size_bytes();
+    const auto old = this->v.size();
+    switch(this->mode) {
+    case Mode::ASCII: {
+        constexpr auto fill = ' ';
+        if(n != old)
+            this->v.resize(n, fill);
+        const auto b = begin(this->v);
+        std::fill(b, b + static_cast<std::ptrdiff_t>(old), fill);
+        break;
+    }
+    case Mode::COLORED:
+        if(n != old)
+            this->v.resize(n);
+        ColoredPixel f = {};
+        const auto *const b = f.cmd.data();
+        assert(!(this->v.size() % sizeof(f)));
+        nngn::fill_with_pattern(b, b + sizeof(f), begin(this->v), end(this->v));
+        break;
+    }
+}
+
+void FrameBuffer::write_ascii(
+    std::size_t x, std::size_t y, Texture::texel4 color
+) {
     constexpr auto lum =
         " `^\",:;Il!i~+_-?][}{1)(|\\/"
         "tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$"sv;
@@ -296,12 +388,27 @@ void FrameBuffer::write(std::size_t x, std::size_t y, Texture::texel4 color) {
         return;
     const auto w = static_cast<std::size_t>(this->size.x);
     const auto i = w * y + x;
-    assert(i < this->v.size());
+    assert(i < this->size_bytes());
     this->v[i] = lum[ci];
 }
 
+void FrameBuffer::write_colored(
+    std::size_t x, std::size_t y, Texture::texel4 color
+) {
+    if(!color[3])
+        return;
+    const auto fc = static_cast<nngn::vec4>(color);
+    const auto rgb = static_cast<Texture::texel3>(fc.xyz() * (fc[3] / 255.0f));
+    const auto w = static_cast<std::size_t>(this->size.x);
+    const auto i = sizeof(ColoredPixel) * (w * y + x);
+    assert(i < this->size_bytes());
+    const auto px = ColoredPixel{rgb};
+    std::memcpy(&this->v[i], &px, sizeof(px));
+}
+
 void FrameBuffer::flip() {
-    const auto [w, h] = this->size;
+    auto [w, h] = this->size;
+    w *= static_cast<unsigned>(this->pixel_size());
     std::vector<char> tmp_v(w);
     auto *const tmp = tmp_v.data();
     for(std::size_t y = 0, e = h / 2; y < e; ++y) {
@@ -311,6 +418,31 @@ void FrameBuffer::flip() {
         std::copy(p1, p1 + w, p0);
         std::copy(tmp, tmp + w, p1);
     }
+}
+
+std::size_t FrameBuffer::dedup() {
+    if(this->mode != Mode::COLORED)
+        return this->v.size();
+    constexpr auto bytes = sizeof(ColoredPixel);
+    assert(!(this->v.size() % bytes));
+    ColoredPixel last = {};
+    const auto pred = [&last](const auto &x)
+        { return !ColoredPixel::cmp_rgb(last, x); };
+    auto *w = this->v.data();
+    auto *p = reinterpret_cast<const ColoredPixel*>(w);
+    const auto *const e = p + this->v.size() / bytes;
+    for(;; last = *p, w += bytes, ++p) {
+        const auto next = std::find_if(p, e, pred);
+        if(const auto n = static_cast<std::size_t>(next - p)) {
+            w = std::fill_n(w, n, ' ');
+            p = next;
+        }
+        if(p == e)
+            break;
+        if(!nngn::ptr_cmp(w, p))
+            std::memcpy(w, p, bytes);
+    }
+    return static_cast<std::size_t>(w - this->v.data());
 }
 
 void Rasterizer::update_projection(
@@ -499,10 +631,13 @@ bool TerminalBackend::render() {
             &this->framebuffer);
     };
     const auto write = [this] {
+        const auto nw = this->framebuffer.dedup();
         return this->term.write(VT520EscapeCodes::hide_cursor)
             && this->term.write(VT100EscapeCodes::clear)
             && this->term.write(VT100EscapeCodes::pos)
             && this->term.write(this->framebuffer.span())
+            && this->term.write(this->framebuffer.span().subspan(0, nw))
+            && this->term.write(ANSIEscapeCode::reset_color)
             && this->term.write(VT520EscapeCodes::show_cursor)
             && this->term.flush();
     };
@@ -534,7 +669,7 @@ std::unique_ptr<Graphics> graphics_create_backend<backend>(const void *params) {
     auto p = params ? *static_cast<const P*>(params) : P{};
     if(p.fd == -1)
         p.fd = STDOUT_FILENO;
-    return std::make_unique<TerminalBackend>(p.fd);
+    return std::make_unique<TerminalBackend>(p.fd, p.mode);
 }
 
 }
