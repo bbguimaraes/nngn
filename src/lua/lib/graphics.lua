@@ -19,6 +19,18 @@ local BACK_ENDS <const> = {
             flags =
                 Graphics.TERMINAL_FLAG_REPOSITION
                 | Graphics.TERMINAL_FLAG_HIDE_CURSOR,
+            mode = Graphics.TERMINAL_MODE_ASCII,
+        },
+    },
+    terminal_colored = {
+        Graphics.TERMINAL_BACKEND,
+        Graphics.terminal_params{
+            flags =
+                Graphics.TERMINAL_FLAG_REPOSITION
+                | Graphics.TERMINAL_FLAG_DEDUPLICATE
+                | Graphics.TERMINAL_FLAG_HIDE_CURSOR
+                | Graphics.TERMINAL_FLAG_RESET_COLOR,
+            mode = Graphics.TERMINAL_MODE_COLORED,
         },
     },
     pseudograph = {Graphics.PSEUDOGRAPH},
@@ -29,6 +41,7 @@ local BACK_END_LIST <const> = {
     BACK_ENDS.opengl_es,
     BACK_ENDS.opengl,
     BACK_ENDS.terminal,
+    BACK_ENDS.terminal_colored,
     BACK_ENDS.pseudograph,
 }
 
@@ -52,6 +65,7 @@ return {
     OPENGL_ES = BACK_ENDS.opengl_es,
     OPENGL = BACK_ENDS.opengl,
     TERMINAL = BACK_ENDS.terminal,
+    TERMINAL_COLORED = BACK_ENDS.terminal_colored,
     PSEUDOGRAPH = BACK_ENDS.pseudograph,
     init = init,
 }

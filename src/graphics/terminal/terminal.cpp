@@ -31,6 +31,7 @@ std::unique_ptr<Graphics> graphics_create_backend<backend>(const void*) {
 using namespace nngn::literals;
 using nngn::u8, nngn::u32, nngn::u64, nngn::uvec2, nngn::mat4;
 using Flag = nngn::Graphics::TerminalFlag;
+using Mode = nngn::Graphics::TerminalMode;
 
 namespace {
 
@@ -48,7 +49,7 @@ public:
       *     Non-owning reference to the output file.  Must remain valid while
       *     the object exists.
       */
-    TerminalBackend(int fd, Flag f);
+    TerminalBackend(int fd, Flag f, Mode m);
     /** Resets the terminal to its previous state and deallocates all data. */
     ~TerminalBackend(void) final;
 private:
@@ -104,7 +105,7 @@ private:
     nngn::Terminal term = {};
     nngn::FrameLimiter frame_limiter = {};
     nngn::term::FrameBuffer frame_buffer;
-    nngn::term::Rasterizer rasterizer = {};
+    nngn::term::Rasterizer rasterizer;
     int fd;
     Camera camera = {};
     nngn::Flags<Flag> flags;
@@ -128,12 +129,14 @@ void TerminalBackend::RenderList::set_stage(
     }
 }
 
-TerminalBackend::TerminalBackend(int fd_, Flag f)
-    : frame_buffer{f}, fd{fd_}, flags{f} {}
+TerminalBackend::TerminalBackend(int fd_, Flag f, Mode m)
+    : frame_buffer{f, m}, rasterizer{m}, fd{fd_}, flags{f} {}
 
 TerminalBackend::~TerminalBackend(void) {
     if(this->flags.is_set(Flag::HIDE_CURSOR))
         this->term.show_cursor();
+    if(this->flags.is_set(Flag::RESET_COLOR))
+        this->term.write(nngn::ANSIEscapeCode::reset_color);
 }
 
 bool TerminalBackend::init(void) {
@@ -256,12 +259,12 @@ bool TerminalBackend::render(void) {
         for(const auto &s : l)
             switch(s.type) {
             case SPRITE:
-                nngn::term::Rasterizer::sprite(
+                this->rasterizer.sprite(
                     this->vbo(s.vbo), this->ebo(s.ebo), proj,
                     this->textures, &this->frame_buffer);
                 break;
             case FONT:
-                nngn::term::Rasterizer::font(
+                this->rasterizer.font(
                     this->vbo(s.vbo), this->ebo(s.ebo), proj,
                     this->fonts, &this->frame_buffer);
                  break;
@@ -292,8 +295,9 @@ bool TerminalBackend::render(void) {
     rasterize(proj, this->render_list.overlay);
     rasterize(hud_proj, this->render_list.hud);
     this->frame_buffer.flip();
+    const auto nw = this->frame_buffer.dedup();
     return this->term.drain()
-        && this->term.write(this->frame_buffer.span())
+        && this->term.write(this->frame_buffer.span().subspan(0, nw))
         && this->term.flush()
         && (this->frame_limiter.limit(), true);
 }
@@ -329,7 +333,7 @@ std::unique_ptr<Graphics> graphics_create_backend<backend>(const void *params) {
     using P = Graphics::TerminalParameters;
     const auto p = params ? *static_cast<const P*>(params) : P{};
     const int fd = p.fd == -1 ? STDOUT_FILENO : p.fd;
-    return std::make_unique<TerminalBackend>(fd, p.flags);
+    return std::make_unique<TerminalBackend>(fd, p.flags, p.mode);
 }
 
 }

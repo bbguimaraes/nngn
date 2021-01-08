@@ -9,6 +9,7 @@ using namespace nngn::term;
 using nngn::u32, nngn::uvec2, nngn::vec2, nngn::vec3, nngn::vec4, nngn::mat4;
 using texel3 = Texture::texel3;
 using texel4 = Texture::texel4;
+using TerminalMode = nngn::Graphics::TerminalMode;
 
 namespace {
 
@@ -60,11 +61,24 @@ vec2 to_screen(uvec2 size, vec3 v) {
     return scaled.xy();
 }
 
+using write_f = void(FrameBuffer::*)(std::size_t, std::size_t, texel4);
+
+write_f write_fn_for_mode(nngn::Graphics::TerminalMode m) {
+    using enum nngn::Graphics::TerminalMode;
+    switch(m) {
+    case ASCII: return &FrameBuffer::write_ascii;
+    case COLORED: return &FrameBuffer::write_colored;
+    default: assert(!"invalid mode"); return nullptr;
+    }
+}
+
 void sprite(
     std::span<const nngn::Vertex> vbo, std::span<const u32> ebo, mat4 proj,
-    std::span<const Texture> textures, FrameBuffer *fb, auto &&pos_f)
+    std::span<const Texture> textures, FrameBuffer *fb, TerminalMode mode,
+    auto &&pos_f)
 {
     constexpr std::ptrdiff_t n_verts = 6;
+    const auto wf = write_fn_for_mode(mode);
     const uvec2 size = fb->size();
     const auto screen_size = static_cast<vec2>(size.xy() - 1u);
     const auto e = end(ebo);
@@ -95,7 +109,7 @@ void sprite(
             for(auto x = xb; x <= xe; ++x) {
                 const auto u =
                     uv_coord(screen_bl.x, x, screen_tr.x, bl_uv.x, tr_uv.x);
-                fb->write(x, y, tex.sample({u, v}));
+                (fb->*wf)(x, y, tex.sample({u, v}));
             }
         }
     }
@@ -123,17 +137,17 @@ void Rasterizer::update_camera(
 
 void Rasterizer::sprite(
     std::span<const nngn::Vertex> vbo, std::span<const u32> ebo, mat4 proj,
-    std::span<const Texture> textures, FrameBuffer *fb)
+    std::span<const Texture> textures, FrameBuffer *fb) const
 {
-    return ::sprite(vbo, ebo, proj, textures, fb, std::identity{});
+    return ::sprite(vbo, ebo, proj, textures, fb, this->mode, std::identity{});
 }
 
 void Rasterizer::font(
     std::span<const nngn::Vertex> vbo, std::span<const u32> ebo, mat4 proj,
-    std::span<const Texture> font, FrameBuffer *fb)
+    std::span<const Texture> font, FrameBuffer *fb) const
 {
     return ::sprite(
-        vbo, ebo, proj, font, fb,
+        vbo, ebo, proj, font, fb, this->mode,
         [](auto x) { return vec3{x.xy()}; });
 }
 

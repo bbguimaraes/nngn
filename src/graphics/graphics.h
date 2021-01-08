@@ -143,11 +143,15 @@ struct Graphics {
     enum class TerminalFlag : u8 {
         CLEAR = 1u << 0,
         REPOSITION = 1u << 1,
-        HIDE_CURSOR = 1u << 2,
+        DEDUPLICATE = 1u << 2,
+        HIDE_CURSOR = 1u << 3,
+        RESET_COLOR = 1u << 4,
     };
+    enum class TerminalMode { ASCII, COLORED };
     struct TerminalParameters {
         int fd = -1;
         TerminalFlag flags = {};
+        TerminalMode mode = TerminalMode::ASCII;
     };
     struct OpenGLParameters : Parameters { int maj = {}, min = {}; };
     struct VulkanParameters : Parameters {

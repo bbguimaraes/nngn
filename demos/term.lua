@@ -1,5 +1,5 @@
 dofile "src/lua/path.lua"
-require("nngn.lib.graphics").init{"terminal"}
+require("nngn.lib.graphics").init{"terminal_colored"}
 dofile "src/lua/all.lua"
 local animation <const> = require "nngn.lib.animation"
 local camera <const> = require "nngn.lib.camera"

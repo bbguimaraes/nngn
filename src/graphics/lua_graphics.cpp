@@ -32,6 +32,8 @@ std::optional<Graphics::TerminalParameters> terminal_params(
             ret.fd = v.get<int>();
         else if(*ks == "flags")
             ret.flags = v.get<Graphics::TerminalFlag>();
+        else if(*ks == "mode")
+            ret.mode = v.get<Graphics::TerminalMode>();
     }
     return ret;
 }
@@ -297,7 +299,11 @@ void register_graphics(nngn::lua::table_view t) {
     t["LOG_LEVEL_ERROR"] = Graphics::LogLevel::ERROR;
     t["TERMINAL_FLAG_CLEAR"] = Graphics::TerminalFlag::CLEAR;
     t["TERMINAL_FLAG_REPOSITION"] = Graphics::TerminalFlag::REPOSITION;
+    t["TERMINAL_FLAG_DEDUPLICATE"] = Graphics::TerminalFlag::DEDUPLICATE;
     t["TERMINAL_FLAG_HIDE_CURSOR"] = Graphics::TerminalFlag::HIDE_CURSOR;
+    t["TERMINAL_FLAG_RESET_COLOR"] = Graphics::TerminalFlag::RESET_COLOR;
+    t["TERMINAL_MODE_ASCII"] = Graphics::TerminalMode::ASCII;
+    t["TERMINAL_MODE_COLORED"] = Graphics::TerminalMode::COLORED;
     t["CURSOR_MODE_NORMAL"] = Graphics::CursorMode::NORMAL;
     t["CURSOR_MODE_HIDDEN"] = Graphics::CursorMode::HIDDEN;
     t["CURSOR_MODE_DISABLED"] = Graphics::CursorMode::DISABLED;

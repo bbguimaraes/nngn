@@ -12,8 +12,9 @@ namespace nngn::term {
 class FrameBuffer {
 public:
     using Flag = nngn::Graphics::TerminalFlag;
+    using Mode = nngn::Graphics::TerminalMode;
     using texel4 = Texture::texel4;
-    explicit FrameBuffer(Flag f = {});
+    FrameBuffer(Flag f, Mode m);
     /** Size of the frame buffer in pixels. */
     uvec2 size(void) const { return this->m_size; }
     /** Pointer to the content. */
@@ -21,23 +22,79 @@ public:
     std::span<char> prefix(void);
     std::span<char> pixels(void);
     std::span<char> suffix(void);
-    /** Changes the size and clears the contents. */
+    /** Changes the size and clears the content according to the mode. */
     void resize_and_clear(uvec2 s);
-    /** Write pixel at `{x, y}` with \p color. */
-    void write(std::size_t x, std::size_t y, Texture::texel4 color);
-    /** Inverts the Y coordinate of all pixels. */
+    /** Write pixel at `{x, y}` with \p color, ASCII output. */
+    void write_ascii(std::size_t x, std::size_t y, Texture::texel4 color);
+    /** Write pixel at `{x, y}` with \p color, colored output. */
+    void write_colored(std::size_t x, std::size_t y, Texture::texel4 color);
+    /** Inverts the Y coord. of all pixels, must be called before \ref dedup. */
     void flip(void);
+    /**
+     * Eliminates redundant information, possibly reducing the size.
+     * Unique elements and the prefix/suffix will be in `span(0, dedup())`.
+     */
+    std::size_t dedup(void);
 private:
+    struct ColoredPixel {
+        /** Constructs a black pixel. */
+        ColoredPixel(void) = default;
+        /** Constructs an opaque pixel with a given color. */
+        explicit ColoredPixel(Texture::texel3 color);
+        /** Equality comparison for the RGB portion of the data. */
+        static bool cmp_rgb(const ColoredPixel &lhs, const ColoredPixel &rhs);
+        static constexpr auto CMD = ANSIEscapeCode::bg_color_24bit;
+        std::array<char, CMD.size()> cmd = nngn::to_array<CMD.size()>(CMD);
+        std::array<char, 3> r = nngn::to_array("000");
+        char semicolon0 = ';';
+        std::array<char, 3> g = nngn::to_array("000");
+        char semicolon1 = ';';
+        std::array<char, 3> b = nngn::to_array("000");
+        char m = 'm', space = ' ';
+    };
+    static_assert(std::has_unique_object_representations_v<ColoredPixel>);
     static constexpr std::size_t prefix_size_from_flags(Flag f);
-    Flag flags;
+    std::size_t pixel_size(void) const;
+    Flags<Flag> flags;
+    Mode mode;
     std::vector<char> v = {}, flip_tmp = {};
-    std::size_t prefix_size;
+    std::size_t prefix_size, suffix_size;
     uvec2 m_size = {};
 };
 
-inline FrameBuffer::FrameBuffer(Flag f) :
+inline FrameBuffer::ColoredPixel::ColoredPixel(Texture::texel3 color) {
+    constexpr auto f = [](std::span<char> s, u8 x) {
+        using namespace std::string_view_literals;
+        static_assert(nngn::is_sequence("0123456789"sv));
+        constexpr auto z = static_cast<unsigned>('0');
+        const auto i = static_cast<unsigned>(x);
+        s[2] = static_cast<char>(z + i       % 10);
+        s[1] = static_cast<char>(z + i /  10 % 10);
+        s[0] = static_cast<char>(z + i / 100 % 10);
+    };
+    f(this->r, color[0]);
+    f(this->g, color[1]);
+    f(this->b, color[2]);
+}
+
+inline bool FrameBuffer::ColoredPixel::cmp_rgb(
+    const ColoredPixel &lhs, const ColoredPixel &rhs)
+{
+    constexpr auto off0 = offsetof(ColoredPixel, r);
+    constexpr auto off1 = offsetof(ColoredPixel, m);
+    static_assert(off0 < off1);
+    constexpr auto n = off1 - off0;
+    return std::memcmp(lhs.r.data(), rhs.r.data(), n) == 0;
+}
+
+inline FrameBuffer::FrameBuffer(Flag f, Mode m) :
     flags{f},
-    prefix_size{FrameBuffer::prefix_size_from_flags(f)}
+    mode{m},
+    prefix_size{FrameBuffer::prefix_size_from_flags(f)},
+    suffix_size{
+        nngn::Flags<Flag>{f}.is_set(Flag::RESET_COLOR)
+            ? sizeof(ANSIEscapeCode::reset_color) : 0
+    }
 {}
 
 inline constexpr std::size_t FrameBuffer::prefix_size_from_flags(Flag f) {
@@ -50,6 +107,16 @@ inline constexpr std::size_t FrameBuffer::prefix_size_from_flags(Flag f) {
     return ret;
 }
 
+inline std::size_t FrameBuffer::pixel_size(void) const {
+    switch(this->mode) {
+    case Mode::COLORED:
+        return sizeof(ColoredPixel);
+    case Mode::ASCII:
+    default:
+        return 1;
+    }
+}
+
 inline std::span<char> FrameBuffer::prefix(void) {
     return std::span{this->v}.subspan(0, this->prefix_size);
 }
@@ -59,10 +126,10 @@ inline std::span<char> FrameBuffer::pixels(void) {
 }
 
 inline std::span<char> FrameBuffer::suffix(void) {
-    return std::span{this->v}.subspan(this->v.size());
+    return std::span{this->v}.subspan(this->v.size() - this->suffix_size);
 }
 
-inline void FrameBuffer::write(
+inline void FrameBuffer::write_ascii(
     std::size_t x, std::size_t y, Texture::texel4 color)
 {
     using namespace std::string_view_literals;
@@ -80,6 +147,22 @@ inline void FrameBuffer::write(
     const auto i = w * y + x;
     assert(i < this->pixels().size());
     this->pixels()[i] = lum[ci];
+}
+
+inline void FrameBuffer::write_colored(
+    std::size_t x, std::size_t y, Texture::texel4 color)
+{
+    // TODO blend
+    if(!color[3])
+        return;
+    const auto fc = static_cast<vec4>(color);
+    const auto rgb = static_cast<Texture::texel3>(fc.xyz() * (fc[3] / 255.0f));
+    const auto w = static_cast<std::size_t>(this->m_size.x);
+    const auto i = w * y + x;
+    assert(i < this->pixels().size());
+    const auto px = ColoredPixel{rgb};
+    const auto ps = nngn::byte_cast<ColoredPixel>(this->pixels());
+    std::memcpy(&ps[i], &px, sizeof(px));
 }
 
 }
