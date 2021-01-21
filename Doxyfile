@@ -1,0 +1,17 @@
+PROJECT_NAME           = impero
+OUTPUT_DIRECTORY       = ./docs
+USE_MDFILE_AS_MAINPAGE = ./README.md
+HTML_EXTRA_STYLESHEET  = docs/custom.css docs/custom_dark_theme.css
+
+ALWAYS_DETAILED_SEC    = YES
+CALLER_GRAPH           = YES
+CALL_GRAPH             = YES
+EXTRACT_ALL            = YES
+EXTRACT_ANON_NSPACES   = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+GENERATE_TREEVIEW      = YES
+HAVE_DOT               = YES
+INTERACTIVE_SVG        = YES
+JAVADOC_AUTOBRIEF      = YES
+RECURSIVE              = YES

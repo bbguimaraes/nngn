@@ -23,6 +23,11 @@ target_include_directories(impero PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>)
 target_link_libraries(impero PRIVATE Qt5::Widgets warning_flags)
 
+add_custom_target(docs doxygen WORKING_DIRECTORY ${PROJECT_SOURCE_DIR})
+set_target_properties(
+    docs PROPERTIES ADDITIONAL_CLEAN_FILES
+    "${PROJECT_SOURCE_DIR}/docs/html;${PROJECT_SOURCE_DIR}/docs/latex")
+
 if(ENABLE_TESTS)
     enable_testing()
     add_subdirectory(tests)
