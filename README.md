@@ -22,6 +22,9 @@ in the source code.  Source code is organized in the following directories:
   Lua libray and scripts.
 - `scripts`: auxiliary scripts for building and interacting with the program.
 - `tests`: unit and integration tests for the C++ and Lua components.
+- `tools`: external and independent tools that interact with the engine to
+  display information and control execution (inspection, profiling,
+  configuration, etc.).
 
 Building
 --------
@@ -72,6 +75,7 @@ make nngn.js
 The following `configure` options are relevant when targeting WebAssembly:
 
 - `--disable-tests`
+- `--disable-tools`
 
 ### Optional features
 
@@ -130,6 +134,11 @@ The following sanitizers have been tested:
 - `undefined`
 - `pointer-compare`
 - `pointer-subtract`
+
+#### Tools
+
+Buildings auxiliary tools requires `Qt5Widgets` and `QtNetwork` and can be
+enabled with the `--enable-tools` flag.
 
 #### FreeBSD
 

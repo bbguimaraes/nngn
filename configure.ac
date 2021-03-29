@@ -42,6 +42,14 @@ AM_CONDITIONAL([ENABLE_LUA_ALLOC], [test "x$ENABLE_LUA_ALLOC" == xyes])
 AS_IF([test "$ENABLE_LUA_ALLOC" != no],
     AC_DEFINE([NNGN_LUA_USE_ALLOC], [1], [Define to enable Lua allocator]))
 
+ENABLE_TOOLS=no
+AC_ARG_ENABLE([tools],
+    [AS_HELP_STRING(
+        [--enable-tools],
+        [build auxiliary tools, requires Qt and rustc (default: no)])],
+    [ENABLE_TOOLS=$enableval])
+AM_CONDITIONAL([ENABLE_TOOLS], [test "x$ENABLE_TOOLS" == xyes])
+
 # Checks for libraries.
 PKG_CHECK_MODULES(
     [DEPS], [$DEPS lua], [],
@@ -52,11 +60,17 @@ AS_IF([test "$ENABLE_TESTS" != no],
     [PKG_CHECK_MODULES(
         [TEST_DEPS], [Qt5Core Qt5Test],
         [TEST_DEPS_CFLAGS=$(echo "$TEST_DEPS_CFLAGS" | sed s/-I/-isystem/g)])])
+AS_IF([test "$ENABLE_TOOLS" != no],
+    [PKG_CHECK_MODULES(
+        [QT_DEPS], [Qt5Core Qt5Network Qt5Widgets],
+        [QT_DEPS_CFLAGS=$(echo "$QT_DEPS_CFLAGS" | sed s/-I/-isystem/g)])])
 
 # Checks for library functions.
 AC_CHECK_FUNCS([signal])
 AC_CHECK_FUNCS([socket],
     AC_DEFINE([NNGN_PLATFORM_HAS_SOCKETS], [1], [Define if you have sockets]))
+
+AC_CONFIG_COMMANDS(tools/bin/mkdir)
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

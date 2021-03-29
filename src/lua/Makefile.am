@@ -8,6 +8,7 @@ LUA_FILES += \
 	%reldir%/lib/math.lua \
 	%reldir%/lib/profile.lua \
 	%reldir%/lib/serial.lua \
+	%reldir%/lib/tools.lua \
 	%reldir%/lib/utils.lua \
 	%reldir%/path.lua \
 	%reldir%/profile.lua \
