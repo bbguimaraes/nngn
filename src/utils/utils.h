@@ -25,6 +25,12 @@
     x(x&&) noexcept = default; \
     x &operator=(x&&) noexcept = default;
 
+#define NNGN_NO_MOVE(x) \
+    x(const x&) = delete; \
+    x &operator=(const x&) = delete; \
+    x(x&&) noexcept = delete; \
+    x &operator=(x&&) noexcept = delete;
+
 namespace nngn {
 
 enum class empty {};

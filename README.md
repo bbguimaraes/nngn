@@ -37,6 +37,7 @@ make nngn.js
 The following `configure` options are relevant when targeting WebAssembly:
 
 - `--disable-tests`
+- `--disable-tools`
 
 ### dependencies
 
@@ -85,3 +86,8 @@ The following sanitizers have been tested:
 - `undefined`
 - `pointer-compare`
 - `pointer-subtract`
+
+#### tools
+
+Buildings auxiliary tools requires `Qt5Widgets` and `QtNetwork` and can be
+enabled with the `--enable-tools` flag.
