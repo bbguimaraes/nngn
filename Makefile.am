@@ -59,7 +59,8 @@ CLEANFILES =
 	check-programs \
 	clean-docs \
 	docs \
-	tidy
+	tidy \
+	tools
 
 check-programs: $(TESTS)
 clean-local: clean-docs
@@ -79,5 +80,8 @@ TIDY_IGNORE =
 $(TIDY_IGNORE):
 	@true
 
+tools: $(TOOLS_BIN)
+
 include $(srcdir)/src/Makefile.am
 include $(srcdir)/tests/Makefile.am
+include $(srcdir)/tools/Makefile.am
