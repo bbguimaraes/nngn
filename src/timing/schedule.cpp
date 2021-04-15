@@ -18,7 +18,7 @@ bool mut_iter(T *v, F &&f) {
 }
 
 template<typename ...Ts>
-bool exec(std::ranges::forward_range auto *r, Ts ...ts) {
+bool exec(auto *r, Ts ...ts) {
     return mut_iter(r, [...ts = std::move(ts)](auto &x) {
         return !x.active(ts...) || x.call();
     });
@@ -131,7 +131,9 @@ bool Schedule::exit() {
     NNGN_LOG_CONTEXT_CF(Schedule);
     if(!exec(&this->atexit_v))
         return false;
-    const auto ret = std::ranges::all_of(this->atexit_v, &BaseEntry::destroy);
+    const auto ret = std::all_of(
+        begin(this->atexit_v), end(this->atexit_v),
+        std::mem_fn(&BaseEntry::destroy));
     this->atexit_v.clear();
     return ret;
 }

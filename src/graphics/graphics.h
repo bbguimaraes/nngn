@@ -168,11 +168,12 @@ struct Graphics {
     };
     static constexpr u32
         TEXTURE_EXTENT = 512,
-        TEXTURE_EXTENT_LOG2 = std::countr_zero(std::bit_floor(TEXTURE_EXTENT)),
+        TEXTURE_EXTENT_LOG2 = std::countr_zero(TEXTURE_EXTENT),
         TEXTURE_SIZE = 4 * TEXTURE_EXTENT * TEXTURE_EXTENT,
         TEXTURE_MIP_LEVELS = Math::mip_levels(TEXTURE_EXTENT),
         SHADOW_MAP_INITIAL_SIZE = 1024,
         SHADOW_CUBE_INITIAL_SIZE = 512;
+    static_assert(std::popcount(TEXTURE_EXTENT) == 1);
     static std::unique_ptr<Graphics> create(Backend b, const void *params);
     static const char *enum_str(DeviceInfo::Type t);
     static const char *enum_str(QueueFamily::Flag f);

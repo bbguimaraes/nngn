@@ -1,6 +1,9 @@
 #ifndef NNGN_GRAPHICS_VULKAN_TYPES_H
 #define NNGN_GRAPHICS_VULKAN_TYPES_H
 
+#include "os/platform.h"
+
+#ifdef NNGN_PLATFORM_HAS_VULKAN
 #include "utils/macros.h"
 #include "utils/utils.h"
 
@@ -79,5 +82,7 @@ NNGN_VK_TYPES(X)
 }
 
 #undef NNGN_VK_TYPES
+
+#endif
 
 #endif

@@ -3,6 +3,7 @@
 
 #include "os/platform.h"
 
+#ifdef NNGN_PLATFORM_HAS_VULKAN
 #include "handle.h"
 
 #ifdef NNGN_PLATFORM_32BIT
@@ -11,5 +12,6 @@
 #endif
 
 #include <vulkan/vulkan.h>
+#endif
 
 #endif

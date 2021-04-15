@@ -13,10 +13,11 @@
 
 static_assert(
     nngn::is_adjacent(
-        std::array{
-            GLFW_CURSOR_NORMAL,
-            GLFW_CURSOR_HIDDEN,
-            GLFW_CURSOR_DISABLED}));
+        std::span<const int>{
+            std::array{
+                GLFW_CURSOR_NORMAL,
+                GLFW_CURSOR_HIDDEN,
+                GLFW_CURSOR_DISABLED}}));
 
 #include "glfw.h"
 
@@ -41,7 +42,7 @@ bool GLFWBackend::create_window() {
     constexpr int initial_width = 800, initial_height = 600;
     if(!(this->w = glfwCreateWindow(
             initial_width, initial_height, "", nullptr, nullptr)))
-        return false;
+        return Log::l() << "failed to initialize GLFW window\n", false;
     this->callback_data.p = this;
     glfwSetWindowUserPointer(this->w, &this->callback_data);
     this->set_size_callback(nullptr, nullptr);

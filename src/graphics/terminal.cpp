@@ -1,5 +1,7 @@
 #include "graphics.h"
 
+#include <compare>
+
 #include "os/platform.h"
 #include "utils/log.h"
 
@@ -136,7 +138,8 @@ private:
         std::size_t, std::size_t, Texture::texel4);
     struct ColoredPixel {
         static constexpr auto CMD = ANSIEscapeCode::bg_color_24bit;
-        std::array<char, CMD.size()> cmd = nngn::to_array<CMD.size()>(CMD);
+        std::array<char, CMD.size()> cmd =
+            nngn::to_array<CMD.size()>(CMD.data());
         std::array<char, 3> r = nngn::to_array("000");
         char semicolon0 = ';';
         std::array<char, 3> g = nngn::to_array("000");
@@ -145,7 +148,7 @@ private:
         char m = 'm', space = ' ';
         ColoredPixel() = default;
         explicit ColoredPixel(Texture::texel3 color);
-        auto operator<=>(const ColoredPixel&) const = default;
+        std::strong_ordering operator<=>(const ColoredPixel&) const = default;
         static bool cmp_rgb(const ColoredPixel &lhs, const ColoredPixel &rhs);
     };
     static_assert(std::has_unique_object_representations_v<ColoredPixel>);

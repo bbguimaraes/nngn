@@ -19,12 +19,12 @@ namespace {
 
 std::uint32_t find(const std::vector<nngn::Hash> &v, std::string_view name) {
     return static_cast<std::uint32_t>(
-        std::distance(begin(v), std::ranges::find(v, nngn::hash(name))));
+        std::distance(begin(v), std::find(begin(v), end(v), nngn::hash(name))));
 }
 
 std::uint32_t find_empty(const std::vector<std::uint32_t> &v) {
     return static_cast<std::uint32_t>(
-        std::distance(begin(v), std::ranges::find(v, 0)));
+        std::distance(begin(v), std::find(begin(v), end(v), 0)));
 }
 
 bool check_max(std::size_t n, std::uint32_t i) {
@@ -102,8 +102,9 @@ void Textures::flip_y(std::vector<std::byte> *v) {
 }
 
 std::uint32_t Textures::n() const {
+    constexpr auto identity = [](auto &&x) { return FWD(x); };
     return static_cast<std::uint32_t>(
-        std::ranges::count_if(this->counts, std::identity{}));
+        std::count_if(begin(this->counts), end(this->counts), identity));
 }
 
 void Textures::set_max(std::uint32_t n) {

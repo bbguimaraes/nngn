@@ -900,7 +900,8 @@ u32 OpenGLBackend::create_buffer(const BufferConfiguration &conf) {
         ? conf.name : nullptr;
     auto &b = this->buffers.emplace_back();
     return (
-        b.create(conf) && (!name || this->set_obj_name(GL_BUFFER, b.id(), name))
+        b.create(conf)
+        && (!name || this->set_obj_name(NNGN_GL_BUFFER, b.id(), name))
     ) ? ret : u32{};
 }
 

@@ -38,7 +38,7 @@ public:
     template<typename T> static constexpr T degrees(T r);
     // Scalar
     template<typename T> static constexpr T round_up(T n, T d);
-    template<std::unsigned_integral T> static constexpr T mip_levels(T extent);
+    template<typename T> static constexpr T mip_levels(T extent);
     // Vector
     template<typename T> static constexpr auto length2(const T &v);
     template<typename T> static auto length(const T &v);
@@ -140,10 +140,11 @@ template<typename T> constexpr T Math::round_up(T n, T d) {
     return r ? n + d - r : n;
 }
 
-template<std::unsigned_integral T>
+template<typename T>
 constexpr T Math::mip_levels(T extent) {
+    static_assert(std::is_unsigned_v<T>);
     assert(std::popcount(extent) == 1);
-    return T{1} + static_cast<T>(std::countr_zero(std::bit_floor(extent)));
+    return T{1} + static_cast<T>(std::countr_zero(extent));
 }
 
 template<typename T> inline constexpr auto Math::length2(const T &v)

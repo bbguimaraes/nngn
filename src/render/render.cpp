@@ -12,6 +12,7 @@
 #include "font/textbox.h"
 #include "graphics/texture.h"
 #include "timing/profile.h"
+#include "utils/delegate.h"
 #include "utils/log.h"
 #include "utils/vector.h"
 
@@ -23,6 +24,16 @@
 using nngn::u8, nngn::u32, nngn::u64;
 
 namespace {
+
+template<typename T, std::size_t N>
+constexpr auto to_array(T (&&v)[N]) {
+    constexpr auto f = []<std::size_t ...I>(
+        T (&&v_)[N], std::index_sequence<I...>
+    ) {
+        return std::array<std::remove_cv_t<T>, N>{{std::move(v_[I])...}};
+    };
+    return f(FWD(v), std::make_index_sequence<N>{});
+}
 
 constexpr std::array<nngn::vec2, 2>
     CIRCLE_UV_32 = {{{ 32/512.0f, 1}, { 64/512.0f, 1 -  32/512.0f}}},
@@ -782,63 +793,63 @@ bool Renderers::set_graphics(Graphics *g) {
                 memcpy(p, std::span{v});
             })
         && g->set_render_list(Graphics::RenderList{
-            .depth = std::to_array<Stage>({{
+            .depth = ::to_array<Stage>({{
                 .pipeline = sprite_depth_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->map->vbo(), this->map->ebo()},
                     {this->sprite_vbo, this->sprite_ebo},
                 }),
             }, {
                 .pipeline = triangle_depth_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->voxel_vbo, this->voxel_ebo},
                     {this->cube_vbo, this->cube_ebo},
                 }),
             }}),
-            .map_ortho = std::to_array<Stage>({{
+            .map_ortho = ::to_array<Stage>({{
                 .pipeline = circle_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->map->vbo(), this->map->ebo()},
                 }),
             }}),
-            .map_persp = std::to_array<Stage>({{
+            .map_persp = ::to_array<Stage>({{
                 .pipeline = sprite_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->map->vbo(), this->map->ebo()},
                 }),
             }}),
-            .normal = std::to_array<Stage>({{
+            .normal = ::to_array<Stage>({{
                 .pipeline = voxel_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->voxel_vbo, this->voxel_ebo},
                 }),
             }, {
                 .pipeline = triangle_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->cube_vbo, this->cube_ebo},
                 }),
             }, {
                 .pipeline = sprite_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->sprite_vbo, this->sprite_ebo},
                 }),
             }}),
-            .no_light = std::to_array<Stage>({{
+            .no_light = ::to_array<Stage>({{
                 .pipeline = sprite_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->translucent_vbo, this->translucent_ebo},
                 }),
             }}),
-            .overlay = std::to_array<Stage>({{
+            .overlay = ::to_array<Stage>({{
                 .pipeline = circle_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->aabb_circle_vbo, this->aabb_circle_ebo},
                     {this->bb_circle_vbo, this->bb_circle_ebo},
                     {this->sphere_vbo, this->sphere_ebo},
                 }),
             }, {
                 .pipeline = box_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->box_vbo, this->box_ebo},
                     {this->cube_debug_vbo, this->cube_debug_ebo},
                     {this->voxel_debug_vbo, this->voxel_debug_ebo},
@@ -849,36 +860,36 @@ bool Renderers::set_graphics(Graphics *g) {
                 }),
             }, {
                 .pipeline = line_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->grid->vbo(), this->grid->ebo()},
                     {this->range_vbo, this->range_ebo},
                 }),
             }}),
-            .hud = std::to_array<Stage>({{
+            .hud = ::to_array<Stage>({{
                 .pipeline = triangle_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {triangle_vbo, triangle_ebo},
                 }),
             }, {
                 .pipeline = box_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->textbox_vbo, this->textbox_ebo},
                 }),
             }, {
                 .pipeline = font_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->text_vbo, this->text_ebo},
                 }),
             }}),
-            .shadow_maps = std::to_array<Stage>({{
+            .shadow_maps = ::to_array<Stage>({{
                 .pipeline = circle_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->depth_vbo, this->depth_ebo},
                 }),
             }}),
-            .shadow_cubes = std::to_array<Stage>({{
+            .shadow_cubes = ::to_array<Stage>({{
                 .pipeline = circle_pipeline,
-                .buffers = std::to_array<BufferPair>({
+                .buffers = ::to_array<BufferPair>({
                     {this->depth_cube_vbo, this->depth_cube_ebo},
                 }),
             }}),
@@ -1287,7 +1298,7 @@ bool Renderers::update() {
         return flags.is_set(f)
             ? (flags.clear(f), true)
             // TODO flag hierarchy
-            : std::ranges::any_of(begin(v), end(v), &Renderer::updated);
+            : std::any_of(begin(v), end(v), delegate_fn<&Renderer::updated>{});
     };
     NNGN_PROFILE_CONTEXT(renderers);
     const auto sprites_updated = updated(Flag::SPRITES_UPDATED, this->sprites);

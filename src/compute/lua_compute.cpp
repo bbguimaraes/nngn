@@ -402,7 +402,7 @@ bool execute(
     };
     const auto global_size_v = global_size.value();
     const auto size = data_size(data);
-    std::vector<std::byte> data_v(nngn::reduce(size));
+    std::vector<std::byte> data_v(nngn::reduce(std::span{size}));
     const auto [types, data_p] = read_data(data, &data_v);
     Compute::Events events = {};
     std::vector<Compute::Event> wait_v = {}, events_v = {};

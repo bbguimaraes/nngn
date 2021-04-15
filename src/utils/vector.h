@@ -5,7 +5,6 @@
 #include <cstring>
 #include <iterator>
 #include <numeric>
-#include <ranges>
 #include <span>
 #include <utility>
 
@@ -40,29 +39,41 @@ template<std::size_t N>
 consteval auto to_array(const char (&s)[N])
     { return to_array<N - 1>(static_cast<const char*>(s)); }
 
-template<std::size_t N>
-consteval auto to_array(const std::ranges::contiguous_range auto &r)
-    { return to_array<N>(std::data(r)); }
+template<typename T, std::size_t N>
+consteval auto to_array(const std::span<T, N> s)
+    { return to_array<N>(std::data(s)); }
 
-template<std::ranges::range R>
-constexpr bool is_adjacent(const R &r) {
+template<typename T, std::size_t N>
+constexpr bool is_adjacent(const std::span<T, N> s) {
     constexpr auto not_adj = [](const auto &lhs, const auto &rhs) {
-        using T = std::ranges::range_value_t<R>;
         return lhs + T{1} != rhs;
     };
     using std::end;
-    return std::ranges::adjacent_find(r, not_adj) == end(r);
+    return std::adjacent_find(begin(s), end(s), not_adj) == end(s);
 }
 
-auto reduce(std::ranges::range auto &&r) {
+template<typename T>
+auto reduce(std::span<T> s) {
     using std::begin, std::end;
-    return std::reduce(begin(r), end(r));
+    return std::reduce(begin(s), end(s));
 }
 
-template<
-    std::input_iterator I,
-    std::output_iterator<std::iter_value_t<I>> O>
+template<typename I, typename O>
 void fill_with_pattern(I f, I l, O df, O dl) {
+    using IT = std::iterator_traits<I>;
+    using OT = std::iterator_traits<O>;
+    static_assert(
+        std::is_base_of_v<
+            std::input_iterator_tag,
+            typename IT::iterator_category>);
+//    static_assert(
+//        std::is_base_of_v<
+//            std::output_iterator_tag,
+//            typename OT::iterator_category>);
+    static_assert(
+        std::is_convertible_v<
+            typename IT::value_type,
+            typename OT::value_type>);
     std::generate(df, dl, [i = f, f, l]() mutable {
         if(i == l)
             i = f;
@@ -70,12 +81,9 @@ void fill_with_pattern(I f, I l, O df, O dl) {
     });
 }
 
-constexpr void memcpy(void *dst, std::ranges::contiguous_range auto &&r) {
-    // TODO https://bugs.llvm.org/show_bug.cgi?id=39663
-    //std::memcpy(dst, data(r), std::span{r}.size_bytes());
-    auto s = std::span{r};
-    std::memcpy(dst, data(r), s.size_bytes());
-}
+template<typename T, std::size_t N>
+constexpr void memcpy(void *dst, std::span<T, N> s)
+    { std::memcpy(dst, data(s), s.size_bytes()); }
 
 }
 

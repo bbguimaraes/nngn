@@ -6,7 +6,6 @@
 #include <cstring>
 #include <memory>
 #include <numeric>
-#include <ranges>
 #include <span>
 #include <string>
 #include <string_view>
@@ -292,12 +291,13 @@ constexpr auto Compute::arg_type<std::uint32_t> = Compute::Type::UINT;
 template<>
 constexpr auto Compute::arg_type<float> = Compute::Type::FLOAT;
 
-template<std::derived_from<Compute::Handle> T>
+template<typename T>
+requires(std::is_base_of_v<Compute::Handle, T>)
 constexpr auto Compute::arg_type<T> = T::type;
 
-template<std::ranges::range T>
-constexpr auto Compute::arg_type<T> =
-    Compute::to_vector_type<Compute::arg_type<std::ranges::range_value_t<T>>>();
+template<typename T>
+constexpr auto Compute::arg_type<std::span<T>> =
+    Compute::to_vector_type<Compute::arg_type<T>>();
 
 inline constexpr bool Compute::is_vector_type(Type t)
     { return Type::VECTOR_BEGIN <= t && t <= Type::VECTOR_END; }
@@ -315,14 +315,11 @@ inline auto arg_ptr(const Compute::Handle &t) { return as_bytes(&t.id); }
 template<arithmetic T> auto arg_size(const T&) { return sizeof(T); }
 auto arg_ptr(const arithmetic auto &t) { return as_bytes(&t); }
 
-auto arg_size(const std::ranges::sized_range auto &r) {
-    // TODO https://bugs.llvm.org/show_bug.cgi?id=39663
-    // return std::span{r}.size_bytes();
-    auto s = std::span{r};
-    return s.size_bytes();
-}
-auto arg_ptr(const std::ranges::range auto &r)
-    { return std::as_bytes(std::span{r}).data(); }
+template<typename T>
+auto arg_size(std::span<T> s) { return s.size_bytes(); }
+template<typename T>
+auto arg_ptr(std::span<T> s)
+    { return std::as_bytes(s).data(); }
 
 }
 
