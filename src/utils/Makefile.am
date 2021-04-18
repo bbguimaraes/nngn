@@ -2,6 +2,7 @@ noinst_HEADERS += \
 	%reldir%/concepts.h \
 	%reldir%/def.h \
 	%reldir%/delegate.h \
+	%reldir%/flag_array.h \
 	%reldir%/flags.h \
 	%reldir%/literals.h \
 	%reldir%/log.h \
@@ -12,6 +13,7 @@ noinst_HEADERS += \
 	%reldir%/utils.h \
 	%reldir%/vector.h
 nngn_SOURCES += \
+	%reldir%/flag_array.cpp \
 	%reldir%/flags.cpp \
 	%reldir%/log.cpp \
 	%reldir%/utils.cpp
