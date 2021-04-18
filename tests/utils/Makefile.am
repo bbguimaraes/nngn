@@ -1,5 +1,6 @@
 if ENABLE_TESTS
 check_PROGRAMS += \
+	%reldir%/flag_array \
 	%reldir%/flags \
 	%reldir%/log \
 	%reldir%/scoped \
@@ -9,6 +10,7 @@ check_PROGRAMS += \
 endif
 
 check_HEADERS += \
+	%reldir%/flag_array_test.h \
 	%reldir%/flags_test.h \
 	%reldir%/log_test.h \
 	%reldir%/scoped_test.h \
@@ -18,6 +20,13 @@ check_HEADERS += \
 dist_check_DATA += \
 	%reldir%/static_vector_test.h \
 	%reldir%/utils_test.txt
+
+%canon_reldir%_flag_array_CPPFLAGS = $(check_CPPFLAGS)
+%canon_reldir%_flag_array_CXXFLAGS = $(check_CXXFLAGS)
+%canon_reldir%_flag_array_LDADD = $(check_LDADD)
+%canon_reldir%_flag_array_SOURCES = \
+	%reldir%/flag_array_test.cpp \
+	%reldir%/flag_array_test.moc.cpp
 
 %canon_reldir%_flags_CPPFLAGS = $(check_CPPFLAGS)
 %canon_reldir%_flags_CXXFLAGS = $(check_CXXFLAGS)

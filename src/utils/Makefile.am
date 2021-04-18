@@ -4,6 +4,7 @@ noinst_HEADERS += \
 	%reldir%/def.h \
 	%reldir%/delegate.h \
 	%reldir%/fixed_string.h \
+	%reldir%/flag_array.h \
 	%reldir%/flags.h \
 	%reldir%/fn.h \
 	%reldir%/literals.h \
@@ -24,6 +25,7 @@ nngn_SOURCES += \
 	%reldir%/concepts.cpp \
 	%reldir%/concepts/fundamental.cpp \
 	%reldir%/fixed_string.cpp \
+	%reldir%/flag_array.cpp \
 	%reldir%/flags.cpp \
 	%reldir%/fn.cpp \
 	%reldir%/literals.cpp \

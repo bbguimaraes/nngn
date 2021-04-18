@@ -28,3 +28,4 @@ check_HEADERS += \
 
 include %reldir%/collision/Makefile.am
 include %reldir%/lua/Makefile.am
+include %reldir%/utils/Makefile.am
