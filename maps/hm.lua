@@ -110,6 +110,13 @@ function objects.load_entity(type, e)
             type = Collider.AABB, flags = Collider.SOLID,
             bb = {-8, -8, 8, 8}, m = Math.INFINITY,
         }
+    elseif type == OBJ_TYPE.STUMP then
+--        t.renderer.coords = {1, 6, 3, 8}
+--        t.renderer.size = {32, 32}
+--        t.collider = {
+--            type = Collider.AABB, flags = Collider.SOLID,
+--            bb = {-16, -16, 16, 16}, m = Math.INFINITY,
+--        }
     else
         return
     end
@@ -397,11 +404,17 @@ local function reset()
     objects:reset()
 end
 
+--local gc = entity.load(nil, "src/lson/chicken.lua")
+
 local function heartbeat()
     tools:heartbeat()
     if flock then
         flock = flock:update(nngn.timing:dt_ms())
     end
+--    local p = nngn.players:cur()
+--    if p then
+--        gc:set_pos(table.unpack(grid.abs_pos(grid:get_target())))
+--    end
 end
 
 local function key_callback(key, press, mods)
