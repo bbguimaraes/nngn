@@ -14,7 +14,7 @@ struct Entity;
 namespace nngn {
 
 struct Renderer {
-    enum Type : u8 { SPRITE = 1, CUBE, N_TYPES };
+    enum Type : u8 { SPRITE = 1, CUBE, VOXEL, N_TYPES };
     enum Flag : u8 { UPDATED = 1u << 0 };
     Entity *entity = nullptr;
     vec3 pos = {};
@@ -36,6 +36,13 @@ struct SpriteRenderer : Renderer {
 struct CubeRenderer : Renderer {
     vec3 color = {1, 1, 1};
     float size = 0;
+    void load(const sol::stack_table &t);
+};
+
+struct VoxelRenderer : Renderer {
+    std::array<vec4, 6> uv = {};
+    vec3 size = {};
+    u32 tex = 0;
     void load(const sol::stack_table &t);
 };
 

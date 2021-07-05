@@ -61,6 +61,13 @@ void update_cubes(nngn::Vertex **p, nngn::CubeRenderer *x) {
         nngn::vec3{x->size}, x->color);
 }
 
+void update_voxels(nngn::Vertex **p, nngn::VoxelRenderer *x) {
+    x->flags.clear(nngn::Renderer::Flag::UPDATED);
+    nngn::Renderers::gen_cube_verts(
+        p, {x->pos.x, x->pos.y, x->pos.z - x->pos.y},
+        x->size, x->tex, x->uv);
+}
+
 void update_boxes(nngn::Vertex **p, nngn::SpriteRenderer *x) {
     const auto pos = x->pos.xy();
     auto s = x->size / 2.0f;
@@ -79,6 +86,10 @@ void update_cube_dbg(nngn::Vertex **p, nngn::CubeRenderer *x) {
     nngn::Renderers::gen_cube_verts(p, x->pos, nngn::vec3{x->size}, {1, 1, 1});
 }
 
+void update_voxel_dbg(nngn::Vertex **p, nngn::VoxelRenderer *x) {
+    nngn::Renderers::gen_cube_verts(p, x->pos, nngn::vec3{x->size}, {1, 1, 1});
+}
+
 }
 
 namespace nngn {
@@ -89,7 +100,8 @@ void Renderers::init(Textures *t) {
 
 std::size_t Renderers::n() const {
     return this->sprites.size()
-        + this->cubes.size();
+        + this->cubes.size()
+        + this->voxels.size();
 }
 
 bool Renderers::set_max_sprites(std::size_t n) {
@@ -112,6 +124,16 @@ bool Renderers::set_max_cubes(std::size_t n) {
         && this->graphics->set_buffer_capacity(this->cube_debug_ebo, esize);
 }
 
+bool Renderers::set_max_voxels(std::size_t n) {
+    set_capacity(&this->voxels, n);
+    const u64 vsize = 24 * n * sizeof(Vertex);
+    const u64 esize = 36 * n * sizeof(std::uint32_t);
+    return this->graphics->set_buffer_capacity(this->voxel_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->voxel_ebo, esize)
+        && this->graphics->set_buffer_capacity(this->voxel_debug_vbo, vsize)
+        && this->graphics->set_buffer_capacity(this->voxel_debug_ebo, esize);
+}
+
 void Renderers::set_debug(std::underlying_type_t<Debug> d) {
     auto old = this->m_debug;
     this->m_debug = {d};
@@ -131,7 +153,8 @@ bool Renderers::set_graphics(Graphics *g) {
     constexpr auto index = Graphics::BufferConfiguration::Type::INDEX;
     this->graphics = g;
     u32
-        triangle_pipeline = {}, sprite_pipeline = {}, box_pipeline = {},
+        triangle_pipeline = {}, sprite_pipeline = {}, voxel_pipeline = {},
+        box_pipeline = {},
         triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
@@ -142,6 +165,13 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "sprite_pipeline",
             .type = Pipeline::Type::SPRITE,
             .flags = Pipeline::Flag::DEPTH_TEST,
+        }))
+        && (voxel_pipeline = g->create_pipeline({
+            .name = "voxel_pipeline",
+            .type = Pipeline::Type::VOXEL,
+            .flags = static_cast<Pipeline::Flag>(
+                Pipeline::Flag::DEPTH_TEST
+                | Pipeline::Flag::CULL_BACK_FACES),
         }))
         && (box_pipeline = g->create_pipeline({
             .name = "box_pipeline",
@@ -189,6 +219,22 @@ bool Renderers::set_graphics(Graphics *g) {
             .name = "cube_debug_ebo",
             .type = index,
         }))
+        && (this->voxel_vbo = g->create_buffer({
+            .name = "voxel_vbo",
+            .type = vertex,
+        }))
+        && (this->voxel_ebo = g->create_buffer({
+            .name = "voxel_ebo",
+            .type = index,
+        }))
+        && (this->voxel_debug_vbo = g->create_buffer({
+            .name = "voxel_debug_vbo",
+            .type = vertex,
+        }))
+        && (this->voxel_debug_ebo = g->create_buffer({
+            .name = "voxel_debug_ebo",
+            .type = index,
+        }))
         && g->update_buffers(
             triangle_vbo, triangle_ebo, 0, 0,
             1, TRIANGLE_VBO_SIZE, 1, TRIANGLE_EBO_SIZE, nullptr,
@@ -205,6 +251,11 @@ bool Renderers::set_graphics(Graphics *g) {
             })
         && g->set_render_list(Graphics::RenderList{
             .normal = std::to_array<Stage>({{
+                .pipeline = voxel_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->voxel_vbo, this->voxel_ebo},
+                }),
+            }, {
                 .pipeline = triangle_pipeline,
                 .buffers = std::to_array<BufferPair>({
                     {triangle_vbo, triangle_ebo},
@@ -221,6 +272,7 @@ bool Renderers::set_graphics(Graphics *g) {
                 .buffers = std::to_array<BufferPair>({
                     {this->box_vbo, this->box_ebo},
                     {this->cube_debug_vbo, this->cube_debug_ebo},
+                    {this->voxel_debug_vbo, this->voxel_debug_ebo},
                 }),
             }}),
         });
@@ -251,6 +303,7 @@ Renderer *Renderers::load(const sol::stack_table &t) {
     switch(const Renderer::Type type = t["type"]) {
     case Renderer::Type::SPRITE: return load_tex(this->sprites, "sprite");
     case Renderer::Type::CUBE: return load(this->cubes, "cube");
+    case Renderer::Type::VOXEL: return load(this->voxels, "voxel");
     case Renderer::Type::N_TYPES:
     default:
         Log::l() << "invalid type: " << static_cast<int>(type) << '\n';
@@ -279,6 +332,8 @@ void Renderers::remove(Renderer *p) {
         remove_tex(&this->sprites, Flag::SPRITES_UPDATED);
     if(is_in(this->cubes))
         remove(&this->cubes, Flag::CUBES_UPDATED);
+    if(is_in(this->voxels))
+        remove(&this->voxels, Flag::VOXELS_UPDATED);
 }
 
 bool Renderers::update() {
@@ -309,6 +364,20 @@ bool Renderers::update() {
             this->graphics, std::span{this->cubes},
             this->cube_debug_vbo, this->cube_debug_ebo, 6 * 4, 6 * 6);
     };
+    const auto update_voxels = [this] {
+        NNGN_LOG_CONTEXT("voxel");
+        const auto vbo = this->voxel_vbo;
+        const auto ebo = this->voxel_ebo;
+        return update_span<::update_voxels, update_indices<6 * 6>>(
+            this->graphics, std::span{this->voxels},
+            vbo, ebo, 6 * 4, 6 * 6);
+    };
+    const auto update_voxel_dbg = [this] {
+        NNGN_LOG_CONTEXT("voxels debug");
+        return update_span<::update_voxel_dbg, update_indices<6 * 6>>(
+            this->graphics, std::span{this->voxels},
+            this->voxel_debug_vbo, this->voxel_debug_ebo, 6 * 4, 6 * 6);
+    };
     const auto updated = [&flags = this->flags](auto f, const auto &v) {
         return flags.is_set(f)
             ? (flags.clear(f), true)
@@ -322,16 +391,20 @@ bool Renderers::update() {
     const auto cubes_updated = updated(Flag::CUBES_UPDATED, this->cubes);
     if(cubes_updated && !update_cubes())
         return false;
+    const auto voxels_updated = updated(Flag::VOXELS_UPDATED, this->voxels);
+    if(voxels_updated && !update_voxels())
+        return false;
     const auto rect_enabled = this->m_debug & Debug::RECT;
     const auto rect_updated = this->flags.check_and_clear(Flag::RECT_UPDATED)
-        || sprites_updated || cubes_updated;
+        || sprites_updated || cubes_updated || voxels_updated;
     if(rect_updated) {
         if(rect_enabled) {
-            if(!update_rect() || !update_cube_dbg())
+            if(!(update_rect() && update_cube_dbg() && update_voxel_dbg()))
                 return false;
         } else {
             this->graphics->set_buffer_size(this->box_ebo, 0);
             this->graphics->set_buffer_size(this->cube_debug_ebo, 0);
+            this->graphics->set_buffer_size(this->voxel_debug_ebo, 0);
         }
     }
     return true;

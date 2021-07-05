@@ -56,4 +56,23 @@ void CubeRenderer::load(const sol::stack_table &t) {
         read_table(std::span{this->color}, *c);
 }
 
+void VoxelRenderer::load(const sol::stack_table &t) {
+    NNGN_LOG_CONTEXT_CF(VoxelRenderer);
+    this->tex = t["tex"];
+    this->uv = {};
+    this->size = {};
+    if(const auto tt = t.get<std::optional<sol::table>>("uv")) {
+        using T = decltype(VoxelRenderer::uv);
+        using VT = T::value_type;
+        using ET = VT::type;
+        static constexpr std::size_t N = std::tuple_size<T>() * VT::n_dim;
+        static_assert(sizeof(T) == N * sizeof(ET));
+        read_table(std::span{&this->uv[0][0], N}, *tt);
+    }
+    std::ranges::begin(this->size);
+    static_assert(std::ranges::contiguous_range<decltype(this->size)>);
+    if(const auto tt = t.get<std::optional<sol::table>>("size"))
+        read_table(std::span{this->size}, *tt);
+}
+
 }
