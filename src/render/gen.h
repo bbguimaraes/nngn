@@ -16,11 +16,16 @@ struct Gen {
     static void quad_vertices(
         Vertex **p, vec2 bl, vec2 tr, float z, vec3 color);
     static void cube_vertices(Vertex **p, vec3 pos, vec3 size, vec3 color);
+    static void cube_vertices(
+        Vertex **p, vec3 pos, vec3 size,
+        u32 tex, const std::array<vec4, 6> &uv);
     // Renderers
     static void sprite(Vertex **p, SpriteRenderer *x);
     static void cube(Vertex **p, CubeRenderer *x);
+    static void voxel(Vertex **p, VoxelRenderer *x);
     static void sprite_debug(Vertex **p, SpriteRenderer *x);
     static void cube_debug(Vertex **p, CubeRenderer *x);
+    static void voxel_debug(Vertex **p, VoxelRenderer *x);
 };
 
 inline void Gen::quad_indices(u64 i_64, u64 n, u32 *p) {
@@ -87,6 +92,45 @@ inline void Gen::cube_vertices(Vertex **pp, vec3 pos, vec3 size, vec3 color) {
     *pp = p;
 }
 
+inline void Gen::cube_vertices(
+    Vertex **p, vec3 pos, vec3 size,
+    u32 tex, const std::array<vec4, 6> &uv
+) {
+    const auto ftex = static_cast<float>(tex);
+    const auto s = size / 2.0f;
+    const auto bl = pos - s, tr = pos + s;
+    auto uv_ = uv[5];
+    *((*p)++) = { bl               , {uv_.xy(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, {uv_.xw(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, {uv_.zy(), ftex}};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, {uv_.zw(), ftex}};
+    uv_ = uv[4];
+    *((*p)++) = {{bl.x, bl.y, tr.z}, {uv_.xy(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, {uv_.zy(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, {uv_.xw(), ftex}};
+    *((*p)++) = { tr               , {uv_.zw(), ftex}};
+    uv_ = uv[1];
+    *((*p)++) = { bl               , {uv_.xy(), ftex}};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, {uv_.xw(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, bl.z}, {uv_.zy(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, {uv_.zw(), ftex}};
+    uv_ = uv[0];
+    *((*p)++) = {{tr.x, bl.y, bl.z}, {uv_.xy(), ftex}};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, {uv_.zy(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, {uv_.xw(), ftex}};
+    *((*p)++) = { tr               , {uv_.zw(), ftex}};
+    uv_ = uv[3];
+    *((*p)++) = { bl               , {uv_.xy(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, bl.z}, {uv_.zy(), ftex}};
+    *((*p)++) = {{bl.x, bl.y, tr.z}, {uv_.xw(), ftex}};
+    *((*p)++) = {{tr.x, bl.y, tr.z}, {uv_.zw(), ftex}};
+    uv_ = uv[2];
+    *((*p)++) = {{bl.x, tr.y, bl.z}, {uv_.xy(), ftex}};
+    *((*p)++) = {{bl.x, tr.y, tr.z}, {uv_.xw(), ftex}};
+    *((*p)++) = {{tr.x, tr.y, bl.z}, {uv_.zy(), ftex}};
+    *((*p)++) = { tr               , {uv_.zw(), ftex}};
+}
+
 inline void Gen::sprite(Vertex **p, SpriteRenderer *x) {
     x->flags.clear(Renderer::Flag::UPDATED);
     const auto pos = x->pos.xy();
@@ -101,6 +145,13 @@ inline void Gen::cube(Vertex **p, CubeRenderer *x) {
     Gen::cube_vertices(
         p, {x->pos.x, x->pos.y, x->pos.z - x->pos.y},
         vec3{x->size}, x->color);
+}
+
+inline void Gen::voxel(Vertex **p, VoxelRenderer *x) {
+    x->flags.clear(Renderer::Flag::UPDATED);
+    Gen::cube_vertices(
+        p, {x->pos.x, x->pos.y, x->pos.z - x->pos.y},
+        x->size, x->tex, x->uv);
 }
 
 inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {
@@ -118,6 +169,10 @@ inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {
 }
 
 inline void Gen::cube_debug(Vertex **p, CubeRenderer *x) {
+    Gen::cube_vertices(p, x->pos, vec3{x->size}, {1, 1, 1});
+}
+
+inline void Gen::voxel_debug(Vertex **p, VoxelRenderer *x) {
     Gen::cube_vertices(p, x->pos, vec3{x->size}, {1, 1, 1});
 }
 

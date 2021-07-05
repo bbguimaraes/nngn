@@ -34,6 +34,9 @@ local FS = {
         int(
             "cubes", 8, 65536, 65536,
             "nngn.renderers:set_max_cubes(%1)"),
+        int(
+            "voxels", 8, 65536, 65536,
+            "nngn.renderers:set_max_voxels(%1)"),
     },
     graphics = {
         bool(

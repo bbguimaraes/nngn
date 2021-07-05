@@ -229,7 +229,8 @@ bool OpenGLBackend::init_instance() {
 #define P(x) static_cast<std::size_t>(PipelineConfiguration::Type::x)
     nngn::GLProgram
         &triangle_prog = this->programs[P(TRIANGLE)],
-        &sprite_prog = this->programs[P(SPRITE)];
+        &sprite_prog = this->programs[P(SPRITE)],
+        &voxel_prog = this->programs[P(VOXEL)];
 #undef P
     if(!triangle_prog.create(
             "src/glsl/gl/triangle.vert"sv, "src/glsl/gl/triangle.frag"sv,
@@ -250,6 +251,13 @@ bool OpenGLBackend::init_instance() {
         return false;
     CHECK_RESULT(glUseProgram, sprite_prog.id());
     if(!sprite_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
+        return false;
+    if(!voxel_prog.create(
+            "src/glsl/gl/sprite.vert"sv, "src/glsl/gl/voxel.frag"sv,
+            nngn::GLSL_GL_SPRITE_VERT, nngn::GLSL_GL_VOXEL_FRAG))
+        return false;
+    CHECK_RESULT(glUseProgram, voxel_prog.id());
+    if(!voxel_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
     if(!this->params.flags.is_set(Parameters::Flag::HIDDEN))
         glfwShowWindow(this->w);
@@ -356,9 +364,10 @@ bool OpenGLBackend::create_vao(
     static constexpr A attrs = {{
         {{{"position", 3}, {"color", 3}}},
         {{{"position", 3}, {"tex_coord", 3}}},
+        {{{"position", 3}, {"tex_coord", 3}}},
     }};
     static constexpr std::array names = {
-        "triangle", "sprite",
+        "triangle", "sprite", "voxel",
     };
     assert(vbo_idx < this->buffers.size());
     assert(ebo_idx < this->buffers.size());

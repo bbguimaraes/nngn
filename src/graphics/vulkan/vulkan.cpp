@@ -802,6 +802,12 @@ bool VulkanBackend::init_device(std::size_t i) {
             "src/glsl/vk/sprite.frag.spv"sv,
             nngn::GLSL_VK_SPRITE_VERT,
             nngn::GLSL_VK_SPRITE_FRAG)
+        && this->shaders.init(
+            this->instance, PipelineConfiguration::Type::VOXEL,
+            "src/glsl/vk/sprite.vert.spv"sv,
+            "src/glsl/vk/voxel.frag.spv"sv,
+            nngn::GLSL_VK_SPRITE_VERT,
+            nngn::GLSL_VK_VOXEL_FRAG)
         && this->create_render_pass(surface_format.format);
     if(!ok)
         return false;

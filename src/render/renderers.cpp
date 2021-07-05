@@ -54,4 +54,21 @@ void CubeRenderer::load(const nngn::lua::table &t) {
         read_table(std::span{this->color}, *c);
 }
 
+void VoxelRenderer::load(const nngn::lua::table &t) {
+    NNGN_LOG_CONTEXT_CF(VoxelRenderer);
+    this->tex = t["tex"];
+    this->uv = {};
+    this->size = {};
+    if(const auto tt = t.get<std::optional<nngn::lua::table>>("uv")) {
+        using T = decltype(VoxelRenderer::uv);
+        using VT = T::value_type;
+        using ET = VT::type;
+        static constexpr std::size_t N = std::tuple_size<T>() * VT::n_dim;
+        static_assert(sizeof(T) == N * sizeof(ET));
+        read_table(std::span{&this->uv[0][0], N}, *tt);
+    }
+    if(const auto tt = t.get<std::optional<nngn::lua::table>>("size"))
+        read_table(std::span{this->size}, *tt);
+}
+
 }
