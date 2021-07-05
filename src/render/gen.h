@@ -28,8 +28,11 @@ struct Gen {
     static void screen_sprite(Vertex **p, SpriteRenderer *x);
     static void cube_ortho(Vertex **p, CubeRenderer *x);
     static void cube_persp(Vertex **p, CubeRenderer *x);
+    static void voxel_ortho(Vertex **p, VoxelRenderer *x);
+    static void voxel_persp(Vertex **p, VoxelRenderer *x);
     static void sprite_debug(Vertex **p, SpriteRenderer *x);
     static void cube_debug(Vertex **p, CubeRenderer *x);
+    static void voxel_debug(Vertex **p, VoxelRenderer *x);
 };
 
 inline void Gen::quad_indices(u64 i_64, u64 n, u32 *p) {
@@ -187,6 +190,18 @@ inline void Gen::cube_persp(Vertex **p, CubeRenderer *x) {
     Gen::cube_vertices(p, x->pos, vec3{x->size}, x->color);
 }
 
+inline void Gen::voxel_ortho(Vertex **p, VoxelRenderer *x) {
+    x->flags.clear(Renderer::Flag::UPDATED);
+    Gen::cube_vertices(
+        p, {x->pos.x, x->pos.y, x->pos.z - x->pos.y},
+        x->size, x->tex, x->uv);
+}
+
+inline void Gen::voxel_persp(Vertex **p, VoxelRenderer *x) {
+    x->flags.clear(Renderer::Flag::UPDATED);
+    Gen::cube_vertices(p, x->pos, x->size, x->tex, x->uv);
+}
+
 inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {
     const auto pos = x->pos.xy();
     auto s = x->size / 2.0f;
@@ -202,6 +217,10 @@ inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {
 }
 
 inline void Gen::cube_debug(Vertex **p, CubeRenderer *x) {
+    Gen::cube_vertices(p, x->pos, vec3{x->size}, {1, 1, 1});
+}
+
+inline void Gen::voxel_debug(Vertex **p, VoxelRenderer *x) {
     Gen::cube_vertices(p, x->pos, vec3{x->size}, {1, 1, 1});
 }
 

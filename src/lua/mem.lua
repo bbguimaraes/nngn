@@ -20,5 +20,8 @@ print(fmt(
     "- cubes", Renderer.SIZEOF_CUBE,
     nngn:renderers():n_cubes(), nngn:renderers():max_cubes()))
 print(fmt(
+    "- voxels", Renderer.SIZEOF_VOXEL,
+    nngn:renderers():n_voxels(), nngn:renderers():max_voxels()))
+print(fmt(
     "textures", Graphics.TEXTURE_SIZE,
     nngn:textures():n(), nngn:textures():max()))

@@ -9,4 +9,20 @@ entities = {
     entity.load(nil, nil, {
         pos = {32, 0, 8},
         renderer = {type = Renderer.CUBE, size = 16, color = {1, .5, 0}}}),
+    entity.load(nil, nil, {
+        pos = {64, 0, 8},
+        renderer = {
+            type = Renderer.VOXEL,
+            tex = "img/zelda/zelda.png",
+            size = {16, 16, 16},
+            uv = {
+                0, 1, 0x1p-4, 1 - 0x1p-4,
+                0, 1, 0x1p-4, 1 - 0x1p-4,
+                0, 1, 0x1p-4, 1 - 0x1p-4,
+                0, 1, 0x1p-4, 1 - 0x1p-4,
+                0, 1, 0x1p-4, 1 - 0x1p-4,
+                0, 1, 0x1p-4, 1 - 0x1p-4,
+            },
+        },
+    }),
 }

@@ -53,12 +53,12 @@ local FS = {
     },
     render = {
         function(f)
-            f:write("s 2\n")
-            write_names(f, "sprites", "cubes")
+            f:write("s 4\n")
+            write_names(f, "sprites", "cubes", "voxels")
         end,
         function(f)
             local r <const> = nngn:renderers()
-            write_data(f, r:n_sprites(), r:n_cubes())
+            write_data(f, r:n_sprites(), r:n_cubes(), r:n_voxels())
         end,
     },
     camera = {
