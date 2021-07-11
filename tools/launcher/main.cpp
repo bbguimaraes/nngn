@@ -42,6 +42,12 @@ do
     local t = require("nngn.lib.timeline")
     t.timeline(t.FS.lua)
 end)"sv;
+constexpr auto CONFIGURE_GRAPHICS = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.configure")
+    p.configure(p.FS.graphics)
+end)"sv;
 
 class Launcher {
 public:
@@ -91,6 +97,7 @@ int main(int argc, char **argv) {
     Window w;
     const auto plot_section = w.add_section("plot");
     const auto timeline_section = w.add_section("timeline");
+    const auto configure_section = w.add_section("configure");
     const auto add = [&w, &l = launcher](auto s, const char *n, auto p) {
         QObject::connect(
             w.add_button(s, n), &QPushButton::pressed,
@@ -100,6 +107,7 @@ int main(int argc, char **argv) {
     add(plot_section, "lua", PLOT_LUA);
     add(timeline_section, "prof", TIMELINE_PROF);
     add(timeline_section, "lua", TIMELINE_LUA);
+    add(configure_section, "graphics", CONFIGURE_GRAPHICS);
     QObject::connect(
         &launcher.socket(), &QLocalSocket::errorOccurred,
         [&launcher, &w](QLocalSocket::LocalSocketError error) {
