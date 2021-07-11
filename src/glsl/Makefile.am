@@ -11,7 +11,9 @@ SHADERS_GL = \
 	%reldir%/gl/triangle.frag \
 	%reldir%/gl/triangle.vert \
 	%reldir%/gl/triangle_depth.frag \
-	%reldir%/gl/triangle_depth.vert
+	%reldir%/gl/triangle_depth.vert \
+	%reldir%/gl/post.vert \
+	%reldir%/gl/post.frag
 
 SHADERS_VK = \
 	%reldir%/vk/font.frag.spv \
@@ -24,7 +26,9 @@ SHADERS_VK = \
 	%reldir%/vk/triangle.frag.spv \
 	%reldir%/vk/triangle.vert.spv \
 	%reldir%/vk/triangle_depth.frag.spv \
-	%reldir%/vk/triangle_depth.vert.spv
+	%reldir%/vk/triangle_depth.vert.spv \
+	%reldir%/vk/post.vert.spv \
+	%reldir%/vk/post.frag.spv
 
 %reldir%/gl/%: %reldir%/%
 	cpp -P -MD -MP -MF $@.d -MT $@ -o $@ $<

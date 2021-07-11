@@ -17,10 +17,12 @@ function on_collision(e0, e1, ...)
     end
 end
 
-camera.reset()
+camera.reset(8)
 player.set{
     "src/lson/crono.lua", "src/lson/link.lua", "src/lson/link_sh.lua",
     "src/lson/fairy0.lua", "src/lson/chocobo.lua", "src/lson/null.lua"}
 nngn.textures:load(texture.NNGN)
 font.load(32)
 nngn.grid:set_dimensions(32.0, 64)
+
+io.popen("/tmp/nngn/debug/tools/bin/configure | scripts/sock.sh")

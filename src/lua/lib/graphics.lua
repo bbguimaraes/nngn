@@ -3,17 +3,18 @@ local input = require "nngn.lib.input"
 local function default_backends()
     local debug = Platform.DEBUG
     return {{
-        Graphics.VULKAN_BACKEND,
-        Graphics.vulkan_params{debug = debug},
-    }, {
-        Graphics.OPENGL_ES_BACKEND,
-        Graphics.opengl_params{maj = 3, min = 1, debug = debug},
-    }, {
+--        Graphics.VULKAN_BACKEND,
+--        Graphics.vulkan_params{debug = debug},
+--    }, {
+--        Graphics.OPENGL_ES_BACKEND,
+--        Graphics.opengl_params{maj = 3, min = 1, debug = debug},
+--    }, {
         Graphics.OPENGL_BACKEND,
         Graphics.opengl_params{maj = 4, min = 2, debug = debug},
     },
-    {Graphics.TERMINAL_BACKEND},
-    {Graphics.PSEUDOGRAPH}}
+--    {Graphics.TERMINAL_BACKEND},
+--    {Graphics.PSEUDOGRAPH}}
+}
 end
 
 local function init(backends)

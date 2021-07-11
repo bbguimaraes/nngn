@@ -184,7 +184,7 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     std::list<GLBuffer> stg_buffers = {};
     std::vector<GLBuffer> buffers = std::vector<GLBuffer>(1);
     std::vector<Pipeline> pipelines = {{}};
-    std::array<GLProgram, N_PROGRAMS> programs = {};
+    std::array<GLProgram, N_PROGRAMS + 1> programs = {};
     GLint triangle_prog_alpha_loc = -1;
     ::RenderList render_list = {};
     GLTexArray tex = {}, font_tex = {};
@@ -776,6 +776,18 @@ bool OpenGLBackend::init_instance() {
     CHECK_RESULT(glUseProgram, font_prog.id());
     if(!font_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
+    GLShader post_vs, post_fs;
+    if(!(OpenGLBackend::create_prog(
+            "src/glsl/gl/post.vert"sv, "src/glsl/gl/post.frag"sv,
+            nngn::GLSL_GL_POST_VERT,
+            nngn::GLSL_GL_POST_FRAG,
+            &this->programs.back())))
+        return false;
+    CHECK_RESULT(glUseProgram, this->programs.back().id());
+    if(!this->programs.back().set_uniform("tex0", 0))
+        return false;
+    if(!this->programs.back().set_uniform("tex1", 1))
+        return false;
     if(!this->params.flags.is_set(Parameters::Flag::HIDDEN))
         glfwShowWindow(this->w);
     return true;
@@ -1171,6 +1183,88 @@ bool OpenGLBackend::render() {
                     return false;
             }
     }
+    static GLuint post_tex0 = 0, post_tex1 = 0, post_tex2 = 0;
+    static GLuint post_fb0 = 0, post_fb1 = 0, post_fb2 = 0;
+    static VAO post_vao = {};
+    static GLuint post_vbo = 0, post_ebo = 0;
+    static unsigned post_width = 0, post_height = 0;
+    constexpr float post_scale = 1.0f / 8.0f;
+    if(const auto s = *this->camera.screen;
+            s != nngn::uvec2{post_width, post_height}) {
+        post_width = s.x;
+        post_height = s.y;
+        CHECK_RESULT(glDeleteTextures, 1, &post_tex0);
+        CHECK_RESULT(glDeleteTextures, 1, &post_tex1);
+        CHECK_RESULT(glDeleteTextures, 1, &post_tex2);
+        CHECK_RESULT(glDeleteFramebuffers, 1, &post_fb0);
+        CHECK_RESULT(glDeleteFramebuffers, 1, &post_fb1);
+        CHECK_RESULT(glDeleteFramebuffers, 1, &post_fb2);
+        if(!post_vao.destroy())
+            return false;
+        CHECK_RESULT(glDeleteBuffers, 1, &post_vbo);
+        CHECK_RESULT(glDeleteBuffers, 1, &post_ebo);
+        post_tex0 = post_tex1 = post_tex2 = 0;
+        post_fb0 = post_fb1 = post_fb2 = post_vbo = post_ebo = 0;
+    }
+    if(!post_tex0) {
+        const nngn::Vertex vs[] = {
+            {{-1.0f, -1.0f, 0}, {}, {0, 0, 0}},
+            {{ 1.0f, -1.0f, 0}, {}, {1, 0, 0}},
+            {{-1.0f,  1.0f, 0}, {}, {0, 1, 0}},
+            {{ 1.0f,  1.0f, 0}, {}, {1, 1, 0}},
+        };
+        constexpr u32 es[] = {0, 1, 2, 2, 3, 1};
+        CHECK_RESULT(glGenBuffers, 1, &post_vbo);
+        CHECK_RESULT(glGenBuffers, 1, &post_ebo);
+        CHECK_RESULT(glBindBuffer, GL_ARRAY_BUFFER, post_vbo);
+        CHECK_RESULT(glBufferData,
+            GL_ARRAY_BUFFER, sizeof(vs), vs, GL_STATIC_DRAW);
+        CHECK_RESULT(glBindBuffer, GL_ELEMENT_ARRAY_BUFFER, post_ebo);
+        CHECK_RESULT(glBufferData,
+            GL_ELEMENT_ARRAY_BUFFER, sizeof(es), es, GL_STATIC_DRAW);
+        if(!post_vao.create(post_vbo, post_ebo))
+            return false;
+        constexpr VAO::Attrib attrs[] =
+            {{"position", 3}, {{}, 3}, {"tex_coord", 3}};
+        CHECK_RESULT(glUseProgram, this->programs.back().id());
+        if(!post_vao.vertex_attrib_pointers(this->programs.back(), 3, attrs))
+            return false;
+        CHECK_RESULT(glUseProgram, this->programs[1].id());
+        CHECK_RESULT(glBindVertexArray, post_vao.id());
+        CHECK_RESULT(glDrawElements, GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        for(auto *t : {&post_tex0, &post_tex1, &post_tex2}) {
+            const auto scale = t == &post_tex0 ? 1.0f : post_scale;
+            CHECK_RESULT(glGenTextures, 1, t);
+            CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, *t);
+            CHECK_RESULT(glTexStorage2D,
+                GL_TEXTURE_2D, 1, GL_RGB16F,
+                static_cast<GLsizei>(static_cast<float>(post_width) * scale),
+                static_cast<GLsizei>(static_cast<float>(post_height) * scale));
+            CHECK_RESULT(glTexParameteri,
+                GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            CHECK_RESULT(glTexParameteri,
+                GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            CHECK_RESULT(glTexParameteri,
+                GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            CHECK_RESULT(glTexParameteri,
+                GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        }
+        CHECK_RESULT(glGenFramebuffers, 1, &post_fb0);
+        CHECK_RESULT(glGenFramebuffers, 1, &post_fb1);
+        CHECK_RESULT(glGenFramebuffers, 1, &post_fb2);
+        CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, post_fb0);
+        CHECK_RESULT(glFramebufferTexture2D,
+            GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+            post_tex0, 0);
+        CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, post_fb1);
+        CHECK_RESULT(glFramebufferTexture2D,
+            GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+            post_tex1, 0);
+        CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, post_fb2);
+        CHECK_RESULT(glFramebufferTexture2D,
+            GL_DRAW_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D,
+            post_tex2, 0);
+    }
     CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, 0);
     CHECK_RESULT(glViewport,
         0, 0,
@@ -1216,7 +1310,63 @@ bool OpenGLBackend::render() {
         return false;
     CHECK_RESULT(glBindTexture, GL_TEXTURE_2D_ARRAY, this->tex.id());
     CHECK_RESULT(glBindVertexArray, 0);
-    prof.end();
+    /**************************************************************************/
+    CHECK_RESULT(glDisable, GL_BLEND);
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE0);
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, post_tex0);
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE1);
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, 0);
+    CHECK_RESULT(glUseProgram, this->programs.back().id());
+    CHECK_RESULT(glBindVertexArray, post_vao.id());
+    CHECK_RESULT(glBindFramebuffer, GL_READ_FRAMEBUFFER, 0);
+    CHECK_RESULT(glBindFramebuffer, GL_DRAW_FRAMEBUFFER, post_fb0);
+    CHECK_RESULT(glBlitFramebuffer,
+        0, 0, static_cast<GLint>(post_width), static_cast<GLint>(post_height),
+        0, 0, static_cast<GLint>(post_width), static_cast<GLint>(post_height),
+        GL_COLOR_BUFFER_BIT, GL_LINEAR);
+    CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, post_fb1);
+    CHECK_RESULT(glViewport,
+        0, 0,
+        static_cast<GLsizei>(static_cast<float>(post_width) * post_scale),
+        static_cast<GLsizei>(static_cast<float>(post_height) * post_scale));
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE1);
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, 0);
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE0);
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, post_tex0);
+    CHECK_RESULT(glUniform2f, 7, 0.0f, 0.0f);
+    CHECK_RESULT(glDrawElements, GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    static float post_blur_counter = 0;
+    post_blur_counter += 0.01f;
+    const float post_blur_d = std::max(0.00001f, sinf(post_blur_counter));
+    for(int i = 0; i < 10; ++i) {
+        CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, post_tex1);
+        CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, post_fb2);
+        CHECK_RESULT(glUniform2f, 7, post_blur_d, 0);
+        CHECK_RESULT(glDrawElements, GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+        CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, post_tex2);
+        CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, post_fb1);
+        CHECK_RESULT(glUniform2f, 7, 0, post_blur_d);
+        CHECK_RESULT(glDrawElements, GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    }
+    CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    CHECK_RESULT(glViewport,
+        0, 0,
+        static_cast<GLsizei>(this->camera.screen->x),
+        static_cast<GLsizei>(this->camera.screen->y));
+    CHECK_RESULT(glClear, GL_COLOR_BUFFER_BIT);
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE0);
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, post_tex0);
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE1);
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, post_tex1);
+    CHECK_RESULT(glUniform2f, 7, post_blur_d, post_blur_d);
+    CHECK_RESULT(glDrawElements, GL_TRIANGLES, 6, GL_UNSIGNED_INT, nullptr);
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE0);
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, 0);
+    CHECK_RESULT(glActiveTexture, GL_TEXTURE1);
+    CHECK_RESULT(glBindTexture, GL_TEXTURE_2D, 0);
+    CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+    CHECK_RESULT(glBindVertexArray, 0);
+    CHECK_RESULT(glEnable, GL_BLEND);
     return true;
 }
 
