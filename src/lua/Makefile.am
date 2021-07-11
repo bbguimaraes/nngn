@@ -1,9 +1,11 @@
 LUA_FILES += \
 	%reldir%/all.lua \
+	%reldir%/configure.lua \
 	%reldir%/debug.lua \
 	%reldir%/init.lua \
 	%reldir%/inspect.lua \
 	%reldir%/lib/all.lua \
+	%reldir%/lib/configure.lua \
 	%reldir%/lib/debug.lua \
 	%reldir%/lib/graphics.lua \
 	%reldir%/lib/inspect.lua \

@@ -21,6 +21,12 @@
  * - `launcher` is a small window with several buttons that can be used to
  *   quickly start other tools with preset configurations.  It can persist
  *   across engine invocations.
+ * - `configure`: a generic configuration dialog with support for boolean,
+ *   integer, floating-point, and text values.
+ * - `camera_server`: a web server which receives orientation data from a
+ *   (possibly external) device (optionally via Javascript using its simple web
+ *   interface) and translates it into camera orientation commands.
+ *   See https://bbguimaraes.com/nngn/screenshots/engine.html#videos.
  *
  * Output tools are:
  *

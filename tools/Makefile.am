@@ -1,5 +1,6 @@
 if ENABLE_TOOLS
 bin_PROGRAMS += \
+	%reldir%/bin/configure \
 	%reldir%/bin/inspect \
 	%reldir%/bin/launcher \
 	%reldir%/bin/plot \
@@ -7,6 +8,7 @@ bin_PROGRAMS += \
 endif
 
 EXTRA_PROGRAMS += \
+	%reldir%/bin/configure \
 	%reldir%/bin/inspect \
 	%reldir%/bin/launcher \
 	%reldir%/bin/plot \
@@ -17,6 +19,9 @@ noinst_HEADERS += \
 	%reldir%/poller.h \
 	%reldir%/reader.h \
 	%reldir%/worker.h \
+	%reldir%/configure/float_widget.h \
+	%reldir%/configure/int_widget.h \
+	%reldir%/configure/window.h \
 	%reldir%/inspect/window.h \
 	%reldir%/inspect/worker.h \
 	%reldir%/plot/graph.h \
@@ -24,6 +29,23 @@ noinst_HEADERS += \
 	%reldir%/plot/worker.h \
 	%reldir%/timeline/graph.h \
 	%reldir%/timeline/worker.h
+
+%canon_reldir%_bin_configure_CPPFLAGS = $(AM_CPPFLAGS) $(QT_DEPS_CFLAGS)
+%canon_reldir%_bin_configure_CXXFLAGS = $(AM_CXXFLAGS) -fPIC
+%canon_reldir%_bin_configure_LDADD = $(QT_DEPS_LIBS)
+%canon_reldir%_bin_configure_SOURCES = \
+	src/utils/log.cpp \
+	%reldir%/configure/main.cpp \
+	%reldir%/poller.cpp \
+	%reldir%/reader.cpp \
+	%reldir%/worker.cpp \
+	%reldir%/worker.moc.cpp \
+	%reldir%/configure/int_widget.cpp \
+	%reldir%/configure/int_widget.moc.cpp \
+	%reldir%/configure/float_widget.cpp \
+	%reldir%/configure/float_widget.moc.cpp \
+	%reldir%/configure/window.cpp \
+	%reldir%/configure/window.moc.cpp
 
 %canon_reldir%_bin_inspect_CPPFLAGS = $(AM_CPPFLAGS) $(QT_DEPS_CFLAGS)
 %canon_reldir%_bin_inspect_CXXFLAGS = $(AM_CXXFLAGS) -fPIC
