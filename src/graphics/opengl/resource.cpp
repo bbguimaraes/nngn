@@ -95,5 +95,12 @@ bool GLTexArray::destroy() {
     return true;
 }
 
+bool GLFrameBuffer::destroy() {
+    NNGN_LOG_CONTEXT_CF(GLFrameBuffer);
+    CHECK_RESULT(glDeleteFramebuffers, 1, &this->id());
+    this->id() = 0;
+    return true;
+}
+
 }
 #endif

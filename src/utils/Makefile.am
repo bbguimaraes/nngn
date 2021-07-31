@@ -3,6 +3,7 @@ noinst_HEADERS += \
 	%reldir%/concepts/fundamental.h \
 	%reldir%/def.h \
 	%reldir%/delegate.h \
+	%reldir%/fixed_string.h \
 	%reldir%/flags.h \
 	%reldir%/fn.h \
 	%reldir%/literals.h \

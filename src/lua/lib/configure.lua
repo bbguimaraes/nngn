@@ -191,6 +191,35 @@ local FS = {
             "shadow map proj. size", 0, 4096000, 128000, 1000,
             "nngn.lighting:set_shadow_map_proj_size(%1, %1)"),
     },
+    post = {
+        bool("automatic exposure", "nngn.graphics:set_automatic_exposure(%1)"),
+        float("HDR mix", 0, 100, 0, 100, "nngn.graphics:set_HDR_mix(%1)"),
+        float("exposure", 0, 1000, 100, 100, "nngn.graphics:set_exposure(%1)"),
+        float(
+            "bloom threshold", 0, 100, 100, 100,
+            "nngn.graphics:set_bloom_threshold(%1)"),
+        int(
+            "bloom blur downscale", 1, 64, 0,
+            "nngn.graphics:set_bloom_downscale(%1)"),
+        float(
+            "bloom blur size", 0, 1000, 100, 100,
+            "nngn.graphics:set_bloom_blur_size(%1)"),
+        int(
+            "bloom blur passes", 0, 32, 10,
+            "nngn.graphics:set_bloom_blur_passes(%1)"),
+        float(
+            "bloom amount", 0, 100, 0, 100,
+            "nngn.graphics:set_bloom_amount(%1)"),
+        int(
+            "blur downscale", 1, 64, 2,
+            "nngn.graphics:set_blur_downscale(%1)"),
+        float(
+            "blur size", 0, 1000, 100, 100,
+            "nngn.graphics:set_blur_size(%1)"),
+        int(
+            "blur passes", 0, 32, 0,
+            "nngn.graphics:set_blur_passes(%1)"),
+    },
 }
 
 local update

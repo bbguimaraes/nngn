@@ -7,9 +7,14 @@ bin_PROGRAMS += \
 	%reldir%/bin/plot \
 	%reldir%/bin/timeline \
 	%reldir%/bin/websocket
+if ENABLE_OPENAL
+bin_PROGRAMS += \
+	%reldir%/bin/audio
+endif
 endif
 
 EXTRA_PROGRAMS += \
+	%reldir%/bin/audio \
 	%reldir%/bin/camera_server \
 	%reldir%/bin/configure \
 	%reldir%/bin/inspect \
@@ -23,6 +28,12 @@ noinst_HEADERS += \
 	%reldir%/poller.h \
 	%reldir%/reader.h \
 	%reldir%/worker.h \
+	%reldir%/audio/audio.h \
+	%reldir%/audio/edit.h \
+	%reldir%/audio/gen.h \
+	%reldir%/audio/pcm.h \
+	%reldir%/audio/source_editor.h \
+	%reldir%/audio/worker.h \
 	%reldir%/configure/float_widget.h \
 	%reldir%/configure/int_widget.h \
 	%reldir%/configure/window.h \
@@ -35,6 +46,41 @@ noinst_HEADERS += \
 	%reldir%/timeline/worker.h
 
 %canon_reldir%_bin_camera_server_SOURCES = tools/camera_server/main.rs
+
+%canon_reldir%_bin_audio_CPPFLAGS = $(AM_CPPFLAGS) $(QT_DEPS_CFLAGS)
+%canon_reldir%_bin_audio_CXXFLAGS = $(AM_CXXFLAGS) -fPIC
+# XXX
+%canon_reldir%_bin_audio_LDADD = $(QT_DEPS_LIBS) -lopenal -llua
+%canon_reldir%_bin_audio_SOURCES = \
+	src/audio/audio.cpp \
+	src/audio/gen.cpp \
+	src/audio/lua_audio.cpp \
+	src/audio/openal.cpp \
+	src/audio/wav.cpp \
+	src/compute/lua_compute.cpp \
+	src/lua/state.cpp \
+	src/lua/traceback.cpp \
+	src/math/math.cpp \
+	src/utils/log.cpp \
+	src/utils/utils.cpp \
+	%reldir%/audio/main.cpp \
+	%reldir%/configure/float_widget.cpp \
+	%reldir%/configure/float_widget.moc.cpp \
+	%reldir%/poller.cpp \
+	%reldir%/reader.cpp \
+	%reldir%/worker.cpp \
+	%reldir%/worker.moc.cpp \
+	%reldir%/audio/audio.cpp \
+	%reldir%/audio/audio.moc.cpp \
+	%reldir%/audio/edit.cpp \
+	%reldir%/audio/edit.moc.cpp \
+	%reldir%/audio/gen.cpp \
+	%reldir%/audio/pcm.cpp \
+	%reldir%/audio/pcm.moc.cpp \
+	%reldir%/audio/source_editor.cpp \
+	%reldir%/audio/source_editor.moc.cpp \
+	%reldir%/audio/worker.cpp \
+	%reldir%/audio/worker.moc.cpp
 
 %canon_reldir%_bin_configure_CPPFLAGS = $(AM_CPPFLAGS) $(QT_DEPS_CFLAGS)
 %canon_reldir%_bin_configure_CXXFLAGS = $(AM_CXXFLAGS) -fPIC

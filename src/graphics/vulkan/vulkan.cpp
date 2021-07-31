@@ -277,9 +277,25 @@ class VulkanBackend final : public nngn::GLFWBackend {
         ERROR = 1u << 0,
         RECREATE_SWAPCHAIN = 1u << 1,
     };
+    struct Post {
+        bool automatic_exposure = false;
+        float exposure = Graphics::DEFAULT_EXPOSURE;
+        float bloom_scale =
+            1.0f / static_cast<float>(Graphics::DEFAULT_BLOOM_DOWNSCALE);
+        float bloom_threshold = Graphics::DEFAULT_BLOOM_THRESHOLD;
+        float bloom_blur_size = Graphics::DEFAULT_BLOOM_BLUR_SIZE;
+        std::size_t bloom_blur_passes = Graphics::DEFAULT_BLOOM_BLUR_PASSES;
+        float bloom_amount = 0;
+        float blur_scale =
+            1.0f / static_cast<float>(Graphics::DEFAULT_BLUR_DOWNSCALE);
+        float blur_size = 0;
+        std::size_t blur_passes = 0;
+        float HDR_mix = 0;
+    };
     nngn::Flags<Flag> flags = {};
     Version m_version = {};
     LogLevel log_level;
+    Post post = {};
     nngn::InstanceInfo instance_info = {};
     std::vector<nngn::DeviceInfo> m_device_infos = {};
     std::vector<nngn::DeviceMemoryInfo> m_memory_infos = {};
@@ -370,6 +386,17 @@ public:
         { this->lighting_descriptor_sets.updated().set(); }
     bool set_shadow_map_size(u32 s) final;
     bool set_shadow_cube_size(u32 s) final;
+    void set_automatic_exposure(bool b) final;
+    void set_exposure(float e) final;
+    void set_bloom_downscale(std::size_t d) final;
+    void set_bloom_threshold(float t) final;
+    void set_bloom_blur_size(float n) final;
+    void set_bloom_blur_passes(std::size_t n) final;
+    void set_bloom_amount(float a) final;
+    void set_blur_downscale(std::size_t d) final;
+    void set_blur_size(float n) final;
+    void set_blur_passes(std::size_t n) final;
+    void set_HDR_mix(float m) final;
     u32 create_pipeline(const PipelineConfiguration &conf) final;
     u32 create_buffer(const BufferConfiguration &conf) final;
     bool set_buffer_capacity(u32 b, u64 size) final;
@@ -1728,6 +1755,50 @@ bool VulkanBackend::set_shadow_cube_size(std::uint32_t s) {
             this->dev.id(), this->shadow_cube.frame_views(),
             "shadow_cube_frame_views"sv)
         && this->flags.set(Flag::RECREATE_SWAPCHAIN);
+}
+
+void VulkanBackend::set_automatic_exposure(bool b) {
+    this->post.automatic_exposure = b;
+}
+
+void VulkanBackend::set_exposure(float e) {
+    this->post.exposure = e;
+}
+
+void VulkanBackend::set_bloom_downscale(std::size_t d) {
+    this->post.bloom_scale = 1.0f / static_cast<float>(d);
+}
+
+void VulkanBackend::set_bloom_threshold(float t) {
+    this->post.bloom_threshold = t;
+}
+
+void VulkanBackend::set_bloom_blur_size(float n) {
+    this->post.bloom_blur_size = n;
+}
+
+void VulkanBackend::set_bloom_blur_passes(std::size_t n) {
+    this->post.bloom_blur_passes = n;
+}
+
+void VulkanBackend::set_bloom_amount(float a) {
+    this->post.bloom_amount = a;
+}
+
+void VulkanBackend::set_blur_downscale(std::size_t d) {
+    this->post.blur_scale = 1.0f / static_cast<float>(d);
+}
+
+void VulkanBackend::set_blur_size(float n) {
+    this->post.blur_size = n;
+}
+
+void VulkanBackend::set_blur_passes(std::size_t n) {
+    this->post.blur_passes = n;
+}
+
+void VulkanBackend::set_HDR_mix(float m) {
+    this->post.HDR_mix = m;
 }
 
 void VulkanBackend::copy_buffer(

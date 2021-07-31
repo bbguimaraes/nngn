@@ -121,6 +121,14 @@ constexpr To byte_cast(From p) {
     return chain_cast<To, V>(p);
 }
 
+/** Cast between <tt>span</tt>s where one is a byte type. */
+template<typename To, typename From>
+requires byte_pointer<To> || byte_pointer<From>
+std::span<To> byte_span_cast(std::span<From> s) {
+    assert(!(s.size() % sizeof(To)));
+    return {byte_cast<To*>(s.data()), s.size() / sizeof(To)};
+}
+
 template<enum_ T>
 inline constexpr auto to_underlying(T t) {
     return static_cast<std::underlying_type_t<T>>(t);

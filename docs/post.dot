@@ -1,0 +1,58 @@
+digraph {
+    rankdir = LR;
+    subgraph cluster_luminance {
+        label = "avg_luminance";
+        lum_downsample0 [label="blit/\ndownsample",shape=box];
+        lum_downsample1 [label="blit/\ndownsample",shape=box];
+        lum_tex0 [label=luminance_tex0];
+        lum_tex1 [label=luminance_tex1];
+        lum_res_tex [label="luminance_res_tex"];
+        lum_last_tex [label="luminance_last_tex"];
+        lum_copy [label=copy_sub_image,shape=box];
+        lum_frag [label="luminance.frag",shape=box];
+        { rank = same; lum_tex0 lum_tex1; }
+        { rank = same; lum_last_tex lum_res_tex lum_copy; }
+        lum_downsample0 -> lum_tex0;
+        lum_tex0 -> lum_downsample1;
+        lum_downsample1 -> lum_tex1;
+        lum_tex1 -> lum_downsample0;
+        lum_tex1 -> lum_frag;
+        lum_last_tex -> lum_frag;
+        lum_frag -> lum_res_tex;
+        lum_res_tex -> lum_copy;
+        lum_copy -> lum_last_tex;
+    }
+    subgraph cluster_bloom {
+        label = "bloom";
+        bloom_filter [label=filter,shape=box];
+        bloom_hor_blur0 [label=hor_blur,shape=box];
+        bloom_hor_blur1 [label=hor_blur,shape=box];
+        { rank = same; bloom_hor_blur0 bloom_hor_blur1; }
+        bloom_filter -> bloom_blur_tex0;
+        bloom_blur_tex0 -> bloom_hor_blur0;
+        bloom_hor_blur0 -> bloom_blur_tex1;
+        bloom_blur_tex1 -> bloom_hor_blur1;
+        bloom_hor_blur1 -> bloom_blur_tex0;
+    }
+    subgraph cluster_blur {
+        label = "blur";
+        hor_blur0 [label=hor_blur,shape=box];
+        hor_blur1 [label=hor_blur,shape=box];
+        { rank = min; blur_tex0; }
+        { rank = same; hor_blur0 hor_blur1; }
+        { rank = max; blur_tex1; }
+        hor_blur0 -> blur_tex0;
+        blur_tex0 -> hor_blur1;
+        hor_blur1 -> blur_tex1;
+        blur_tex1 -> hor_blur0;
+    }
+    color_tex;
+    hdr [label=HDR];
+    color_tex -> lum_downsample0;
+    color_tex -> bloom_filter;
+    color_tex -> hor_blur0 [constraint=false];
+    lum_res_tex -> hdr;
+    bloom_blur_tex1 -> hdr;
+    blur_tex1 -> hdr;
+    bloom_filter -> blur_tex0 [style=invis];
+}

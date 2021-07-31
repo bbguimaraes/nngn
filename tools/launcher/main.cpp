@@ -110,6 +110,12 @@ do
     local p = require("nngn.lib.configure")
     p.configure(p.FS.graphics)
 end)"sv;
+constexpr auto CONFIGURE_POST = R"(
+do
+    require("nngn.lib.tools").add_to_path()
+    local p = require("nngn.lib.configure")
+    p.configure(p.FS.post)
+end)"sv;
 
 class Launcher {
 public:
@@ -181,6 +187,7 @@ int main(int argc, char **argv) {
     add(configure_section, "camera", CONFIGURE_CAMERA);
     add(configure_section, "render", CONFIGURE_RENDER);
     add(configure_section, "graphics", CONFIGURE_GRAPHICS);
+    add(configure_section, "post", CONFIGURE_POST);
     QObject::connect(
         &launcher.socket(), &QLocalSocket::errorOccurred,
         [&launcher, &w](QLocalSocket::LocalSocketError error) {

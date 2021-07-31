@@ -2,6 +2,7 @@
 #define NNGN_UTILS_RANGES_H
 
 #include <algorithm>
+#include <cassert>
 #include <cstring>
 #include <iterator>
 #include <numeric>
@@ -42,6 +43,20 @@ struct range_to {
         return ret;
     }
 };
+
+template<typename T>
+std::span<T> slice(std::span<T> s, auto b, auto e) {
+    using I = std::ptrdiff_t;
+    const auto n = static_cast<I>(s.size());
+    auto b_zd = static_cast<I>(b);
+    auto e_zd = static_cast<I>(e);
+    assert(b_zd <= e_zd);
+    b_zd = std::clamp(b_zd, I{}, n);
+    e_zd = std::clamp(e_zd, b_zd, n);
+    return s.subspan(
+        static_cast<std::size_t>(b_zd),
+        static_cast<std::size_t>(e_zd - b_zd));
+}
 
 template<typename V>
 void set_capacity(V *v, size_t n) {

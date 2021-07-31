@@ -51,6 +51,17 @@ struct Pseudograph : Graphics {
     void set_lighting_updated() override {}
     bool set_shadow_map_size(uint32_t) override { return true; }
     bool set_shadow_cube_size(uint32_t) override { return true; }
+    void set_automatic_exposure(bool) override {}
+    void set_exposure(float) override {}
+    void set_bloom_downscale(std::size_t) override {}
+    void set_bloom_threshold(float) override {}
+    void set_bloom_blur_size(float) override {}
+    void set_bloom_blur_passes(std::size_t) override {}
+    void set_bloom_amount(float) override {}
+    void set_blur_downscale(std::size_t) override {}
+    void set_blur_size(float) override {}
+    void set_blur_passes(std::size_t) override {}
+    void set_HDR_mix(float) override {}
     u32 create_pipeline(const PipelineConfiguration&) override { return 1; }
     u32 create_buffer(const BufferConfiguration&) override { return 1; }
     bool set_buffer_capacity(u32, u64) override { return true; }

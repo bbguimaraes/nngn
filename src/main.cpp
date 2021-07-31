@@ -22,6 +22,7 @@
  */
 #include "entity.h"
 
+#include "audio/audio.h"
 #include "collision/collision.h"
 #include "compute/compute.h"
 #include "font/font.h"
@@ -81,6 +82,7 @@ struct NNGN {
     nngn::Animations animations = {};
     nngn::Colliders colliders = {};
     Entities entities = {};
+    nngn::Audio audio = {};
     nngn::Textures textures = {};
     nngn::Lighting lighting = {};
     nngn::Map map = {};
@@ -123,6 +125,8 @@ bool NNGN::init(int argc, const char *const *argv) {
         &this->colliders, &this->lighting, &this->map);
     this->animations.init(&this->math);
     this->textbox.init(&this->fonts);
+    if(!this->audio.init(&this->math, 44100))
+        return false;
     this->lighting.init(&this->math);
     this->map.init(&this->textures);
     if(!(argc < 2
@@ -265,6 +269,13 @@ NNGN_LUA_PROXY(NNGN,
     "animations", readonly(&NNGN::animations),
     "colliders", readonly(&NNGN::colliders),
     "entities", readonly(&NNGN::entities),
+    "audio", [](lua_State *L) {
+        lua_pushlightuserdata(
+            L, &(*static_cast<NNGN**>(lua_touserdata(L, 1)))->audio);
+        lua_getglobal(L, "Audio");
+        lua_setmetatable(L, -2);
+        return 1;
+    },
     "textures", readonly(&NNGN::textures),
     "lighting", readonly(&NNGN::lighting),
     "map", readonly(&NNGN::map),
