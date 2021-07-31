@@ -49,6 +49,7 @@ std::unique_ptr<Graphics> graphics_create_backend<backend_es>(const void*) {
 #include "utils/literals.h"
 
 #include "opengl.h"
+#include "post.h"
 #include "prog.h"
 #include "resource.h"
 #include "utils.h"
@@ -113,13 +114,15 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     enum Flag : u8 {
         ES = 1u << 0,
         CALLBACK_ERROR = 1u << 1,
-        CAMERA_UPDATED = 1u << 2,
-        LIGHTING_UPDATED = 1u << 3,
+        RESIZED = 1u << 2,
+        CAMERA_UPDATED = 1u << 3,
+        LIGHTING_UPDATED = 1u << 4,
     };
     nngn::Flags<Flag> flags = {};
     int maj = 0, min = 0;
     GLsizei shadow_map_size = SHADOW_MAP_INITIAL_SIZE;
     GLsizei shadow_cube_size = SHADOW_CUBE_INITIAL_SIZE;
+    nngn::GLPost post = {};
     nngn::GLBuffer camera_ubo = {}, camera_screen_ubo = {};
     std::array<nngn::GLBuffer, 7_z * NNGN_MAX_LIGHTS>
         shadow_camera_ubos = {};
@@ -134,7 +137,8 @@ class OpenGLBackend final : public nngn::GLFWBackend {
     GLFramebuffer lights_fb = {};
     GLShadowMap shadow_map = {};
     std::array<GLShadowCube, NNGN_MAX_LIGHTS> shadow_cubes = {};
-    void resize(int, int) final { this->flags |= Flag::CAMERA_UPDATED; }
+    void resize(int, int) final
+        { this->flags |= Flag::RESIZED | Flag::CAMERA_UPDATED; }
     static bool create_uniform_buffer(
         std::string_view name, u64 size, nngn::GLBuffer *b);
     bool create_vao(
@@ -174,6 +178,17 @@ public:
         { this->flags |= Flag::LIGHTING_UPDATED; }
     bool set_shadow_map_size(u32 s) final;
     bool set_shadow_cube_size(u32 s) final;
+    void set_automatic_exposure(bool b) final;
+    void set_exposure(float e) final;
+    void set_bloom_downscale(std::size_t d) final;
+    void set_bloom_threshold(float t) final;
+    void set_bloom_blur_size(float n) final;
+    void set_bloom_blur_passes(std::size_t n) final;
+    void set_bloom_amount(float a) final;
+    void set_blur_downscale(std::size_t d) final;
+    void set_blur_size(float n) final;
+    void set_blur_passes(std::size_t n) final;
+    void set_HDR_mix(float m) final;
     u32 create_pipeline(const PipelineConfiguration &conf) final;
     u32 create_buffer(const BufferConfiguration &conf) final;
     bool set_buffer_capacity(u32 b, u64 size) final;
@@ -413,6 +428,8 @@ bool OpenGLBackend::init_instance() {
     CHECK_RESULT(glUseProgram, font_prog.id());
     if(!font_prog.bind_ubo("Camera", CAMERA_UBO_BINDING))
         return false;
+    if(!this->post.init())
+        return false;
     if(!this->params.flags.is_set(Parameters::Flag::HIDDEN))
         glfwShowWindow(this->w);
     return true;
@@ -474,6 +491,50 @@ bool OpenGLBackend::set_shadow_cube_size(u32 s) {
             return false;
     }
     return true;
+}
+
+void OpenGLBackend::set_automatic_exposure(bool b) {
+    this->post.set_automatic_exposure(b);
+}
+
+void OpenGLBackend::set_exposure(float e) {
+    this->post.set_exposure(e);
+}
+
+void OpenGLBackend::set_bloom_downscale(std::size_t d) {
+    this->post.set_bloom_downscale(d);
+}
+
+void OpenGLBackend::set_bloom_threshold(float t) {
+    this->post.set_bloom_threshold(t);
+}
+
+void OpenGLBackend::set_bloom_blur_size(float n) {
+    this->post.set_bloom_blur_size(n);
+}
+
+void OpenGLBackend::set_bloom_blur_passes(std::size_t n) {
+    this->post.set_bloom_blur_passes(n);
+}
+
+void OpenGLBackend::set_bloom_amount(float a) {
+    this->post.set_bloom_amount(a);
+}
+
+void OpenGLBackend::set_blur_downscale(std::size_t d) {
+    this->post.set_blur_downscale(d);
+}
+
+void OpenGLBackend::set_blur_size(float n) {
+    this->post.set_blur_size(n);
+}
+
+void OpenGLBackend::set_blur_passes(std::size_t n) {
+    this->post.set_blur_passes(n);
+}
+
+void OpenGLBackend::set_HDR_mix(float m) {
+    this->post.set_HDR_mix(m);
 }
 
 u32 OpenGLBackend::create_pipeline(const PipelineConfiguration &conf) {
@@ -596,7 +657,6 @@ bool OpenGLBackend::resize_textures(u32 s) {
     NNGN_LOG_CONTEXT_CF(OpenGLBackend);
     const auto si = static_cast<GLint>(s);
     return this->tex.destroy()
-        && LOG_RESULT(glActiveTexture, GL_TEXTURE0 + MAIN_TEX_BINDING)
         && LOG_RESULT(glGenTextures, 1, &this->tex.id())
         && this->tex.create(
             GL_TEXTURE_2D_ARRAY, GL_RGBA8, GL_NEAREST, GL_NEAREST, GL_REPEAT,
@@ -609,7 +669,6 @@ bool OpenGLBackend::load_textures(u32 i, u32 n, const std::byte *v) {
     NNGN_LOG_CONTEXT_CF(OpenGLBackend);
     const u32 base_layer = i;
     constexpr auto type = GL_TEXTURE_2D_ARRAY;
-    CHECK_RESULT(glActiveTexture, GL_TEXTURE0 + MAIN_TEX_BINDING);
     CHECK_RESULT(glBindTexture, type, this->tex.id());
     for(i = 0; i < n; ++i)
         CHECK_RESULT(glTexSubImage3D,
@@ -627,7 +686,6 @@ bool OpenGLBackend::resize_font(u32 s) {
         return false;
     const auto si = static_cast<i32>(s);
     return this->font_tex.destroy()
-        && LOG_RESULT(glActiveTexture, GL_TEXTURE0 + FONT_TEX_BINDING)
         && LOG_RESULT(glGenTextures, 1, &this->font_tex.id())
         && this->font_tex.create(
             GL_TEXTURE_2D_ARRAY, GL_RGBA8, GL_NEAREST, GL_NEAREST, GL_REPEAT,
@@ -641,7 +699,6 @@ bool OpenGLBackend::load_font(
 ) {
     NNGN_LOG_CONTEXT_CF(OpenGLBackend);
     constexpr auto type = GL_TEXTURE_2D_ARRAY;
-    CHECK_RESULT(glActiveTexture, GL_TEXTURE0 + FONT_TEX_BINDING);
     CHECK_RESULT(glBindTexture, type, this->font_tex.id());
     for(size_t i = 0; i < n; ++i, ++c, v += 4_z * size->x * size->y, ++size)
         CHECK_RESULT(
@@ -694,6 +751,13 @@ bool OpenGLBackend::render() {
             for(size_t f = 0; f < 6; ++f)
                 update_ubo(*point_views++);
         return true;
+    };
+    const auto bind_textures = [this] {
+        constexpr auto t = GL_TEXTURE_2D_ARRAY;
+        return LOG_RESULT(glActiveTexture, GL_TEXTURE0 + MAIN_TEX_BINDING)
+            && LOG_RESULT(glBindTexture, t, this->tex.id())
+            && LOG_RESULT(glActiveTexture, GL_TEXTURE0 + FONT_TEX_BINDING)
+            && LOG_RESULT(glBindTexture, t, this->font_tex.id());
     };
     auto render = [this, cur_tex = UINT32_MAX](
         auto *l, u32 tex_i = UINT32_MAX) mutable
@@ -748,7 +812,9 @@ bool OpenGLBackend::render() {
         }
         return true;
     };
-    if(!update_camera() || !update_lighting())
+    if(this->flags.check_and_clear(Flag::RESIZED))
+        this->post.resize(*this->camera.screen);
+    if(!(update_camera() && update_lighting() && bind_textures()))
         return false;
     const auto depth_pass = [this, &render] {
         NNGN_ANON_DECL(nngn::GLDebugGroup{"depth"sv});
@@ -797,12 +863,14 @@ bool OpenGLBackend::render() {
     };
     const auto render_pass = [this, &render] {
         NNGN_ANON_DECL(nngn::GLDebugGroup{"color"sv});
-        CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+        if(!(this->post.update() && this->post.bind_frame_buffer()))
+            return false;
         CHECK_RESULT(glViewport,
             0, 0,
             static_cast<GLsizei>(this->camera.screen->x),
             static_cast<GLsizei>(this->camera.screen->y));
         CHECK_RESULT(glDepthMask, GL_TRUE);
+        CHECK_RESULT(glEnable, GL_BLEND);
         CHECK_RESULT(
             glBindBufferRange, GL_UNIFORM_BUFFER, LIGHTS_UBO_BINDING,
             this->lights_ubo.id(), 0, sizeof(nngn::LightsUBO));
@@ -827,6 +895,8 @@ bool OpenGLBackend::render() {
     };
     const auto overlay_pass = [this, &render] {
         NNGN_ANON_DECL(nngn::GLDebugGroup{"overlay"sv});
+        CHECK_RESULT(glBindFramebuffer, GL_FRAMEBUFFER, 0);
+        CHECK_RESULT(glEnable, GL_BLEND);
         CHECK_RESULT(glDepthMask, GL_TRUE);
         CHECK_RESULT(glClear, GL_DEPTH_BUFFER_BIT);
         CHECK_RESULT(glDepthMask, GL_FALSE);
@@ -852,7 +922,13 @@ bool OpenGLBackend::render() {
             return false;
     if(!(render_pass() && overlay_pass()))
         return false;
+    CHECK_RESULT(glDisable, GL_BLEND);
+    CHECK_RESULT(glDisable, GL_DEPTH_TEST);
+    CHECK_RESULT(glDepthMask, GL_FALSE);
+    if(!(this->post.render() && bind_textures() && overlay_pass()))
+        return false;
     return LOG_RESULT(glBindVertexArray, 0);
+    return true;
 }
 
 bool OpenGLBackend::vsync() {

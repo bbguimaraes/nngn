@@ -11,7 +11,12 @@ SHADERS_SRC = \
 	%reldir%/triangle.vert \
 	%reldir%/triangle_depth.frag \
 	%reldir%/triangle_depth.vert \
-	%reldir%/voxel.frag
+	%reldir%/voxel.frag \
+	%reldir%/post.vert \
+	%reldir%/luminance.frag \
+	%reldir%/blur.frag \
+	%reldir%/bloom.frag \
+	%reldir%/hdr.frag
 
 SHADERS_GL = \
 	%reldir%/gl/font.frag \
@@ -24,7 +29,12 @@ SHADERS_GL = \
 	%reldir%/gl/triangle.vert \
 	%reldir%/gl/triangle_depth.frag \
 	%reldir%/gl/triangle_depth.vert \
-	%reldir%/gl/voxel.frag
+	%reldir%/gl/voxel.frag \
+	%reldir%/gl/luminance.frag \
+	%reldir%/gl/post.vert \
+	%reldir%/gl/blur.frag \
+	%reldir%/gl/bloom.frag \
+	%reldir%/gl/hdr.frag
 
 SHADERS_VK = \
 	%reldir%/vk/font.frag.spv \
@@ -37,7 +47,12 @@ SHADERS_VK = \
 	%reldir%/vk/triangle.vert.spv \
 	%reldir%/vk/triangle_depth.frag.spv \
 	%reldir%/vk/triangle_depth.vert.spv \
-	%reldir%/vk/voxel.frag.spv
+	%reldir%/vk/voxel.frag.spv \
+	%reldir%/vk/post.vert.spv \
+	%reldir%/vk/luminance.frag.spv \
+	%reldir%/vk/blur.frag.spv \
+	%reldir%/vk/bloom.frag.spv \
+	%reldir%/vk/hdr.frag.spv
 
 COMPILE_GL = cpp -P -MD -MP -MF $@.d -MT $@ -o $@
 PRE_COMPILE_VK = cpp -P -MD -MP -MF $@.d -MT $@ -DVULKAN -o $(@:.spv=)
@@ -65,6 +80,16 @@ COMPILE_VK = @GLSLANG@ -V $(@:.spv=) -o $@
 	$(COMPILE_GL) $(srcdir)/%reldir%/triangle_depth.vert
 %reldir%/gl/voxel.frag: %reldir%/voxel.frag
 	$(COMPILE_GL) $(srcdir)/%reldir%/voxel.frag
+%reldir%/gl/luminance.frag: %reldir%/luminance.frag
+	$(COMPILE_GL) $(srcdir)/%reldir%/luminance.frag
+%reldir%/gl/post.vert: %reldir%/post.vert
+	$(COMPILE_GL) $(srcdir)/%reldir%/post.vert
+%reldir%/gl/blur.frag: %reldir%/blur.frag
+	$(COMPILE_GL) $(srcdir)/%reldir%/blur.frag
+%reldir%/gl/bloom.frag: %reldir%/bloom.frag
+	$(COMPILE_GL) $(srcdir)/%reldir%/bloom.frag
+%reldir%/gl/hdr.frag: %reldir%/hdr.frag
+	$(COMPILE_GL) $(srcdir)/%reldir%/hdr.frag
 
 %reldir%/vk/font.frag.spv: %reldir%/font.frag
 	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/font.frag; $(COMPILE_VK)
@@ -88,6 +113,16 @@ COMPILE_VK = @GLSLANG@ -V $(@:.spv=) -o $@
 	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/triangle_depth.vert; $(COMPILE_VK)
 %reldir%/vk/voxel.frag.spv: %reldir%/voxel.frag
 	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/voxel.frag; $(COMPILE_VK)
+%reldir%/vk/post.vert.spv: %reldir%/post.vert
+	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/post.vert; $(COMPILE_VK)
+%reldir%/vk/luminance.frag.spv: %reldir%/luminance.frag
+	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/luminance.frag; $(COMPILE_VK)
+%reldir%/vk/blur.frag.spv: %reldir%/blur.frag
+	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/blur.frag; $(COMPILE_VK)
+%reldir%/vk/bloom.frag.spv: %reldir%/bloom.frag
+	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/bloom.frag; $(COMPILE_VK)
+%reldir%/vk/hdr.frag.spv: %reldir%/hdr.frag
+	$(PRE_COMPILE_VK) $(srcdir)/%reldir%/hdr.frag; $(COMPILE_VK)
 
 CLEANFILES += \
 	$(SHADERS) \

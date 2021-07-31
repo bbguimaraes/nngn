@@ -287,6 +287,22 @@ void set_n_swap_chain_images(Graphics &g, lua_Integer n) {
     g.set_n_swap_chain_images(nngn::narrow<std::size_t>(n));
 }
 
+void set_bloom_downscale(Graphics &g, lua_Integer n) {
+    g.set_bloom_downscale(nngn::narrow<std::size_t>(n));
+}
+
+void set_bloom_blur_passes(Graphics &g, lua_Integer n) {
+    g.set_bloom_blur_passes(nngn::narrow<std::size_t>(n));
+}
+
+void set_blur_downscale(Graphics &g, lua_Integer n) {
+    g.set_blur_downscale(nngn::narrow<std::size_t>(n));
+}
+
+void set_blur_passes(Graphics &g, lua_Integer n) {
+    g.set_blur_passes(nngn::narrow<std::size_t>(n));
+}
+
 void register_graphics(nngn::lua::table_view t) {
     t["TEXTURE_SIZE"] = Graphics::TEXTURE_SIZE;
     t["PSEUDOGRAPH"] = Graphics::Backend::PSEUDOGRAPH;
@@ -337,6 +353,17 @@ void register_graphics(nngn::lua::table_view t) {
     t["set_cursor_mode"] = &Graphics::set_cursor_mode;
     t["set_shadow_map_size"] = &Graphics::set_shadow_map_size;
     t["set_shadow_cube_size"] = &Graphics::set_shadow_cube_size;
+    t["set_automatic_exposure"] = &Graphics::set_automatic_exposure;
+    t["set_exposure"] = &Graphics::set_exposure;
+    t["set_bloom_downscale"] = set_bloom_downscale;
+    t["set_bloom_threshold"] = &Graphics::set_bloom_threshold;
+    t["set_bloom_blur_size"] = &Graphics::set_bloom_blur_size;
+    t["set_bloom_blur_passes"] = set_bloom_blur_passes;
+    t["set_bloom_amount"] = &Graphics::set_bloom_amount;
+    t["set_blur_downscale"] = set_blur_downscale;
+    t["set_blur_size"] = &Graphics::set_blur_size;
+    t["set_blur_passes"] = set_blur_passes;
+    t["set_HDR_mix"] = &Graphics::set_HDR_mix;
     t["resize_textures"] = &Graphics::resize_textures;
 }
 

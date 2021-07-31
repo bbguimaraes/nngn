@@ -28,6 +28,10 @@ struct GLTexArray : OpenGLHandle<GLTexArray> {
     bool destroy();
 };
 
+struct GLFrameBuffer : OpenGLHandle<GLFrameBuffer> {
+    bool destroy();
+};
+
 }
 
 #endif

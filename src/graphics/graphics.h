@@ -17,6 +17,7 @@
  *
  * - https://bbguimaraes.com/nngn/screenshots/engine.html
  * - https://bbguimaraes.com/nngn/screenshots/lighting.html
+ * - https://bbguimaraes.com/nngn/screenshots/post.html
  *
  * These are the low-level rendering operations.  The higher-level layer is \ref
  * src/render.
@@ -68,6 +69,18 @@
  * nngn.graphics:set_shadow_map_size(512, 512)
  * -- Control v-sync.
  * nngn.graphics:set_swap_interval(0)
+ * ```
+ *
+ * ### Post-processing
+ *
+ * Post-processing configuration is also done via the graphics back end:
+ *
+ * ```lua
+ * nngn.graphics:set_HDR_mix(0.5)
+ * nngn.graphics:set_exposure(2)
+ * nngn.graphics:set_automatic_exposure(true)
+ * nngn.graphics:set_bloom_blur_passes(4)
+ * nngn.graphics:set_blur_size(2)
  * ```
  */
 #ifndef NNGN_GRAPHICS_GRAPHICS_H
@@ -252,6 +265,14 @@ struct Graphics {
         TEXTURE_MIP_LEVELS = Math::mip_levels(TEXTURE_EXTENT),
         SHADOW_MAP_INITIAL_SIZE = 1024,
         SHADOW_CUBE_INITIAL_SIZE = 512;
+    static constexpr float
+        DEFAULT_EXPOSURE = 1.0f,
+        DEFAULT_BLOOM_THRESHOLD = 0.75f,
+        DEFAULT_BLOOM_BLUR_SIZE = 1.0f;
+    static constexpr std::size_t
+        DEFAULT_BLOOM_DOWNSCALE = 8,
+        DEFAULT_BLUR_DOWNSCALE = 2,
+        DEFAULT_BLOOM_BLUR_PASSES = 10;
     static_assert(std::popcount(TEXTURE_EXTENT) == 1);
     static std::unique_ptr<Graphics> create(Backend b, const void *params);
     static const char *enum_str(DeviceInfo::Type t);
@@ -320,6 +341,18 @@ struct Graphics {
     virtual void set_lighting_updated() = 0;
     virtual bool set_shadow_map_size(uint32_t s) = 0;
     virtual bool set_shadow_cube_size(uint32_t s) = 0;
+    // Post-processing
+    virtual void set_automatic_exposure(bool b) = 0;
+    virtual void set_exposure(float e) = 0;
+    virtual void set_bloom_downscale(std::size_t d) = 0;
+    virtual void set_bloom_threshold(float t) = 0;
+    virtual void set_bloom_blur_size(float n) = 0;
+    virtual void set_bloom_blur_passes(std::size_t n) = 0;
+    virtual void set_bloom_amount(float a) = 0;
+    virtual void set_blur_downscale(std::size_t d) = 0;
+    virtual void set_blur_size(float n) = 0;
+    virtual void set_blur_passes(std::size_t n) = 0;
+    virtual void set_HDR_mix(float m) = 0;
     // Pipelines
     virtual u32 create_pipeline(const PipelineConfiguration &conf) = 0;
     // Buffers
