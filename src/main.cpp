@@ -19,6 +19,13 @@
  * - Any other argument is executed literally as Lua code.
  * - Failure to execute any of the arguments aborts the initialization process.
  *   A failure exit code is returned.
+ *
+ * One particularly important facility for initialization code is the `nngn.conf`
+ * function:
+ *
+ * ```
+ * nngn 'nngn.conf{graphics = "vulkan"}'
+ * ```
  */
 #include <algorithm>
 

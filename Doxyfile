@@ -1,5 +1,6 @@
 PROJECT_NAME           = nngn
 OUTPUT_DIRECTORY       = ./docs
+EXAMPLE_PATH           = .
 USE_MDFILE_AS_MAINPAGE = ./README.md
 HTML_EXTRA_STYLESHEET  = docs/custom.css docs/custom_dark_theme.css
 
@@ -17,6 +18,7 @@ GENERATE_LATEX         = NO
 GENERATE_TREEVIEW      = YES
 HAVE_DOT               = YES
 INTERACTIVE_SVG        = YES
+REPEAT_BRIEF           = NO
 JAVADOC_AUTOBRIEF      = YES
 MACRO_EXPANSION        = YES
 RECURSIVE              = YES
@@ -30,15 +32,14 @@ PREDEFINED += DOXYGEN
 # Enable all platform definitions.
 PREDEFINED = \
     HAVE_TERMIOS_H \
-    NNGN_PLATFORM_HAS_FREETYPE \
+    NNGN_PLATFORM_HAS_FREETYPE2 \
     NNGN_PLATFORM_HAS_GLFW \
     NNGN_PLATFORM_HAS_LIBPNG \
+    NNGN_PLATFORM_HAS_OPENAL \
     NNGN_PLATFORM_HAS_OPENCL \
     NNGN_PLATFORM_HAS_OPENGL \
+    NNGN_PLATFORM_HAS_SOCKETS \
     NNGN_PLATFORM_HAS_VULKAN
-
-# TODO remove when Doxygen 1.9.3 is available
-PREDEFINED += decltype(x)=
 
 # Lua documentation.
 EXTENSION_MAPPING += lua=C++

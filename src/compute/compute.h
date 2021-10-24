@@ -62,23 +62,29 @@
  *
  * ```lua
  * rw = Compute.READ_WRITE
- * assert(nngn.compute:create_buffer(rw, Compute.FLOATV, size))
- * -- From existing data.
- * assert(nngn.compute:create_buffer(
- *     rw, Compute.FLOATV, size,
- *     Compute.create_vector(1024)))
+ * assert(nngn.compute:create_buffer(rw, size))
+ * assert(nngn.compute:create_buffer(rw, size, Compute.FLOATV))
+ * assert(nngn.compute:create_buffer(rw, v))
+ * assert(nngn.compute:create_buffer(rw, v, offset))
+ * assert(nngn.compute:create_buffer(rw, v, offset, length))
  * ```
  *
- * write:
+ * writes:
  *
  * ```lua
- * assert(nngn.compute:write_buffer(b, offset, n, Compute.FLOATV, v))
+ * assert(nngn.compute:write_buffer(b, v))
+ * assert(nngn.compute:write_buffer(b, v, dst_offset))
+ * assert(nngn.compute:write_buffer(b, v, dst_offset, src_offset))
+ * assert(nngn.compute:write_buffer(b, v, dst_offset, src_offset, length))
  * ```
  *
- * and read:
+ * and reads:
  *
  * ```lua
- * assert(nngn.compute:read_buffer(b, Compute.FLOATV, n, v))
+ * assert(nngn.compute:read_buffer(b, v))
+ * assert(nngn.compute:read_buffer(b, v, src_offset))
+ * assert(nngn.compute:read_buffer(b, v, src_offset, dst_offset))
+ * assert(nngn.compute:read_buffer(b, v, src_offset, dst_offset, length))
  * ```
  */
 #ifndef NNGN_COMPUTE_COMPUTE_H
