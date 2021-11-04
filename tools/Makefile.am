@@ -58,6 +58,7 @@ noinst_HEADERS += \
 	src/audio/openal.cpp \
 	src/audio/wav.cpp \
 	src/compute/lua_compute.cpp \
+	src/lua/alloc.cpp \
 	src/lua/state.cpp \
 	src/lua/traceback.cpp \
 	src/math/math.cpp \
