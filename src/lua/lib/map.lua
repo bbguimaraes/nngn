@@ -34,6 +34,12 @@ local function init(t)
             Schedule.IGNORE_FAILURES | Schedule.HEARTBEAT,
             t.heartbeat)
     end
+    if t.bg_music then
+        local v = Compute.create_vector(0)
+        assert(Audio.read_wav(t.bg_music, v))
+        t.bg_music = nngn:audio():add_source(v)
+        nngn:audio():play(t.bg_music)
+    end
 end
 
 local function reset(t)
@@ -48,6 +54,10 @@ local function reset(t)
     if MAP.entities then
         nngn:remove_entities(MAP.entities)
         MAP.entities = nil
+    end
+    if MAP.bg_music then
+        nngn:audio():remove_source(MAP.bg_music)
+        MAP.bg_music = nil
     end
     cancel()
 end

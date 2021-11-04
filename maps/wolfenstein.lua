@@ -231,6 +231,22 @@ local function init()
     nngn:lighting():set_shadows_enabled(true)
     player.move_all(0, 0, true)
     nngn:camera():set_pos(0, -128, 32)
+    -- XXX
+    local audio <const> = nngn:audio()
+    local v = Compute.create_vector(0)
+    assert(audio:read_wav("test.wav", v))
+    local s0 = audio:add_source(v)
+    local s1 = audio:add_source(v)
+    audio:set_source_pos(s0, -128, 0, 0)
+    audio:set_source_pos(s0,  128, 0, 0)
+    audio:play(s0)
+    audio:play(s1)
+    nngn:schedule():next(Schedule.HEARTBEAT, function()
+        local p <const> = nngn:players():cur()
+        if p then
+            audio:set_pos(p:entity():pos())
+        end
+    end)
 end
 
 local function check_collectable(e)
@@ -308,5 +324,6 @@ map.map {
     heartbeat = heartbeat,
     on_collision = on_collision,
     reset = function() camera.reset() end,
+    bg_music = "test.wav",
     tiles = {tex.tex, 8, 0, 16, 192, 288, 1, 1, {0, 0}},
 }
