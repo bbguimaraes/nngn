@@ -3,7 +3,7 @@ nngn
 
 [https://bbguimaraes.com/nngn](https://bbguimaraes.com/nngn)
 
-Graphics/physics/game engine.
+Graphics/physics/audio/game engine.
 
 - [documentation](https://bbguimaraes.com/nngn/docs)
 - [building](#building)

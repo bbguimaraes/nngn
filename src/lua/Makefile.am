@@ -6,6 +6,7 @@ LUA_FILES += \
 	%reldir%/input.lua \
 	%reldir%/inspect.lua \
 	%reldir%/lib/all.lua \
+	%reldir%/lib/audio.lua \
 	%reldir%/lib/animation.lua \
 	%reldir%/lib/camera.lua \
 	%reldir%/lib/collision.lua \

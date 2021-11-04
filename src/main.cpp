@@ -24,6 +24,7 @@
 
 #include "entity.h"
 
+#include "audio/audio.h"
 #include "collision/collision.h"
 #include "compute/compute.h"
 #include "font/font.h"
@@ -74,6 +75,7 @@ NNGN_LUA_DECLARE_USER_TYPE(nngn::MouseInput, "MouseInput")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Renderers, "Renderers")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Animations, "Animations")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Colliders, "Colliders")
+NNGN_LUA_DECLARE_USER_TYPE(nngn::Audio, "Audio")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Textures, "Textures")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Lighting, "Lighting")
 NNGN_LUA_DECLARE_USER_TYPE(nngn::Map, "Map")
@@ -110,6 +112,7 @@ struct NNGN {
     nngn::Animations animations = {};
     nngn::Colliders colliders = {};
     Entities entities = {};
+    nngn::Audio audio = {};
     nngn::Textures textures = {};
     nngn::Lighting lighting = {};
     nngn::Map map = {};
@@ -159,6 +162,8 @@ bool NNGN::init(int argc, const char *const *argv) {
         &this->colliders, &this->lighting, &this->map);
     this->animations.init(&this->math);
     this->textbox.init(&this->fonts);
+    if(!this->audio.init(&this->math, 44100))
+        return false;
     this->lighting.init(&this->math);
     this->map.init(&this->textures);
     if(!(argc < 2
@@ -301,6 +306,7 @@ void register_nngn(nngn::lua::table &&t) {
     t["animations"] = accessor<&NNGN::animations>;
     t["colliders"] = accessor<&NNGN::colliders>;
     t["entities"] = accessor<&NNGN::entities>;
+    t["audio"] = accessor<&NNGN::audio>;
     t["textures"] = accessor<&NNGN::textures>;
     t["lighting"] = accessor<&NNGN::lighting>;
     t["map"] = accessor<&NNGN::map>;

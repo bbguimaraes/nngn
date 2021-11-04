@@ -74,6 +74,16 @@ AS_IF([test "x$with_freetype2" == xyes],
     [])
 AM_CONDITIONAL([ENABLE_FREETYPE2], [test "x$with_freetype2" == xyes])
 
+AC_ARG_WITH([openal],
+    [AS_HELP_STRING([--with-openal], [enable audio])],
+    [], [])
+AS_IF([test "x$with_openal" == xyes],
+    [DEPS="$DEPS openal"
+     AC_DEFINE(
+        [NNGN_PLATFORM_HAS_OPENAL], [1], [Define if you have openal])],
+    [])
+AM_CONDITIONAL([ENABLE_OPENAL], [test "x$with_openal" == xyes])
+
 # Non-essential configuration options.
 ENABLE_TESTS=no
 AC_ARG_ENABLE([tests],
@@ -131,7 +141,7 @@ AS_IF([test "$ENABLE_TESTS" != no],
         [TEST_DEPS_CFLAGS=$(echo "$TEST_DEPS_CFLAGS" | sed s/-I/-isystem/g)])])
 AS_IF([test "$ENABLE_TOOLS" != no],
     [PKG_CHECK_MODULES(
-        [QT_DEPS], [Qt5Charts Qt5Core Qt5Network Qt5Widgets],
+        [QT_DEPS], [Qt5OpenGL Qt5Charts Qt5Core Qt5Network Qt5Widgets],
         [QT_DEPS_CFLAGS=$(echo "$QT_DEPS_CFLAGS" | sed s/-I/-isystem/g)])])
 
 # Checks for header files.
