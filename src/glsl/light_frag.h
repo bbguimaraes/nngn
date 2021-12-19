@@ -11,7 +11,7 @@ LAYOUT2(set = 0, binding = 2)
 
 LAYOUT(location = 1) in vec3 frag_pos;
 LAYOUT(location = 2) in vec3 frag_pos_bias;
-LAYOUT(location = 3) flat in vec3 frag_normal;
+LAYOUT(location = 3) in vec3 frag_normal;
 LAYOUT(location = 4) in vec3 frag_pos_light[NNGN_MAX_LIGHTS];
 
 float attenuation(uint i, float d) {
