@@ -111,6 +111,19 @@ void PlaneCollider::load(nngn::lua::table_view t) {
     }
 }
 
+void RayCollider::update(std::span<RayCollider> s) {
+    for(auto &x : s)
+        update_collider(&x);
+}
+
+void RayCollider::load(const nngn::lua::table &t) {
+    Collider::load(t);
+    if(const auto tt = t.get<std::optional<nngn::lua::table>>("d")) {
+        const auto &tv = *tt;
+        this->d = {tv[1], tv[2], tv[3]};
+    }
+}
+
 void GravityCollider::update(std::span<GravityCollider> s) {
     for(auto &x : s)
         update_collider(&x);

@@ -76,6 +76,7 @@ struct Colliders {
             std::vector<BBCollider> bb = {};
             std::vector<SphereCollider> sphere = {};
             std::vector<PlaneCollider> plane = {};
+            std::vector<RayCollider> ray = {};
             std::vector<GravityCollider> gravity = {};
         };
         struct Output {
@@ -111,6 +112,7 @@ public:
     auto &bb(void) const { return this->input.bb; }
     auto &sphere(void) const { return this->input.sphere; }
     auto &plane(void) const { return this->input.plane; }
+    auto &ray(void) const { return this->input.ray; }
     auto &gravity(void) const { return this->input.gravity; }
     std::size_t max_colliders(void) const { return this->m_max_colliders; }
     std::size_t max_collisions(void) const;
@@ -127,6 +129,7 @@ public:
     BBCollider *add(const BBCollider &c);
     SphereCollider *add(const SphereCollider &c);
     PlaneCollider *add(const PlaneCollider &c);
+    RayCollider *add(const RayCollider &c);
     GravityCollider *add(const GravityCollider &c);
     Collider *load(nngn::lua::table_view t);
     void remove(Collider *p);

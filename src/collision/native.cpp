@@ -12,6 +12,7 @@ using nngn::AABBCollider;
 using nngn::BBCollider;
 using nngn::SphereCollider;
 using nngn::PlaneCollider;
+using nngn::RayCollider;
 using nngn::GravityCollider;
 
 namespace {
@@ -28,6 +29,10 @@ void check_aabb_bb(
     Output *output);
 void check_aabb_sphere(
     std::span<AABBCollider> aabb, std::span<SphereCollider> sphere,
+    Output *output);
+void check_aabb_ray(
+    const std::vector<AABBCollider> &aabb,
+    const std::vector<RayCollider> &ray,
     Output *output);
 void check_bb_sphere(
     std::span<BBCollider> bb, std::span<SphereCollider> sphere,
@@ -67,6 +72,7 @@ bool NativeBackend::check(
     check_gravity(std::span{input->gravity}, input->gravity, output);
     check_aabb_bb(input->aabb, input->bb, output);
     check_aabb_sphere(input->aabb, input->sphere, output);
+    check_aabb_ray(input->aabb, input->ray, output);
     check_bb_sphere(input->bb, input->sphere, output);
     check_sphere_plane(input->sphere, input->plane, output);
     check_gravity(std::span{input->aabb}, input->gravity, output);
@@ -260,6 +266,34 @@ void check_aabb_sphere(
         }
 }
 
+void check_aabb_ray(
+    const std::vector<AABBCollider> &aabb,
+    const std::vector<RayCollider> &ray,
+    Output *output
+) {
+//    { NNGN_STATS_CONTEXT(Colliders, &output->stats.aabb_sphere_exec_barrier); }
+//    NNGN_STATS_CONTEXT(Colliders, &output->stats.aabb_sphere_exec);
+    if(ray.empty())
+        return;
+    for(const auto &c0 : aabb)
+        for(const auto &c1 : ray) {
+            constexpr auto f = [](auto i, auto p0, auto p1, auto d1) {
+                return (p0[i] - p1[i]) / d1[i];
+            };
+            std::array<std::array<float, 2>, 2> t = {};
+            t[0] = {f(0, c0.bl, c1.pos, c1.d), f(0, c0.tr, c1.pos, c1.d)};
+            t[1] = {f(1, c0.bl, c1.pos, c1.d), f(1, c0.tr, c1.pos, c1.d)};
+            if(t[0][1] < 0 && t[0][0] < 0)
+                continue;
+            if(t[1][1] < 0 && t[1][0] < 0)
+                continue;
+            if(!overlap(t[0][0], t[0][1], t[1][0], t[1][1]))
+                continue;
+            const nngn::vec2 v = {};
+            if(!add_collision(c0, c1, {v, 0}, &output->collisions))
+                return;
+        }
+}
 void check_bb_sphere(
     std::span<BBCollider> bb, std::span<SphereCollider> sphere,
     Output *output
