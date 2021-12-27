@@ -3,6 +3,8 @@ struct ray { float3 o, d; };
 struct lambertian { float3 albedo; };
 struct metal { float4 albedo_fuzz; };
 struct dielectric { float n1_n0; };
+struct aabb { float3 bl, tr; };
+struct bvh { struct aabb aabb; };
 struct sphere { float4 c_r; uint material; };
 
 struct hit {
@@ -28,6 +30,9 @@ struct tracer_conf {
     struct camera camera;
 };
 
+#if __OPENCL_VERSION__ < 200
+uint ctz(uint n) { return popcount(n ^ (n + 1)) - 1; }
+#endif
 
 float3 vec_reflect(float3 v, float3 n) { return v - 2 * n * dot(v, n); }
 
@@ -158,8 +163,84 @@ bool material_apply(
     return false;
 }
 
+uint bvh_level(uint i) { return 32 - clz(i) - 1; }
+uint bvh_levels(uint i) { return bvh_level(i - 1) + 1; }
+uint bvh_level_base(uint i) { return 1 << i; }
+uint bvh_next_right(uint i) { i >>= ctz(~i); return i + !!i; }
+
+uint bvh_tree_size(uint n_levels, uint level) {
+    return bvh_level_base(n_levels - level) - 1;
+}
+
+uint bvh_next_down(uint n_levels, uint i) {
+    return select(i << 1, bvh_next_right(i), bvh_level(i) == n_levels - 1);
+}
+
+bool bvh_hit(
+    global const struct bvh *bvh, float t_min, float t_max, struct ray r
+) {
+    for(uint a = 0; a < 3; a++) {
+        float inv_d = 1.0f / r.d[a];
+        float t0 = (bvh->aabb.bl[a] - r.o[a]) * inv_d;
+        float t1 = (bvh->aabb.tr[a] - r.o[a]) * inv_d;
+        if(inv_d < 0.0f) {
+            const float tmp = t0;
+            t0 = t1, t1 = tmp;
+        }
+        t_min = t0 > t_min ? t0 : t_min;
+        t_max = t1 < t_max ? t1 : t_max;
+        if(t_max <= t_min)
+            return false;
+    }
+    return true;
+}
+
 float3 sphere_center(global const struct sphere *s) { return s->c_r.xyz; }
 float sphere_radius(global const struct sphere *s) { return s->c_r[3]; }
+
+struct aabb sphere_aabb(global const struct sphere *s) {
+    return (struct aabb) {
+        .bl = sphere_center(s) - sphere_radius(s),
+        .tr = sphere_center(s) + sphere_radius(s),
+    };
+}
+
+struct aabb sphere_aabb_join(
+    global const struct sphere *b, global const struct sphere *e
+) {
+    struct aabb ret = sphere_aabb(b);
+    for(b++; b < e; ++b) {
+        const struct aabb bi = sphere_aabb(b);
+        ret.bl = (float3){
+            min(ret.bl.x, bi.bl.x),
+            min(ret.bl.y, bi.bl.y),
+            min(ret.bl.z, bi.bl.z),
+        };
+        ret.tr = (float3){
+            max(ret.tr.x, bi.tr.x),
+            max(ret.tr.y, bi.tr.y),
+            max(ret.tr.z, bi.tr.z),
+        };
+    }
+    return ret;
+}
+
+void sphere_sort(
+    global struct sphere *b, global struct sphere *e, uint axis
+) {
+    for(; b != e; ++b) {
+        global struct sphere *s = b;
+        float min_bl = sphere_aabb(s).bl[axis];
+        for(global struct sphere *i = b + 1; i < e; ++i) {
+            const float bl = sphere_aabb(i).bl[axis];
+            if(bl < min_bl)
+                s = i, min_bl = bl;
+        }
+        struct sphere tmp = *b;
+        *b = *s;
+        *s = tmp;
+    }
+}
 
 struct hit sphere_gen_hit(
     global const struct sphere *s, float t, struct ray r
@@ -240,7 +321,7 @@ struct ray camera_ray(
     return (struct ray){.o = o, .d = dir - o};
 }
 
-bool world_hit(
+bool world_hit_linear(
     float t_min, float t_max,
     uint n_spheres, global const struct sphere *spheres,
     struct ray r, struct hit *hit
@@ -256,19 +337,64 @@ bool world_hit(
     return ret;
 }
 
+bool world_hit_bvh(
+    float t_min, float t_max,
+    global const struct bvh *bvh,
+    uint n_spheres, global const struct sphere *spheres,
+    struct ray r, struct hit *hit
+) {
+    const uint n_levels = bvh_levels(n_spheres);
+    bool ret = false;
+    for(uint i = 1; i;) {
+        const uint level = bvh_level(i);
+        if(!bvh_hit(bvh + i, t_min, t_max, r)) {
+            i = bvh_next_right(i);
+            continue;
+        }
+        if(level == n_levels - 1) {
+            global const struct sphere *s =
+                spheres + 2 * (i - bvh_level_base(level));
+            if(sphere_hit(s, t_min, t_max, r, hit)) {
+                ret = true;
+                t_max = hit->t;
+            }
+            if(sphere_hit(s + 1, t_min, t_max, r, hit)) {
+                ret = true;
+                t_max = hit->t;
+            }
+        }
+        i = bvh_next_down(n_levels, i);
+    }
+    return ret;
+}
+
+bool world_hit(
+    float t_min, float t_max,
+    global const struct bvh *bvh,
+    uint n_spheres, global const struct sphere *spheres,
+    struct ray r, struct hit *hit
+) {
+#if BVH_ENABLED
+    return world_hit_bvh(t_min, t_max, bvh, n_spheres, spheres, r, hit);
+#else
+    return world_hit_linear(t_min, t_max, n_spheres, spheres, r, hit);
+#endif
+}
+
 float3 color(
     uint max_depth, float t_min, float t_max,
     struct rnd_gen *rnd,
     global const struct lambertian *lambertians,
     global const struct metal *metals,
     global const struct dielectric *dielectrics,
+    global const struct bvh *bvh,
     uint n_spheres, global const struct sphere *spheres,
     struct ray r
 ) {
     float3 att = {1, 1, 1};
     struct hit hit = {0};
     while(max_depth--) {
-        if(!world_hit(t_min, t_max, n_spheres, spheres, r, &hit))
+        if(!world_hit(t_min, t_max, bvh, n_spheres, spheres, r, &hit))
             return att * sky(r);
         if(!material_apply(
             lambertians, metals, dielectrics, &hit, rnd, &r, &att)
@@ -284,6 +410,7 @@ float3 trace_pixel(
     global const struct lambertian *lambertians,
     global const struct metal *metals,
     global const struct dielectric *dielectrics,
+    global const struct bvh *bvh,
     uint n_spheres, global const struct sphere *spheres,
     uint x, uint y
 ) {
@@ -291,7 +418,7 @@ float3 trace_pixel(
     const float v = ((float)y + rnd_gen_next(rnd)) / (float)(h - 1);
     return color(
         max_depth, t_min, t_max, rnd,
-        lambertians, metals, dielectrics, n_spheres, spheres,
+        lambertians, metals, dielectrics, bvh, n_spheres, spheres,
         camera_ray(camera, rnd, u, v));
 }
 
@@ -305,12 +432,37 @@ kernel void camera(global struct tracer_conf *conf) {
     conf->camera = camera_init(conf);
 }
 
+kernel void bvh(
+    global struct rnd_gen *rnd_p,
+    uint n_spheres, global struct sphere *spheres,
+    global struct bvh *bvh
+) {
+    struct rnd_gen rnd = *rnd_p;
+    const uint n_levels = bvh_levels(n_spheres);
+    uint n_elems = 1 << n_levels;
+    uint n_nodes = 1;
+    for(uint level = 0; level != n_levels; ++level) {
+        for(uint node = 0; node != n_nodes; ++node) {
+            global struct sphere
+                *const b = spheres + min(n_spheres, n_elems * node),
+                *const e = spheres + min(n_spheres, n_elems * (node + 1));
+            const uint axis = fmod(rnd_gen_next(&rnd) * 3, 3);
+            sphere_sort(b, e, axis);
+            *++bvh = (struct bvh){.aabb = sphere_aabb_join(b, e)};
+        }
+        n_elems >>= 1;
+        n_nodes <<= 1;
+    }
+    *rnd_p = rnd;
+}
+
 kernel void trace(
     global struct tracer_conf *conf, uint i_samples,
     global struct rnd_gen *rnd_v,
     global const struct lambertian *lambertians,
     global const struct metal *metals,
     global const struct dielectric *dielectrics,
+    global const struct bvh *bvh,
     global const struct sphere *spheres,
     global float3 *tex
 ) {
@@ -322,7 +474,7 @@ kernel void trace(
     for(uint i_sample = 0; i_sample < n_samples; ++i_sample)
         c += trace_pixel(
             conf->w, conf->h, conf->max_depth, conf->t_min, conf->t_max,
-            &rnd, &conf->camera, lambertians, metals, dielectrics,
+            &rnd, &conf->camera, lambertians, metals, dielectrics, bvh,
             conf->n_spheres, spheres, x, y);
     c /= n_samples;
     merge_pixel(i_samples, c, tex + conf->w * (conf->h - y - 1) + x);

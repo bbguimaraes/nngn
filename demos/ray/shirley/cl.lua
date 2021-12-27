@@ -16,6 +16,8 @@ local METAL_ELEMS <const> = 4
 local METAL_SIZE <const> = FLOAT3_SIZE
 local DIELECTRIC_ELEMS <const> = 1
 local DIELECTRIC_SIZE <const> = FLOAT_SIZE
+local AABB_SIZE <const> = 2 * FLOAT3_SIZE
+local BVH_SIZE <const> = AABB_SIZE
 local SPHERE_ELEMS <const> = 1
 local SPHERE_SIZE <const> = 2 * FLOAT4_SIZE
 local CAMERA_BUFFER_SIZE <const> = 7 * FLOAT3_SIZE
@@ -45,6 +47,7 @@ local function create_prog()
         assert(io.open("demos/ray/shirley/shirley.cl")):read("a")
     return assert(nngn.compute:create_program(f, table.concat({
         "-Werror",
+        "-D BVH_ENABLED=1",
         "-D PI=" .. math.pi .. "f",
         "-D TAU=" .. (2 * math.pi) .. "f",
         "-D MATERIAL_TYPE_LAMBERTIAN=" .. MATERIAL_TYPE_LAMBERTIAN .. "U",
@@ -59,6 +62,8 @@ end
 local function create_buffer(t, n_elements, bytes, f)
     local n = math.max(#t // n_elements, 1)
     assert(#t == 0 or #t == n * n_elements)
+    -- XXX
+    n = 2 ^ math.ceil(math.log(n, 2))
     bytes = n * bytes
     local v <const> = Compute.create_vector(bytes)
     assert(f(v))
@@ -84,6 +89,17 @@ local function update_spheres(t)
     end)
 end
 
+local function update_bvh(spheres)
+    local n_spheres <const> = #spheres / SPHERE_ELEMS
+    local levels <const> = math.ceil(math.log(n_spheres, 2))
+    local n <const> = 2 ^ (levels + 1)
+    local bytes <const> = BVH_SIZE * n
+    local buf <const> = assert(nngn.compute:create_buffer(
+        Compute.READ_ONLY, Compute.BYTEV, bytes))
+    assert(nngn.compute:fill_buffer(buf, 0, bytes, Compute.BYTEV, {0}))
+    return buf
+end
+
 local function update_data(lambertians, metals, dielectrics, spheres)
     return
         create_buffer(
@@ -100,7 +116,8 @@ local function update_data(lambertians, metals, dielectrics, spheres)
                 return Compute.write_vector(
                     v, 0, {Compute.FLOATV, dielectrics})
             end),
-        update_spheres(spheres)
+        update_spheres(spheres),
+        update_bvh(spheres)
 end
 
 function tracer:new(gamma_correction)
@@ -207,13 +224,15 @@ function tracer:update(timing)
             self.metal_buf,
             self.dielectric_buf,
             self.sphere_buf,
+            self.bvh_buf,
         } do
             assert(nngn.compute:release_buffer(x))
         end
         self.lambertian_buf,
             self.metal_buf,
             self.dielectric_buf,
-            self.sphere_buf = update_data(
+            self.sphere_buf,
+            self.bvh_buf = update_data(
                 self.lambertians, self.metals, self.dielectrics, self.spheres)
     end
     local events <const> = {}
@@ -250,6 +269,14 @@ function tracer:update(timing)
         assert(nngn.compute:execute(self.prog, "camera", 0, {1}, {1}, {
             Compute.BUFFER, self.conf,
         }, nil, events))
+        if self.updated then
+            assert(nngn.compute:execute(self.prog, "bvh", 0, {1}, {1}, {
+                Compute.BUFFER, self.rnd_buf,
+                Compute.UINT, #self.spheres // SPHERE_ELEMS,
+                Compute.BUFFER, self.sphere_buf,
+                Compute.BUFFER, self.bvh_buf,
+            }, nil, events))
+        end
         self.updated = false
         self.camera_updated = false
     end
@@ -262,6 +289,7 @@ function tracer:update(timing)
             Compute.BUFFER, self.lambertian_buf,
             Compute.BUFFER, self.metal_buf,
             Compute.BUFFER, self.dielectric_buf,
+            Compute.BUFFER, self.bvh_buf,
             Compute.BUFFER, self.sphere_buf,
             Compute.BUFFER, self.tex_f,
         }, events, events))
