@@ -76,10 +76,9 @@ i.input:add(32, Input.SEL_PRESS, function()
 end)
 
 require("demos/ray/shirley/common").init {
-    impl = "CL",
+    impl = "CPP",
     n_threads = 4,
     samples = 1024,
---    max_depth = 8,
     gamma_correction = true,
     init = function(t)
         t:set_max_lambertians(1 + 3 * 8 + h0 * n0 + h1 * n1 / 2)

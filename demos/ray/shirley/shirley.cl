@@ -439,6 +439,7 @@ kernel void bvh(
 ) {
     struct rnd_gen rnd = *rnd_p;
     const uint n_levels = bvh_levels(n_spheres);
+//    printf("%u %u\n", n_spheres, n_levels);
     uint n_elems = 1 << n_levels;
     uint n_nodes = 1;
     for(uint level = 0; level != n_levels; ++level) {
@@ -452,7 +453,47 @@ kernel void bvh(
         }
         n_elems >>= 1;
         n_nodes <<= 1;
+//        print && printf("\n");
     }
+//    print && printf("---\n");
+//    bvh[1].aabb = (struct aabb) {.bl = {-8, -1, -1}, .tr = { 8, 1, 1}};
+//    bvh[2].aabb = (struct aabb) {.bl = {-8, -1, -1}, .tr = { 0, 1, 1}};
+//    bvh[3].aabb = (struct aabb) {.bl = { 0, -1, -1}, .tr = { 8, 1, 1}};
+//    bvh[4].aabb = (struct aabb) {.bl = {-8, -1, -1}, .tr = {-4, 1, 1}};
+//    bvh[5].aabb = (struct aabb) {.bl = {-4, -1, -1}, .tr = { 0, 1, 1}};
+//    bvh[6].aabb = (struct aabb) {.bl = { 0, -1, -1}, .tr = { 4, 1, 1}};
+//    bvh[7].aabb = (struct aabb) {.bl = { 4, -1, -1}, .tr = { 8, 1, 1}};
+//    bvh[0] = (struct bvh) {{.bl = {-8, -1, -1}, .tr = { 8, 1, 1}}, .i = 0};
+//    bvh[1] = (struct bvh) {{.bl = {-8, -1, -1}, .tr = { 0, 1, 1}}, .i = 0};
+//    bvh[2] = (struct bvh) {{.bl = {-8, -1, -1}, .tr = {-4, 1, 1}}, .i = 0};
+//    bvh[3] = (struct bvh) {{.bl = {-4, -1, -1}, .tr = { 0, 1, 1}}, .i = 2};
+//    bvh[4] = (struct bvh) {{.bl = { 0, -1, -1}, .tr = { 8, 1, 1}}, .i = 0};
+//    bvh[5] = (struct bvh) {{.bl = { 0, -1, -1}, .tr = { 4, 1, 1}}, .i = 4};
+//    bvh[6] = (struct bvh) {{.bl = { 4, -1, -1}, .tr = { 8, 1, 1}}, .i = 6};
+//    for(uint i = 0; i < bvh_tree_size(n_levels, n_spheres); ++i)
+//        printf(
+//            "%u: {%2.2f, %2.2f, %2.2f}, {%2.2f, %2.2f, %2.2f} %u\n",
+//            i,
+//            bvh[i].aabb.bl[0], bvh[i].aabb.bl[1], bvh[i].aabb.bl[2],
+//            bvh[i].aabb.tr[0], bvh[i].aabb.tr[1], bvh[i].aabb.tr[2],
+//            bvh[i].i);
+//    print && printf("\n");
+//    for(uint i = 0; i < n_spheres; ++i) {
+//        const float3 c = sphere_center(spheres + i);
+//        print && printf("{%2.2f, %2.2f, %2.2f}\n", c.x, c.y, c.z);
+//    }
+//    for(uint i = 1; i;)
+//        switch(i) {
+//        case 6:
+//        case 2:
+//            i = bvh_next_right(i); continue;
+//        default:
+//            printf("%x\n", i);
+//            if(bvh_level(i) == n_levels - 1)
+//                printf("  %u %u\n", bvh[i].i, bvh[i].i + 1);
+//            i = bvh_next_down(n_levels, i);
+//            break;
+//        }
     *rnd_p = rnd;
 }
 

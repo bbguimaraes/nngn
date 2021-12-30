@@ -1,7 +1,7 @@
 local function default_backends()
     local debug = Platform.DEBUG
     return {
-        {Compute.OPENCL_BACKEND, Compute.opencl_params{debug = debug}},
+        {Compute.OPENCL_BACKEND, Compute.opencl_params{debug = debug, version = {2, 0}}},
         {Compute.PSEUDOCOMP}}
 end
 
