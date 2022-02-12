@@ -5,7 +5,12 @@ local common <const> = require "demos.cl.common"
 local img_common <const> = require "demos.cl.img_common"
 require "src/lua/input"
 
-require("nngn.lib.compute").init()
+nngn:set_compute(
+    Compute.OPENCL_BACKEND,
+    Compute.opencl_params{
+        preferred_device = Compute.DEVICE_TYPE_GPU,
+        debug = true,
+    })
 require("nngn.lib.graphics").init()
 local N <const> = 3
 img_common.set_limits(N)
@@ -25,36 +30,36 @@ local prog <const> = assert(nngn:compute():create_program(
 
 local ANGLE = 0
 local fs <const> = {{
-    kernel = "rotate0",
-    read = img_common.read_buffer,
-    out = img_common.create_buffer(),
-    f = function(t, events)
-        assert(nngn:compute():execute(
-            prog, t.kernel, 0, {img_common.IMG_BYTES}, {LOCAL_SIZE_BYTES}, {
-                Compute.UINT, img_common.IMG_SIZE,
-                Compute.UINT, img_common.IMG_SIZE,
-                Compute.FLOAT, math.cos(ANGLE),
-                Compute.FLOAT, math.sin(ANGLE),
-                Compute.BUFFER, img_buf,
-                Compute.BUFFER, t.out,
-            }, {}, events))
-    end,
-}, {
-    kernel = "rotate1",
-    read = img_common.read_buffer,
-    out = img_common.create_buffer(),
-    f = function(t, events)
-        assert(nngn:compute():execute(
-            prog, t.kernel, 0, {img_common.IMG_SIZE ^ 2}, {LOCAL_SIZE2}, {
-                Compute.UINT, img_common.IMG_SIZE,
-                Compute.UINT, img_common.IMG_SIZE,
-                Compute.FLOAT, math.cos(ANGLE),
-                Compute.FLOAT, math.sin(ANGLE),
-                Compute.BUFFER, img_buf,
-                Compute.BUFFER, t.out,
-            }, {}, events))
-    end,
-}, {
+--    kernel = "rotate0",
+--    read = img_common.read_buffer,
+--    out = img_common.create_buffer(),
+--    f = function(t, events)
+--        assert(nngn.compute:execute(
+--            prog, t.kernel, 0, {img_common.IMG_BYTES}, {LOCAL_SIZE_BYTES}, {
+--                Compute.UINT, img_common.IMG_SIZE,
+--                Compute.UINT, img_common.IMG_SIZE,
+--                Compute.FLOAT, math.cos(ANGLE),
+--                Compute.FLOAT, math.sin(ANGLE),
+--                Compute.BUFFER, img_buf,
+--                Compute.BUFFER, t.out,
+--            }, {}, events))
+--    end,
+--}, {
+--    kernel = "rotate1",
+--    read = img_common.read_buffer,
+--    out = img_common.create_buffer(),
+--    f = function(t, events)
+--        assert(nngn.compute:execute(
+--            prog, t.kernel, 0, {img_common.IMG_SIZE ^ 2}, {LOCAL_SIZE2}, {
+--                Compute.UINT, img_common.IMG_SIZE,
+--                Compute.UINT, img_common.IMG_SIZE,
+--                Compute.FLOAT, math.cos(ANGLE),
+--                Compute.FLOAT, math.sin(ANGLE),
+--                Compute.BUFFER, img_buf,
+--                Compute.BUFFER, t.out,
+--            }, {}, events))
+--    end,
+--}, {
     kernel = "rotate2",
     read = img_common.read_image,
     out = img_common.create_image(),
@@ -72,16 +77,20 @@ local fs <const> = {{
             }, {}, events))
     end,
 }}
-assert(#fs == N)
+--assert(#fs == N)
 
 local textures <const> = {}
 img_common.init_images(fs, textures)
-
-function demo_start()
+img_common.set_fn(function()
     task = nngn:schedule():next(Schedule.HEARTBEAT, function()
-        ANGLE = ANGLE + nngn:timing():fdt_s() / 8
+        ANGLE = ANGLE + nngn:timing():fdt_s()
+        ANGLE = math.min(ANGLE, 2 * math.pi)
         img_common.update(fs, textures)
     end)
 end
 img_common.set_fn(demo_start)
 camera.reset(1)
+
+require("nngn.lib.font").load()
+nngn.renderers:set_max_text(1024)
+require("nngn.lib.textbox").update("image processing", "rotation")

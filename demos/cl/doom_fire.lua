@@ -1,7 +1,13 @@
 dofile "src/lua/path.lua"
 local entity = require "nngn.lib.entity"
 
-require("nngn.lib.compute").init()
+--require("nngn.lib.compute").init()
+nngn:set_compute(
+    Compute.OPENCL_BACKEND,
+    Compute.opencl_params{
+        preferred_device = Compute.GPU_DEVICE_TYPE,
+        debug = false,
+    })
 require("nngn.lib.graphics").init()
 require("nngn.lib.input").install()
 

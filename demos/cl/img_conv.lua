@@ -1,11 +1,17 @@
 dofile "src/lua/path.lua"
 local camera <const> = require "nngn.lib.camera"
+local compute <const> = require "nngn.lib.compute"
 local input <const> = require("nngn.lib.input")
 local common <const> = require "demos.cl.common"
 local img_common <const> = require "demos.cl.img_common"
 require "src/lua/input"
 
-require("nngn.lib.compute").init()
+nngn:set_compute(
+    Compute.OPENCL_BACKEND,
+    Compute.opencl_params{
+        preferred_device = Compute.DEVICE_TYPE_GPU,
+        debug = true,
+    })
 require("nngn.lib.graphics").init()
 
 local N <const> = 4
@@ -17,9 +23,12 @@ local MAX_SIZE2 <const> = math.sqrt(MAX_SIZE)
 local LOCAL_SIZE <const> = common.local_size(img_common.IMG_SIZE, MAX_SIZE2)
 local PIXEL_SIZE <const> = 4
 local MIN_STD_DEV <const> = 0.6
-local MAX_STD_DEV <const> = 8 -- 128
+local MAX_STD_DEV <const> = 128
 local MIN_FILTER_WIDTH <const> = 3
 local FILTER_MUL_FOR_STD_DEV <const> = 6
+
+local GS <const> = {img_common.IMG_SIZE, img_common.IMG_SIZE}
+local LS <const> = {LOCAL_SIZE, LOCAL_SIZE}
 
 local function filter_size_round(s)
     local ret <const> = math.floor(s)
@@ -99,85 +108,70 @@ function conv.filter_params(t, max)
 end
 
 local fs <const> = {{
-    kernel = "convolution0",
-    read = img_common.read_image,
-    out = img_common.create_image(),
-    f = function(t, events)
-        assert(nngn:compute():execute(
-            prog, t.kernel, 0,
-            {img_common.IMG_SIZE, img_common.IMG_SIZE},
-            {LOCAL_SIZE, LOCAL_SIZE}, {
-                Compute.BUFFER, conv.filter2d_buf,
-                Compute.UINT, conv.width // 2,
-                Compute.IMAGE, img,
-                Compute.IMAGE, t.out,
-            }, {}, events))
-    end,
-}, {
-    kernel = "convolution1",
-    read = img_common.read_image,
-    out = img_common.create_image(),
-    f = function(t, events)
-        assert(nngn:compute():execute(
-            prog, t.kernel, 0,
-            {img_common.IMG_SIZE, img_common.IMG_SIZE},
-            {LOCAL_SIZE, LOCAL_SIZE}, {
-                Compute.UINT, img_common.IMG_SIZE,
-                Compute.UINT, img_common.IMG_SIZE,
-                Compute.BUFFER, conv.filter2d_local_buf,
-                Compute.UINT, conv.width_local // 2,
-                Compute.IMAGE, img,
-                Compute.LOCAL, conv.local_memory,
-                Compute.IMAGE, t.out,
-            }, {}, events))
-    end,
-}, {
-    kernel = "convolution2",
-    read = img_common.read_buffer,
-    out = img_common.create_buffer(),
-    f = function(t, events)
-        assert(nngn:compute():execute(
-            prog, t.kernel, 0,
-            {img_common.IMG_SIZE, img_common.IMG_SIZE},
-            {LOCAL_SIZE, LOCAL_SIZE}, {
-                Compute.UINT, img_common.IMG_SIZE,
-                Compute.UINT, img_common.IMG_SIZE,
-                Compute.BUFFER, conv.filter2d_local_buf,
-                Compute.UINT, conv.width_local // 2,
-                Compute.BUFFER, img_buf,
-                Compute.LOCAL, conv.local_memory,
-                Compute.BUFFER, t.out,
-            }, {}, events))
-    end,
-}, {
+--    kernel = "convolution0",
+--    read = img_common.read_image,
+--    out = img_common.create_image(),
+--    f = function(t, events)
+--        assert(nngn.compute:execute(prog, t.kernel, 0, GS, LS, {
+--            Compute.BUFFER, conv.filter2d_buf,
+--            Compute.UINT, conv.width // 2,
+--            Compute.IMAGE, img,
+--            Compute.IMAGE, t.out,
+--        }, {}, events))
+--    end,
+--}, {
+--    kernel = "convolution1",
+--    read = img_common.read_image,
+--    out = img_common.create_image(),
+--    f = function(t, events)
+--        assert(nngn.compute:execute(prog, t.kernel, 0, GS, LS, {
+--            Compute.UINT, img_common.IMG_SIZE,
+--            Compute.UINT, img_common.IMG_SIZE,
+--            Compute.BUFFER, conv.filter2d_local_buf,
+--            Compute.UINT, conv.width_local // 2,
+--            Compute.IMAGE, img,
+--            Compute.LOCAL, conv.local_memory,
+--            Compute.IMAGE, t.out,
+--        }, {}, events))
+--    end,
+--}, {
+--    kernel = "convolution2",
+--    read = img_common.read_buffer,
+--    out = img_common.create_buffer(),
+--    f = function(t, events)
+--        assert(nngn.compute:execute(prog, t.kernel, 0, GS, LS, {
+--            Compute.UINT, img_common.IMG_SIZE,
+--            Compute.UINT, img_common.IMG_SIZE,
+--            Compute.BUFFER, conv.filter2d_local_buf,
+--            Compute.UINT, conv.width_local // 2,
+--            Compute.BUFFER, img_buf,
+--            Compute.LOCAL, conv.local_memory,
+--            Compute.BUFFER, t.out,
+--        }, {}, events))
+--    end,
+--}, {
     kernel = "blur",
     read = img_common.read_image,
     out = img_common.create_image(),
     img_tmp = img_common.create_image(Compute.READ_WRITE),
     f = function(t, events)
-        assert(nngn:compute():execute(
-            prog, t.kernel, 0,
-            {img_common.IMG_SIZE, img_common.IMG_SIZE},
-            {LOCAL_SIZE, LOCAL_SIZE}, {
+        assert((compute:kernel():new(prog, t.kernel, 0, gs, ls, {
                 Compute.UINT, conv.width // 2,
                 Compute.UINT, 0,
                 Compute.BUFFER, conv.filter_buf,
                 Compute.IMAGE, img,
                 Compute.IMAGE, t.img_tmp,
-            }, {}, events))
-        assert(nngn:compute():execute(
-            prog, "blur", 0,
-            {img_common.IMG_SIZE, img_common.IMG_SIZE},
-            {LOCAL_SIZE, LOCAL_SIZE}, {
+            }) | compute:kernel():new(prog, t.kernel, 0, gs, ls, {
                 Compute.UINT, 0,
                 Compute.UINT, conv.width // 2,
                 Compute.BUFFER, conv.filter_buf,
                 Compute.IMAGE, t.img_tmp,
                 Compute.IMAGE, t.out,
-            }, {}, events))
+            })
+        ):execute({}, events))
     end,
 }}
-assert(#fs == N)
+--assert(#fs == N)
 
 conv:init()
 conv:update(1 / MAX_STD_DEV)
@@ -189,10 +183,21 @@ function demo_start()
     local t = 0
     local counter = 0
     task = nngn:schedule():next(Schedule.HEARTBEAT, function()
-        conv:update(math.abs(math.sin(counter)))
+        counter = math.min(counter, math.pi)
+        if counter == math.pi then
+            img_common.read_buffer(img_buf, read_v)
+            nngn:textures():update_data(textures[1], read_v)
+            return
+        else
+            conv:update(math.abs(math.sin(counter)))
+        end
         counter = counter + nngn:timing():fdt_s()
         img_common.update(fs, textures)
     end)
 end
 img_common.set_fn(demo_start)
 camera.reset(1)
+
+require("nngn.lib.font").load()
+nngn.renderers:set_max_text(1024)
+require("nngn.lib.textbox").update("image processing", "convolution")

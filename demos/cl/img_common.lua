@@ -72,8 +72,11 @@ end
 
 local function set_fn(f)
     local k <const> = string.byte(" ")
-    input.input:remove(k)
-    input.input:add(k, Input.SEL_PRESS, f)
+    input:input():remove(k)
+    input:input():add(k, Input.SEL_PRESS, function()
+        require("nngn.lib.textbox").update("", "")
+        f()
+    end)
 end
 
 local function update(fs, textures)

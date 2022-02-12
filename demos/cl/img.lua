@@ -5,7 +5,12 @@ local input <const> = require("nngn.lib.input")
 local img_common <const> = require "demos/cl/img_common"
 local common <const> = require "demos/cl/common"
 
-require("nngn.lib.compute").init()
+nngn:set_compute(
+    Compute.OPENCL_BACKEND,
+    Compute.opencl_params{
+        preferred_device = Compute.DEVICE_TYPE_GPU,
+        debug = true,
+    })
 require("nngn.lib.graphics").init()
 require "src/lua/input"
 
@@ -29,7 +34,7 @@ local fs <const> = {{
             prog, t.kernel, 0,
             {img_common.IMG_SIZE, img_common.IMG_SIZE},
             {LOCAL_SIZE, LOCAL_SIZE}, {
-                Compute.FLOAT, math.abs(3 * math.sin(F)),
+                Compute.FLOAT, 3 * math.abs(F),
                 Compute.IMAGE, img,
                 Compute.IMAGE, t.out,
             }, {}, events))
@@ -39,12 +44,19 @@ assert(#fs == N)
 
 local textures <const> = {}
 img_common.init_images(fs, textures)
-
-function demo_start()
+img_common.set_fn(function()
+    local counter = math.asin(1 / 3)
     nngn:schedule():next(Schedule.HEARTBEAT, function()
-        F = F + nngn:timing():fdt_s() / 4
+        F = math.sin(counter)
+        print(F)
         img_common.update(fs, textures)
+        counter = counter + nngn.timing:fdt_s()
+        counter = math.min(counter, math.pi + math.asin(1 / 3))
     end)
 end
 img_common.set_fn(demo_start)
 camera.reset(1)
+
+require("nngn.lib.font").load()
+nngn.renderers:set_max_text(1024)
+require("nngn.lib.textbox").update("image processing", "brightness")

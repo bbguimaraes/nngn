@@ -18,7 +18,10 @@ local KERNEL <const> = "collision_by_particle" -- "collision_by_grid"
 
 nngn:set_compute(
     Compute.OPENCL_BACKEND,
-    Compute.opencl_params{version = {3, 0}})
+    Compute.opencl_params{
+        preferred_device = Compute.DEVICE_TYPE_GPU,
+        version = {3, 0},
+    })
 nngn:entities():set_max(N)
 nngn:renderers():set_max_sprites(N)
 nngn:graphics():resize_textures(3)
@@ -99,8 +102,7 @@ local function integrate(prog, dt, forces, vel, pos, wait)
     return events
 end
 
-local function update(prog, grid, forces, vel, pos_v, pos, entities)
-    local dt = nngn:timing():fdt_s()
+local function update(dt, prog, grid, forces, vel, pos_v, pos, entities)
     local events = grid:update()
     collision(prog, dt, grid, pos, vel, forces, events)
     integrate(prog, dt, forces, vel, pos, events)
@@ -141,10 +143,13 @@ local pos_v, pos <const> = (function()
 end)()
 local entities <const> = (function()
     local ret = {}
-    local t1 = dofile("src/lson/star.lua")
-    t1.renderer.size = {PARTICLE_SIZE, PARTICLE_SIZE}
-    table.insert(ret, entity.load(nil, nil, t1))
     local t = dofile("src/lson/circle8.lua")
+--    local t1 = dofile("src/lson/star.lua")
+--    t1.renderer.size = {PARTICLE_SIZE, PARTICLE_SIZE}
+    t.renderer.size = {PARTICLE_SIZE, PARTICLE_SIZE}
+--    table.insert(ret, entity.load(nil, nil, t1))
+    table.insert(ret, entity.load(nil, nil, t))
+--    local t = dofile("src/lson/circle8.lua")
     t.renderer.size = {PARTICLE_SIZE, PARTICLE_SIZE}
     for _ = 2, N do
         table.insert(ret, entity.load(nil, nil, t))
@@ -181,10 +186,14 @@ input.install()
 local input_v = Compute.create_vector(Compute.FLOATV, 2)
 local function heartbeat()
     local vel_scale = 16 * TILE_SIZE
-    assert(Compute.write_vector(input_v, 0, {
-        Compute.FLOATV, {vel_scale * player[1], vel_scale * player[2]}}))
-    assert(nngn:compute():write_buffer(forces_b, 0, 2, Compute.FLOATV, input_v))
-    update(prog, grid, forces_b, vel_b, pos_v, pos_b, entities)
+    local dt = nngn:timing():fdt_s()
+    local n = 2
+    for i = 0, n - 1 do
+        assert(Compute.write_vector(input_v, 0, {
+            Compute.FLOATV, {vel_scale * player[1], vel_scale * player[2]}}))
+        assert(nngn:compute():write_buffer(forces_b, 0, 2, Compute.FLOATV, input_v))
+        update(dt / n, prog, grid, forces_b, vel_b, pos_v, pos_b, entities)
+    end
 end
 
 local hearbeat_key
@@ -200,4 +209,4 @@ input.input:add(string.byte(" "), Input.SEL_PRESS, function()
         demo_start()
     end
 end)
-camera.reset()
+camera.reset(1)
