@@ -2,6 +2,7 @@ EXTRA_DIST += \
 	%reldir%
 
 noinst_HEADERS += \
+	%reldir%/alloc.h \
 	%reldir%/function.h \
 	%reldir%/lua.h \
 	%reldir%/state.h \
@@ -12,7 +13,9 @@ noinst_HEADERS += \
 	%reldir%/value.h
 
 nngn_SOURCES += \
+	%reldir%/alloc.cpp \
 	%reldir%/function.cpp \
+	%reldir%/lua_state.cpp \
 	%reldir%/state.cpp \
 	%reldir%/table.cpp \
 	%reldir%/traceback.cpp \

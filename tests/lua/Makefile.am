@@ -14,6 +14,7 @@ check_HEADERS += \
 %canon_reldir%_state_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_state_LDADD = $(check_LDADD)
 %canon_reldir%_state_SOURCES = \
+	src/lua/alloc.cpp \
 	src/lua/state.cpp \
 	src/lua/traceback.cpp \
 	src/utils/log.cpp \
@@ -24,6 +25,7 @@ check_HEADERS += \
 %canon_reldir%_table_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_table_LDADD = $(check_LDADD)
 %canon_reldir%_table_SOURCES = \
+	src/lua/alloc.cpp \
 	src/lua/state.cpp \
 	src/lua/traceback.cpp \
 	src/utils/log.cpp \

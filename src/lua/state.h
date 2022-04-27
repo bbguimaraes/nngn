@@ -47,6 +47,8 @@ private:
     static std::vector<fn*> &registry(void);
 };
 
+struct alloc_info;
+
 /** Non-wning \c lua_State wrapper. */
 class state_view {
 public:
@@ -59,8 +61,14 @@ public:
     state_view(lua_State *L_) : L{L_} {}
     /** Implicit conversion so the state can be passed to Lua functions. */
     operator lua_State*(void) const { return this->L; }
-    /** Initializes a new state, destroying the existing one. */
-    bool init(void);
+    /**
+     * Initializes a new state.
+     * The current state, if it exists, is destroyed.
+     * \param i
+     *     If set, track all allocations (if compiled with custom allocator
+     *     support).
+     */
+    bool init(alloc_info *i = nullptr);
     /** Destroys the associated \c lua_State. */
     void destroy(void);
     /** \see lua_gettop */

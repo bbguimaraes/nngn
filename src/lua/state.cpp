@@ -1,3 +1,5 @@
+#include "alloc.h"
+
 #include "state.h"
 
 #include "utils/log.h"
@@ -17,6 +19,18 @@ bool pcall(lua_State *L, auto &&f) {
         return true;
     pop.set_n(2);
     return false;
+}
+
+void check_alloc_info(const nngn::lua::alloc_info &info) {
+    NNGN_LOG_CONTEXT_F();
+    for(std::size_t i = 0; i != std::tuple_size_v<decltype(info.v)>; ++i) {
+        if(info.v[i].n)
+            nngn::Log::l()
+                << "i[" << i << "].n == " << info.v[i].n << '\n';
+        if(info.v[i].bytes)
+            nngn::Log::l()
+                << "i[" << i << "].bytes == " << info.v[i].bytes << '\n';
+    }
 }
 
 }
@@ -72,10 +86,18 @@ void static_register::register_all(lua_State *L) {
     v.clear();
 }
 
-bool state_view::init(void) {
+bool state_view::init(alloc_info *i) {
     NNGN_LOG_CONTEXT_CF(lua::state_view);
     this->destroy();
-    if(!(this->L = luaL_newstate()))
+    if constexpr(Platform::lua_use_alloc)
+        this->L = i ? lua_newstate(alloc_info::lua_alloc, i) : luaL_newstate();
+    else {
+        if(i)
+            Log::l() << "compiled without custom Lua allocator,"
+                " ignoring `alloc_info` parameter\n";
+        this->L = luaL_newstate();
+    }
+    if(!this->L)
         return Log::l() << "failed\n", false;
     luaL_openlibs(this->L);
     return true;
@@ -83,8 +105,13 @@ bool state_view::init(void) {
 
 void state_view::destroy(void) {
     NNGN_LOG_CONTEXT_CF(lua::state_view);
-    if(auto *const l = std::exchange(this->L, nullptr))
-        lua_close(l);
+    if(!this->L)
+        return;
+    const auto *a = this->allocator().second;
+    lua_close(std::exchange(this->L, nullptr));
+    if constexpr(Platform::debug)
+        if(a)
+            check_alloc_info(*static_cast<const alloc_info*>(a));
 }
 
 bool state_view::doarg(std::string_view s) const {

@@ -20,12 +20,16 @@ namespace nngn {
  * \tparam F A function or member function pointer.
  */
 template<function_pointer auto F>
-struct delegate_fn : private std::integral_constant<decltype(F), F> {
-    /** Calls `F`.  \see `std::invoke` */
+class delegate_fn : std::integral_constant<decltype(F), F> {
+    using value_type = decltype(F);
+    using base = std::integral_constant<value_type, F>;
     template<typename ...Ts>
-    decltype(auto) operator()(Ts &&...ts)
-        requires(std::is_invocable_v<decltype(F), Ts...>)
-    {
+    static constexpr bool invocable = std::is_invocable_v<value_type, Ts...>;
+public:
+    using base::operator value_type;
+    /** Calls F.  \see `std::invoke` */
+    template<typename ...Ts>
+    decltype(auto) operator()(Ts &&...ts) requires(invocable<Ts...>) {
         return std::invoke(F, FWD(ts)...);
     }
 };

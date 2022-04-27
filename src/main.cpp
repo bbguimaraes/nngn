@@ -21,6 +21,7 @@
  *   A failure exit code is returned.
  */
 #include "graphics/graphics.h"
+#include "lua/alloc.h"
 #include "lua/state.h"
 #include "os/platform.h"
 #include "os/socket.h"
@@ -41,6 +42,7 @@ struct NNGN {
     nngn::FPS fps = {};
     nngn::Socket socket = {};
     nngn::lua::state lua = {};
+    nngn::lua::alloc_info lua_alloc = {};
     bool init(int argc, const char *const *argv);
     bool set_graphics(
         nngn::Graphics::Backend b, std::optional<const void*> params);
@@ -53,7 +55,7 @@ bool NNGN::init(int argc, const char *const *argv) {
     NNGN_LOG_CONTEXT_CF(NNGN);
     if(!nngn::Platform::init(argc, argv))
         return false;
-    if(!this->lua.init())
+    if(!this->lua.init(&this->lua_alloc))
         return false;
     nngn::lua::static_register::register_all(this->lua);
     const auto L = nngn::lua::global_table{this->lua};
