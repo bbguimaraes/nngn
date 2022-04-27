@@ -32,6 +32,16 @@ AC_ARG_ENABLE([tests],
     [ENABLE_TESTS=$enableval])
 AM_CONDITIONAL([ENABLE_TESTS], [test "x$ENABLE_TESTS" == xyes])
 
+ENABLE_LUA_ALLOC=no
+AC_ARG_ENABLE([lua-alloc],
+    [AS_HELP_STRING(
+        [--enable-lua-alloc],
+        [use own Lua allocator, required for memory tracking (default: no)])],
+    [ENABLE_LUA_ALLOC=$enableval])
+AM_CONDITIONAL([ENABLE_LUA_ALLOC], [test "x$ENABLE_LUA_ALLOC" == xyes])
+AS_IF([test "$ENABLE_LUA_ALLOC" != no],
+    AC_DEFINE([NNGN_LUA_USE_ALLOC], [1], [Define to enable Lua allocator]))
+
 # Checks for libraries.
 PKG_CHECK_MODULES(
     [DEPS], [$DEPS lua], [],

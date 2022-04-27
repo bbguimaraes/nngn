@@ -43,12 +43,14 @@ public:
     };
     /** Total size of an allocation for `n` elements. */
     static constexpr std::size_t data_offset = [] {
-        using S = alloc_block::storage;
-        if constexpr(std::is_standard_layout_v<S>)
-            return offsetof(S, data);
+        if constexpr(std::is_standard_layout_v<alloc_block::storage>)
+            return offsetof(alloc_block::storage, data);
         else {
-            constexpr S s;
-            return ptr_diff(&s.data, &s);
+            struct S {
+                alignas(header_type) char header[sizeof(header_type)];
+                alignas(value_type) char data[sizeof(value_type)];
+            };
+            return offsetof(S, data);
         }
     }();
     // Static helpers

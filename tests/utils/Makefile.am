@@ -31,3 +31,5 @@ check_HEADERS += \
 %canon_reldir%_scoped_SOURCES = \
 	%reldir%/scoped_test.cpp \
 	%reldir%/scoped_test.moc.cpp
+
+include %reldir%/alloc/Makefile.am

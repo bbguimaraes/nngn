@@ -20,6 +20,7 @@ nngn_SOURCES += \
 	%reldir%/fixed_string.cpp \
 	%reldir%/flags.cpp \
 	%reldir%/fn.cpp \
+	%reldir%/literals.cpp \
 	%reldir%/log.cpp \
 	%reldir%/pp.cpp \
 	%reldir%/ranges.cpp \

@@ -25,6 +25,11 @@ struct Platform {
 #else
     static constexpr bool emscripten = false;
 #endif
+#ifdef NNGN_LUA_USE_ALLOC
+    static constexpr bool lua_use_alloc = true;
+#else
+    static constexpr bool lua_use_alloc = false;
+#endif
 #ifdef NNGN_PLATFORM_HAS_SOCKETS
     static constexpr bool has_sockets = true;
 #else

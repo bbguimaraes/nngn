@@ -22,6 +22,7 @@ check_HEADERS += \
 %canon_reldir%_function_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_function_LDADD = $(check_LDADD)
 %canon_reldir%_function_SOURCES = \
+	src/lua/alloc.cpp \
 	src/lua/function.cpp \
 	src/lua/lua.cpp \
 	src/lua/state.cpp \
@@ -34,6 +35,7 @@ check_HEADERS += \
 %canon_reldir%_register_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_register_LDADD = $(check_LDADD)
 %canon_reldir%_register_SOURCES = \
+	src/lua/alloc.cpp \
 	src/lua/lua.cpp \
 	src/lua/register.cpp \
 	src/lua/state.cpp \
@@ -47,6 +49,7 @@ check_HEADERS += \
 %canon_reldir%_stack_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_stack_LDADD = $(check_LDADD)
 %canon_reldir%_stack_SOURCES = \
+	src/lua/alloc.cpp \
 	src/lua/get.cpp \
 	src/lua/lua.cpp \
 	src/lua/push.cpp \
@@ -61,6 +64,7 @@ check_HEADERS += \
 %canon_reldir%_state_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_state_LDADD = $(check_LDADD)
 %canon_reldir%_state_SOURCES = \
+	src/lua/alloc.cpp \
 	src/lua/lua.cpp \
 	src/lua/register.cpp \
 	src/lua/state.cpp \
@@ -74,6 +78,7 @@ check_HEADERS += \
 %canon_reldir%_table_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_table_LDADD = $(check_LDADD)
 %canon_reldir%_table_SOURCES = \
+	src/lua/alloc.cpp \
 	src/lua/iter.cpp \
 	src/lua/lua.cpp \
 	src/lua/register.cpp \
@@ -89,6 +94,7 @@ check_HEADERS += \
 %canon_reldir%_utils_CXXFLAGS = $(check_CXXFLAGS)
 %canon_reldir%_utils_LDADD = $(check_LDADD)
 %canon_reldir%_utils_SOURCES = \
+	src/lua/alloc.cpp \
 	src/lua/lua.cpp \
 	src/lua/state.cpp \
 	src/lua/traceback.cpp \

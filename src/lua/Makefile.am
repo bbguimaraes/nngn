@@ -12,6 +12,7 @@ LUA_FILES += \
 	%reldir%/strict.lua
 
 noinst_HEADERS += \
+	%reldir%/alloc.h \
 	%reldir%/function.h \
 	%reldir%/get.h \
 	%reldir%/iter.h \
@@ -26,10 +27,12 @@ noinst_HEADERS += \
 	%reldir%/value.h
 
 nngn_SOURCES += \
+	%reldir%/alloc.cpp \
 	%reldir%/function.cpp \
 	%reldir%/get.cpp \
 	%reldir%/iter.cpp \
 	%reldir%/lua.cpp \
+	%reldir%/lua_state.cpp \
 	%reldir%/push.cpp \
 	%reldir%/register.cpp \
 	%reldir%/state.cpp \

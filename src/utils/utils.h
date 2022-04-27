@@ -124,6 +124,11 @@ inline constexpr auto to_underlying(T t) {
     return static_cast<std::underlying_type_t<T>>(t);
 }
 
+/** Signed distance in bytes between pointers. */
+inline constexpr auto ptr_diff(const auto *lhs, const auto *rhs) {
+    return byte_cast<const char*>(lhs) - byte_cast<const char*>(rhs);
+}
+
 template<typename T>
 constexpr auto set_bit(T t, T mask, bool value) {
     assert(std::popcount(mask) == 1);

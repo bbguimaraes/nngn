@@ -73,6 +73,17 @@ The following `configure` options are relevant when targeting WebAssembly:
 
 - `--disable-tests`
 
+### Optional features
+
+Some additional capabilities can be enabled via the usual `configure` script
+option format.  Some of them, described in [dependencies](#dependencies),
+require additional libraries.  The ones in this section do not, but can be
+selectively enabled.
+
+- `--enable-lua-alloc`: use a custom Lua allocator (see `lua_Alloc` in the
+  documentation) which tracks all memory alloctions for each state.  This
+  information can be visualized at runtime.
+
 ### Dependencies
 
 These are the required packages for building the main program, along with the
