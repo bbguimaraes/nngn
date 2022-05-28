@@ -20,6 +20,9 @@
  * - Failure to execute any of the arguments aborts the initialization process.
  *   A failure exit code is returned.
  */
+#include <string>
+#include <ElysianLua/elysian_lua_function.hpp>
+
 #include "entity.h"
 
 #include "audio/audio.h"
@@ -105,10 +108,15 @@ bool NNGN::init(int argc, const char *const *argv) {
     nngn::Profile::init();
     if(!this->lua.init(&this->lua_alloc))
         return false;
+    elysian::lua::LuaVM::initialize(this->lua);
     nngn::lua::static_register::register_all(this->lua);
     const auto L = nngn::lua::global_table{this->lua};
-    L["nngn"] = this;
-    L["deref"] = +[](void *p) { return *static_cast<uintptr_t*>(p); };
+    L["nngn"] = nngn::lua::sol_user_type{this};
+    L["deref"] = +[](lua_State *L_) {
+        const auto u = *static_cast<std::uintptr_t*>(lua_touserdata(L_, 1));
+        lua_pushinteger(L_, static_cast<lua_Integer>(u));
+        return 1;
+    };
     L["log"] = +[](lua_State *L_) {
         auto &l = nngn::Log::l();
         for(int i = 1, t = lua_gettop(L_); i <= t; ++i)
@@ -284,7 +292,8 @@ NNGN_LUA_PROXY(NNGN,
     "remove_entity", &NNGN::remove_entity,
     "remove_entity_v", [](NNGN &nngn, nngn::lua::table_view t) {
         for(lua_Integer i = 1, n = t.size(); i <= n; ++i)
-            nngn.remove_entity(t[i]);
+            nngn.remove_entity(
+                static_cast<nngn::lua::sol_user_type<Entity*>>(t[i]));
     },
     "exit", &NNGN::exit,
     "die", &NNGN::die)

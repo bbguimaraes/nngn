@@ -27,8 +27,9 @@ auto collisions(const Colliders &c, nngn::lua::state_arg lua_) {
     auto ret = lua.create_table(static_cast<int>(v.size()), 0);
     for(std::size_t i = 0; i < n; ++i) {
         const auto &x = v[i];
-        ret[i + 1] = nngn::lua::table_array(
-            lua, x.entity0, x.entity1,
+        ret[i + 1] = nngn::lua::table_array(lua,
+            nngn::lua::sol_user_type{x.entity0},
+            nngn::lua::sol_user_type{x.entity1},
             nngn::lua::table_array(lua, x.force.x, x.force.y));
     }
     return ret;

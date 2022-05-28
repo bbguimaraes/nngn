@@ -2,6 +2,7 @@
 
 #include <span>
 
+#include "lua/state.h"
 #include "utils/log.h"
 
 namespace {

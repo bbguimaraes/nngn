@@ -61,13 +61,13 @@ void TableTest::user_type(void) {
     const auto m = gt.new_user_type<S>("S");
     m["i"] = nngn::lua::readonly(&S::i);
     m["f"] = &S::f;
-    gt["s"] = &s;
-    S *const p = gt["s"];
+    gt["s"] = nngn::lua::sol_user_type{&s};
+    S *const p = static_cast<nngn::lua::sol_user_type<S*>>(gt["s"]);
     QCOMPARE(p, &s);
     QVERIFY(L.dostring("i = s.i"));
     QCOMPARE(static_cast<lua_Integer>(gt["i"]), s.i);
     QVERIFY(L.dostring("i = s:f()"));
-    QCOMPARE(gt["i"].get<int>(), s.f());
+    QCOMPARE(static_cast<lua_Integer>(gt["i"]), s.f());
 }
 
 QTEST_MAIN(TableTest)

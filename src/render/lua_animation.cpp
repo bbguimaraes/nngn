@@ -14,13 +14,13 @@ auto load_v(
 ) {
     auto ret = nngn::lua::state_view{lua}.create_table(1, 0);
     for(lua_Integer i = 1, n = t.size(); i <= n; ++i)
-        ret.raw_set(i, a.load(t[i]));
+        ret.raw_set(i, nngn::lua::sol_user_type{a.load(t[i])});
     return ret.release();
 }
 
 auto remove_v(Animations &a, const nngn::lua::table &t) {
     for(lua_Integer i = 1, n = t.size(); i <= n; ++i)
-        a.remove(t[i]);
+        a.remove(static_cast<nngn::lua::sol_user_type<Animation*>>(t[i]));
 }
 
 }

@@ -3,6 +3,8 @@
 
 #include <lua.hpp>
 
+#include <string>
+#include <ElysianLua/elysian_lua_stack.hpp>
 #include <sol/stack.hpp>
 
 #include "utils/utils.h"
@@ -162,6 +164,27 @@ template<> struct is_stack_based<std::optional<nngn::lua::value_view>>
     : std::true_type {};
 template<> struct is_stack_based<std::optional<nngn::lua::value>>
     : std::true_type {};
+
+}
+
+namespace elysian::lua::stack_impl {
+
+template<>
+struct stack_checker<nngn::lua::value_view> {
+    static bool check(const ThreadViewBase*, StackRecord&, int) {
+        return true;
+    }
+};
+
+template<>
+struct stack_getter<nngn::lua::value_view> {
+    static nngn::lua::value_view get(
+        const ThreadViewBase *L, StackRecord &tracking, int i
+    ) {
+        tracking.use(1);
+        return {L->getState(), lua_absindex(L->getState(), i)};
+    }
+};
 
 }
 

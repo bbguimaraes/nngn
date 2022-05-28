@@ -72,6 +72,16 @@ auto vector_size(Type t) {
     return ret;
 }
 
+template<typename T, typename Table>
+auto from_table(const Table &t) {
+    const auto n = t.size();
+    std::vector<T> ret;
+    ret.reserve(static_cast<std::size_t>(n));
+    for(lua_Integer i = 1; i <= n; ++i)
+        ret.push_back(t[i]);
+    return ret;
+}
+
 template<typename T>
 auto read_table(const auto &t, std::size_t i, std::size_t n, std::byte *p) {
     for(n += i; i < n; ++i, p += sizeof(T)) {
@@ -244,7 +254,11 @@ auto read_events(
     if(wait_opt) {
         const nngn::lua::state_view lua = wait_opt->lua_state();
         const nngn::lua::table t = nngn::lua::push(lua, *wait_opt);
-        w = from_table_array<V>(t);
+        const auto tmp_w =
+            from_table_array<std::vector<nngn::lua::sol_user_type<E>>>(t);
+        w.reserve(tmp_w.size());
+        for(auto x : tmp_w)
+            w.push_back(x.value);
         events->n_wait = w.size();
         events->wait_list = w.data();
     }
@@ -267,7 +281,7 @@ void write_events(
     const auto e = static_cast<std::size_t>(events.size());
     const auto b = static_cast<std::size_t>(x.size());
     for(std::size_t i = 0; i < e; ++i)
-        x.raw_set(b + i + 1, events[i]);
+        x.raw_set(b + i + 1, nngn::lua::sol_user_type{events[i]});
 }
 
 auto opt(const Compute::Handle &h) {
@@ -513,14 +527,15 @@ bool execute_kernel(
 bool execute(
     Compute &c, u32 program, const std::string &func,
     Compute::ExecFlag flags,
-    nngn::lua::as_table_t<std::vector<std::size_t>> global_size,
-    nngn::lua::as_table_t<std::vector<std::size_t>> local_size,
+    nngn::lua::table_view global_size,
+    nngn::lua::table_view local_size,
     nngn::lua::table_view data,
     std::optional<nngn::lua::object> wait_opt,
     std::optional<nngn::lua::table_view> events_opt
 ) {
     NNGN_LOG_CONTEXT_F();
-    const auto global_size_v = global_size.value();
+    const auto global_size_v = from_table<std::size_t>(global_size);
+    const auto local_size_v = from_table<std::size_t>(local_size);
     const auto size = data_size(data);
     std::vector<std::byte> data_v(nngn::reduce(size));
     const auto [types, data_p] = read_data(data, &data_v);
@@ -529,7 +544,7 @@ bool execute(
         read_events(c, &events, types, wait_opt, events_opt);
     if(!c.execute(
             {{program}}, func, flags, static_cast<u32>(global_size_v.size()),
-            global_size_v.data(), local_size.value().data(),
+            global_size_v.data(), local_size_v.data(),
             static_cast<std::size_t>(data.size() / 2),
             types.data(), size.data(), data_p.data(), events))
         return false;

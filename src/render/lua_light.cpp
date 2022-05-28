@@ -66,9 +66,9 @@ NNGN_LUA_PROXY(Lighting,
     "n_dir_lights", [](const Lighting &l) { return l.dir_lights().size(); },
     "n_point_lights", [](const Lighting &l) { return l.point_lights().size(); },
     "dir_light", [](const Lighting &l, size_t i)
-        { return &l.dir_lights()[i]; },
+        { return nngn::lua::sol_user_type{&l.dir_lights()[i]}; },
     "point_light", [](const Lighting &l, size_t i)
-        { return &l.point_lights()[i]; },
+        { return nngn::lua::sol_user_type{&l.point_lights()[i]}; },
     "sun_light", [](const Lighting &l) { return l.sun_light(); },
     "sun", &Lighting::sun,
     "set_enabled", &Lighting::set_enabled,

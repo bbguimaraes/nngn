@@ -14,7 +14,7 @@ auto to_table(Entities &es, auto &&f, nngn::lua::state_arg lua) {
     std::size_t i = 1;
     for(auto &x : es)
         if(std::invoke(f, x))
-            ret.raw_set(i++, &x);
+            ret.raw_set(i++, nngn::lua::sol_user_type{&x});
     return ret;
 }
 

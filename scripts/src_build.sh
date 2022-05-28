@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPTS_DIR=$PWD/scripts
 PATCHES_DIR=$SCRIPTS_DIR/emscripten/patches
+ELYSIAN_LUA_DIR=$HOME/src/es/ElysianLua
 LUA_MAJ=5
 LUA_MIN=4
 LUA_VERSION=$LUA_MAJ.$LUA_MIN.1
@@ -52,6 +53,11 @@ build_lua() {
     cp -at "$build_dir/lib" "$lib"
     popd > /dev/null
     popd > /dev/null
+    mkdir -p elysian_lua
+    emcmake cmake -B elysian_lua "$ELYSIAN_LUA_DIR"
+    emmake make -C elysian_lua
+    cp -at "$BUILD_DIR/lib" elysian_lua/lib/liblibElysianLua.a
+    cp -at "$BUILD_DIR/lib" elysian_lua/lib/lib/Lua5.4/liblibLua.a
     popd > /dev/null
 }
 

@@ -1,11 +1,14 @@
 #ifndef NNGN_LUA_STATE_H
 #define NNGN_LUA_STATE_H
 
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
 
 #include <sol/property.hpp>
+
+#include <ElysianLua/elysian_lua_stack.hpp>
 
 #include "utils/utils.h"
 
@@ -17,6 +20,7 @@ struct lua_State;
 namespace nngn::lua {
 
 using function = sol::stack_function;
+using sol::as_function;
 using sol::as_table;
 using sol::as_table_t;
 using object = sol::stack_object;
@@ -119,6 +123,13 @@ struct state : state_view {
     state_view release(void) { return state_view{std::exchange(this->L, {})}; }
 };
 
+template<typename T>
+struct sol_user_type {
+    T value = {};
+    operator T(void) const { return this->value; }
+    operator T(void) { return this->value; }
+};
+
 /**
  * Macro to automatically create and register a user type.
  * \see static_register
@@ -179,6 +190,121 @@ inline state &state::operator=(state &&rhs) noexcept {
     state_view::operator=(std::move(rhs).release());
     return *this;
 }
+
+}
+
+namespace elysian::lua::stack_impl {
+
+template<>
+struct stack_checker<std::byte> {
+    static bool check(const ThreadViewBase *L, StackRecord &tracking, int i) {
+        return stack_checker<lua_Integer>::check(L, tracking, i);
+    }
+};
+
+template<>
+struct stack_getter<std::byte> {
+    static std::byte get(
+        const ThreadViewBase *L, StackRecord &tracking, int i
+    ) {
+        return static_cast<std::byte>(
+            stack_getter<lua_Integer>::get(L, tracking, i));
+    }
+};
+
+template<>
+struct stack_pusher<std::byte> {
+    static int push(
+        const ThreadViewBase* pBase, StackRecord &tracking, std::byte x
+    ) {
+        return stack_pusher<lua_Integer>::push(
+            pBase, tracking, static_cast<lua_Integer>(x));
+    }
+};
+
+template<>
+struct stack_checker<std::string_view> {
+    static bool check(const ThreadViewBase* pBase, StackRecord&, int index) {
+        return pBase->isString(index);
+    }
+};
+
+template<>
+struct stack_getter<std::string_view> {
+    static std::string_view get(
+        const ThreadViewBase* pBase, StackRecord&, int index
+    ) {
+        std::size_t len = {};
+        const auto ret = pBase->toString(index, &len);
+        return {ret, len};
+    }
+};
+
+template<>
+struct stack_pusher<std::string_view> {
+    static int push(
+        const ThreadViewBase* pBase, StackRecord&, std::string_view value
+    ) {
+        lua_pushlstring(*pBase, value.data(), value.size());
+        return 1;
+    }
+};
+
+template<>
+struct stack_checker<std::string> {
+    static bool check(
+        const ThreadViewBase *pBase, StackRecord &tracking, int index
+    ) {
+        return stack_checker<std::string_view>::check(pBase, tracking, index);
+    }
+};
+
+template<>
+struct stack_getter<std::string> {
+    static std::string get(
+        const ThreadViewBase* pBase, StackRecord &tracking, int index
+    ) {
+        return static_cast<std::string>(
+            stack_getter<std::string_view>::get(pBase, tracking, index));
+    }
+};
+
+template<>
+struct stack_pusher<std::string> {
+    static int push(
+        const ThreadViewBase* pBase, StackRecord &tracking,
+        const std::string &value
+    ) {
+        return stack_pusher<std::string_view>::push(pBase, tracking, value);
+    }
+};
+
+template<typename T>
+struct stack_checker<nngn::lua::sol_user_type<T>> {
+    static bool check(const ThreadViewBase* pBase, StackRecord&, int index) {
+        return sol::stack::check_usertype<T>(pBase->getState(), index);
+    }
+};
+
+template<typename T>
+struct stack_getter<nngn::lua::sol_user_type<T>> {
+    static nngn::lua::sol_user_type<T> get(
+        const ThreadViewBase* pBase, StackRecord&, int index
+    ) {
+        return nngn::lua::sol_user_type<T>{
+            sol::stack::get<T>(pBase->getState(), index)};
+    }
+};
+
+template<typename T>
+struct stack_pusher<nngn::lua::sol_user_type<T>> {
+    static int push(
+        const ThreadViewBase* pBase, StackRecord&,
+        nngn::lua::sol_user_type<T> value
+    ) {
+        return sol::stack::push(pBase->getState(), value.value);
+    }
+};
 
 }
 

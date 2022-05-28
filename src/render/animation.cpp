@@ -2,6 +2,7 @@
 
 #include "entity.h"
 
+#include "lua/state.h"
 #include "timing/profile.h"
 #include "timing/timing.h"
 #include "utils/log.h"
@@ -210,8 +211,8 @@ Animation *Animations::load(const nngn::lua::table &t) {
         ret.load(args...);
         return &ret;
     };
-    if(auto *const a = t.get<SpriteAnimation*>("sprite"))
-        return load("sprite", &this->sprite, a);
+    if(const auto a = t.get<nngn::lua::sol_user_type<SpriteAnimation*>>("sprite"))
+        return load("sprite", &this->sprite, &*a);
     if(const auto o = t.get<std::optional<nngn::lua::table>>("sprite"))
         return load("sprite", &this->sprite, *o);
     if(const auto o = t.get<std::optional<nngn::lua::table>>("light"))

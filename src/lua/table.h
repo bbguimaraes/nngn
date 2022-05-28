@@ -2,7 +2,11 @@
 #define NNGN_LUA_TABLE_H
 
 #include <optional>
+#include <string>
 
+#include <ElysianLua/elysian_lua_stack.hpp>
+#include <ElysianLua/elysian_lua_table.hpp>
+#include <ElysianLua/elysian_lua_thread_view.hpp>
 #include <sol/state_view.hpp>
 
 #include "utils/concepts.h"
@@ -10,6 +14,24 @@
 #include "utils/utils.h"
 
 #include "value.h"
+
+namespace elysian::lua {
+
+inline auto begin(StackTable t) {
+    return sol::stack_table{
+        t.getThread()->getState(),
+        t.getStackIndex(),
+    }.begin();
+}
+
+inline auto end(StackTable t) {
+    return sol::stack_table{
+        t.getThread()->getState(),
+        t.getStackIndex(),
+    }.end();
+}
+
+}
 
 namespace nngn::lua {
 
@@ -20,6 +42,9 @@ struct table_base_tag {};
 
 /** Tag to relate all \c table_proxy instantiations via inheritance. */
 struct table_proxy_tag {};
+
+// XXX
+struct user_type_tag {};
 
 /** CRTP base for stack table types. */
 template<typename CRTP>
@@ -55,10 +80,13 @@ template<typename T> using sol_type_t = typename sol_type<T>::type;
 template<typename T>
 auto to_sol(const T &t) {
     // XXX
-    if constexpr(requires { t.index(); })
+    if constexpr(std::derived_from<T, user_type_tag>)
         return detail::sol_type_t<T>{t.state(), sol::raw_index{t.index()}};
+    else if constexpr(requires { t.index(); })
+        return elysian::lua::ThreadView{t.state()}
+            .toValue<sol_type_t<T>>(t.index());
     else
-        return detail::sol_type_t<T>{t.state()};
+        return detail::sol_type_t<T>{};
 }
 
 // XXX
@@ -105,7 +133,7 @@ struct table : value, detail::table_base<table> {
 
 /** User type tables. */
 template<typename T>
-struct user_type : value, detail::table_base<user_type<T>> {
+struct user_type : detail::user_type_tag, value, detail::table_base<user_type<T>> {
     NNGN_MOVE_ONLY(user_type)
     using value::value;
     using detail::table_base<user_type<T>>::push;
@@ -128,7 +156,7 @@ public:
     template<typename T> user_type<T> new_user_type(const char *name) const;
     void set(auto &&k, auto &&v) const;
 private:
-    auto to_sol(void) const { return sol::state_view(this->L).globals(); }
+    auto to_sol(void) const { return elysian::lua::StaticGlobalsTable{}; }
     lua_State *L = nullptr;
 };
 
@@ -152,12 +180,18 @@ private:
 
 namespace detail {
 
-template<> struct sol_type<table> { using type = sol::stack_table; };
-template<> struct sol_type<table_view> { using type = sol::stack_table; };
-template<> struct sol_type<global_table> { using type = sol::global_table; };
+template<> struct sol_type<table> { using type = elysian::lua::StaticStackTable; };
+template<> struct sol_type<table_view> { using type = elysian::lua::StaticStackTable; };
+template<> struct sol_type<global_table> { using type = elysian::lua::StaticGlobalsTable; };
 
 template<typename T>
 struct sol_type<user_type<T>> { using type = sol::stack_usertype<T>; };
+
+template<>
+inline auto to_sol<nngn::lua::table_view>(const nngn::lua::table_view &t) {
+    return elysian::lua::ThreadView{t.state()}
+        .toValue<sol_type_t<nngn::lua::table_view>>(t.index());
+}
 
 template<typename CRTP>
 lua_Integer table_base<CRTP>::size(void) const {
@@ -171,18 +205,20 @@ lua_Integer table_base<CRTP>::size(void) const {
 
 template<typename CRTP>
 auto table_base<CRTP>::begin(void) const {
-    return to_sol(*static_cast<const CRTP*>(this)).begin();
+    using elysian::lua::begin;
+    return begin(to_sol(*static_cast<const CRTP*>(this)));
 }
 
 template<typename CRTP>
 auto table_base<CRTP>::end(void) const {
-    return to_sol(*static_cast<const CRTP*>(this)).end();
+    using elysian::lua::end;
+    return end(to_sol(*static_cast<const CRTP*>(this)));
 }
 
 template<typename CRTP>
 void table_base<CRTP>::push(void) const {
     const auto *const crtp = static_cast<const CRTP*>(this);
-    sol::stack::push(crtp->state(), to_sol(*crtp));
+    elysian::lua::ThreadView{crtp->state()}.push(to_sol(*crtp));
 }
 
 template<typename CRTP>
@@ -204,22 +240,25 @@ T table_base<CRTP>::get_common(auto &&k, T &&def) const {
     auto *const L_ = crtp->state();
     // XXX
     if constexpr(std::is_same_v<global_table, CRTP>) {
+        const auto lua = elysian::lua::ThreadView{L_};
         lua_pushglobaltable(L_);
-        sol::stack::push(L_, FWD(k));
+        lua.push(FWD(k));
         lua_gettable(L_, -2);
         lua_remove(L_, -2);
-        return sol::stack::get<T>(L_, lua_gettop(L_));
+        return lua.toValue<T>(lua_absindex(L_, -1));
     } else if constexpr(is_optional_stack_based<T>) {
-        lua_pushvalue(L_, static_cast<const CRTP*>(this)->index());
-        sol::stack::push(L_, FWD(k));
+        (void)def;
+        lua_pushvalue(L_, crtp->index());
+        const auto lua = elysian::lua::ThreadView{L_};
+        lua.push(FWD(k));
         if constexpr(raw)
             lua_gettable(L_, -2);
         else
             lua_rawget(L_, -2);
         lua_remove(L_, -2);
-        if(lua_type(L_, -1) == LUA_TTABLE)
-            return {{L_, lua_gettop(L_)}};
-        return {};
+        if(lua_type(L_, -1) != LUA_TTABLE)
+            return {};
+        return lua.toValue<T>(lua_gettop(L_));
     } else if constexpr(is_stack_based<T>) {
         lua_pushvalue(L_, static_cast<const CRTP*>(this)->index());
         sol::stack::push(L_, FWD(k));
@@ -232,21 +271,27 @@ T table_base<CRTP>::get_common(auto &&k, T &&def) const {
     }
     const auto &sol = to_sol(*static_cast<const CRTP*>(crtp));
     if constexpr(raw) {
-        if(auto o = sol.template raw_get<std::optional<T>>(FWD(k)))
+        std::optional<T> o = {};
+        sol.template getFieldRaw<>(FWD(k), o);
+        if(o)
             return std::move(*o);
-    } else if(auto o = sol.template get<std::optional<T>>(FWD(k)))
+    } else if(auto o = sol[FWD(k)].template get<std::optional<T>>())
         return std::move(*o);
     return FWD(def);
 }
 
 template<typename CRTP>
 void table_base<CRTP>::raw_set(auto &&k, auto &&v) const {
-    to_sol(*static_cast<const CRTP*>(this)).raw_set(FWD(k), FWD(v));
+    to_sol(*static_cast<const CRTP*>(this)).setFieldRaw(FWD(k), FWD(v));
 }
 
 template<typename CRTP>
 void table_base<CRTP>::set(auto &&k, auto &&v) const {
-    to_sol(*static_cast<const CRTP*>(this)).set(FWD(k), FWD(v));
+    // XXX
+    if constexpr(std::derived_from<CRTP, user_type_tag>)
+        to_sol(*static_cast<const CRTP*>(this)).set(FWD(k), FWD(v));
+    else
+        to_sol(*static_cast<const CRTP*>(this)).setField(FWD(k), FWD(v));
 }
 
 template<typename CRTP>
@@ -313,7 +358,7 @@ user_type<T> global_table::new_user_type(const char *name) const {
 }
 
 void global_table::set(auto &&k, auto &&v) const {
-    this->to_sol().set(FWD(k), FWD(v));
+    this->to_sol()[FWD(k)] = FWD(v);
 }
 
 template<typename T, typename ...Ks>
@@ -371,7 +416,11 @@ bool sol_lua_check(
     sol::types<T>, lua_State *L, int i,
     auto &&h, sol::stack::record &tracking
 ) {
-    return sol::stack::check<detail::sol_type_t<T>>(L, i, FWD(h), tracking);
+    using ST = detail::sol_type_t<T>;
+    auto L_ = elysian::lua::ThreadView{L};
+    elysian::lua::StackRecord tracking_ = {};
+    return elysian::lua::stack_check<ST>(&L_, tracking_, i)
+        /*XXX*/|| sol::stack::check<ST>(L, i, FWD(h), tracking);
 }
 
 template<derived_from<detail::table_base_tag> T>
@@ -416,6 +465,64 @@ struct is_stack_based<nngn::lua::user_type<T>> : std::true_type {};
 template<typename T>
 struct is_stack_based<std::optional<nngn::lua::user_type<T>>>
     : std::true_type {};
+
+}
+
+namespace elysian::lua::stack_impl {
+
+template<std::derived_from<nngn::lua::detail::table_base_tag> T>
+struct stack_checker<T> {
+    static bool check(const ThreadViewBase *L, StackRecord &tracking, int i) {
+        using ST = nngn::lua::detail::sol_type_t<T>;
+        return elysian::lua::stack_check<ST>(L, tracking, i);
+    }
+};
+
+template<std::derived_from<nngn::lua::detail::table_base_tag> T>
+struct stack_getter<T> {
+    static T get(const ThreadViewBase *L, StackRecord &tracking, int i) {
+        tracking.use(1);
+        return {L->getState(), lua_absindex(L->getState(), i)};
+    }
+};
+
+template<std::derived_from<nngn::lua::detail::table_base_tag> T>
+struct stack_pusher<T> {
+    static int push(const ThreadViewBase *L, StackRecord&, const T &t) {
+        assert(L->getState() == t.state());
+        t.push();
+        return 1;
+    }
+};
+
+template<std::derived_from<nngn::lua::detail::table_proxy_tag> T>
+struct stack_pusher<T> {
+    static int push(const ThreadViewBase *L, StackRecord&, const T &t) {
+        (void)L;
+//        assert(L->getState() == t.state());
+        t.push();
+        return 1;
+    }
+};
+
+template<typename T>
+struct stack_pusher<sol::usertype<T>> {
+    static int push(
+        const ThreadViewBase* pBase, StackRecord&, const sol::usertype<T> &x
+    ) {
+        return sol::stack::push(pBase->getState(), x);
+    }
+};
+
+template<typename T>
+struct stack_pusher<sol::stack_usertype<T>> {
+    static int push(
+        const ThreadViewBase* pBase, StackRecord&,
+        const sol::stack_usertype<T> &x
+    ) {
+        return sol::stack::push(pBase->getState(), x);
+    }
+};
 
 }
 

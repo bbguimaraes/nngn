@@ -1,6 +1,6 @@
 AUTOMAKE_OPTIONS = subdir-objects
 
-AM_CPPFLAGS = $(DEPS_CFLAGS) -I@srcdir@/src
+AM_CPPFLAGS = $(DEPS_CFLAGS) -I@srcdir@/src -D ELYSIAN_LUA_USE_STD_STRING
 AM_CXXFLAGS = \
 	-std=c++20 -fno-exceptions -fno-rtti -fstrict-aliasing \
 	-O3 -DNDEBUG -DSOL_NO_EXCEPTIONS -fno-omit-frame-pointer \
