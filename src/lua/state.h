@@ -128,6 +128,10 @@ struct sol_user_type {
     T value = {};
     operator T(void) const { return this->value; }
     operator T(void) { return this->value; }
+    decltype(auto) operator*(void) { return this->value; }
+    decltype(auto) operator*(void) const { return this->value; }
+    decltype(auto) operator->(void) { return &this->value; }
+    decltype(auto) operator->(void) const { return &this->value; }
 };
 
 /**

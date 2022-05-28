@@ -171,6 +171,7 @@ public:
     table_proxy<T, Ks..., std::decay_t<K>> operator[](K &&k) const;
     template<typename V> V get(V &&def = V{}) const;
     void set(auto &&v) const;
+    void push(void) const;
 private:
     template<typename T1, typename ...Ks1>
     static table_proxy<T1, Ks1...> from_tuple(T1 &&t, std::tuple<Ks1...> &&k);
@@ -409,6 +410,13 @@ void table_proxy<T, Ks...>::set(auto &&v) const {
                 tuple_tail(this->keys))
             .template set(FWD(v));
     }
+}
+
+template<typename T, typename ...Ks>
+void table_proxy<T, Ks...>::push(void) const {
+    // TODO
+    static_assert(sizeof...(Ks) == 1);
+    this->get<value_view>();
 }
 
 template<derived_from<detail::table_base_tag> T>

@@ -1,5 +1,6 @@
 #include <algorithm>
 
+#include "../xxx_elysian_lua_match.h"
 #include "entity.h"
 
 #include "lua/state.h"
@@ -211,14 +212,21 @@ Animation *Animations::load(const nngn::lua::table &t) {
         ret.load(args...);
         return &ret;
     };
-    if(const auto a = t.get<nngn::lua::sol_user_type<SpriteAnimation*>>("sprite"))
-        return load("sprite", &this->sprite, &*a);
-    if(const auto o = t.get<std::optional<nngn::lua::table>>("sprite"))
-        return load("sprite", &this->sprite, *o);
-    if(const auto o = t.get<std::optional<nngn::lua::table>>("light"))
-        return load("light", &this->light, *o);
-    Log::l() << "no animation data\n";
-    return nullptr;
+    Animation *ret = nullptr;
+    match(
+        t.state(), t["sprite"],
+        [this, &ret, load](nngn::lua::sol_user_type<SpriteAnimation&> a) {
+            ret = load("sprite", &this->sprite, &*a);
+        },
+        [this, &ret, load](const nngn::lua::table &tt)
+            { ret = load("sprite", &this->sprite, tt); });
+    match(
+        t.state(), t["light"],
+        [this, &ret, load](const nngn::lua::table &tt)
+            { ret = load("light", &this->light, tt); });
+    if(!ret)
+        Log::l() << "no animation data\n";
+    return ret;
 }
 
 void Animations::update(const Timing &t) {

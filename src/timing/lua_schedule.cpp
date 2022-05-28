@@ -1,3 +1,6 @@
+#include <string>
+#include "xxx_elysian_lua_frame.h"
+
 #include "lua/state.h"
 
 #include "utils/def.h"
@@ -40,31 +43,46 @@ Schedule::Entry gen_entry(lua_State *L, Schedule::Flag flags, int idx) {
     return {call, destroy, data, flags};
 }
 
-auto next(
-    Schedule &s, Schedule::Flag flags, nngn::lua::function f,
-    nngn::lua::state_arg lua
-) {
-    return s.next(gen_entry(lua, flags, f.stack_index()));
+int next(elysian::lua::ThreadView L) {
+    const auto frame = LuaStackFrame<
+        nngn::lua::sol_user_type<Schedule&>,
+        lua_Integer,
+        nngn::lua::sol_user_type<const sol::stack_function>>(L);
+    auto [s, fl, f] = frame.values();
+    return frame.return_values(s->next(
+        gen_entry(L, static_cast<Schedule::Flag>(fl), f->stack_index())));
 }
 
-auto in_ms(
-    Schedule &s, Schedule::Flag flags, std::chrono::milliseconds::rep r,
-    nngn::lua::function f, nngn::lua::state_arg lua
-) {
-    return s.in(
+int in_ms(elysian::lua::ThreadView L) {
+    const auto frame = LuaStackFrame<
+        nngn::lua::sol_user_type<Schedule&>,
+        lua_Integer,
+        std::chrono::milliseconds::rep,
+        nngn::lua::sol_user_type<const sol::stack_function>>(L);
+    auto [s, fl, r, f] = frame.values();
+    return frame.return_values(s->in(
         std::chrono::milliseconds(r),
-        gen_entry(lua, flags, f.stack_index()));
+        gen_entry(L, static_cast<Schedule::Flag>(fl), f->stack_index())));
 }
 
-auto frame(
-    Schedule &s, Schedule::Flag flags, nngn::u64 frame, nngn::lua::function f,
-    nngn::lua::state_arg lua
-) {
-    s.frame(frame, gen_entry(lua, flags, f.stack_index()));
+int frame(elysian::lua::ThreadView L) {
+    const auto frame = LuaStackFrame<
+        nngn::lua::sol_user_type<Schedule&>,
+        lua_Integer,
+        nngn::u64,
+        nngn::lua::sol_user_type<const sol::stack_function>>(L);
+    auto [s, fl, fr, f] = frame.values();
+    return frame.return_values(s->frame(
+        /*XXX*/static_cast<nngn::u64>(fr),
+        gen_entry(L, static_cast<Schedule::Flag>(fl), f->stack_index())));
 }
 
-auto atexit_(Schedule &s, nngn::lua::function f, nngn::lua::state_arg lua) {
-    return s.atexit(gen_entry(lua, {}, f.stack_index()));
+int atexit_(elysian::lua::ThreadView L) {
+    const auto frame = LuaStackFrame<
+        nngn::lua::sol_user_type<Schedule&>,
+        nngn::lua::sol_user_type<const sol::stack_function>>(L);
+    auto [s, f] = frame.values();
+    return frame.return_values(s->atexit(gen_entry(L, {}, f->stack_index())));
 }
 
 }
@@ -76,8 +94,8 @@ NNGN_LUA_PROXY(Schedule,
     "HEARTBEAT", var(Schedule::Flag::HEARTBEAT),
     "n", &Schedule::n,
     "n_atexit", &Schedule::n_atexit,
-    "next", next,
-    "in_ms", in_ms,
-    "frame", frame,
-    "atexit", atexit_,
+    "next", elysian_lua_wrapper<next>,
+    "in_ms", elysian_lua_wrapper<in_ms>,
+    "frame", elysian_lua_wrapper<frame>,
+    "atexit", elysian_lua_wrapper<atexit_>,
     "cancel", &Schedule::cancel)
