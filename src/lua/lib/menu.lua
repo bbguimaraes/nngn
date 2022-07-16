@@ -10,6 +10,7 @@ local function new_player()
             function(p, press) if press then player.flashlight(p) end end,
             function(p, press) if press then player.fairy(p) end end,
             player.fire,
+            function(p, press) if press then player.sword(p) end end,
         },
     }
 end
@@ -53,6 +54,10 @@ local function show_menu(m)
         },
         fairy,
         fire,
+        {
+            tex = "img/zelda/zelda.png", size = {64, 64},
+            scale = {512//16, 512//16}, coords = {16, 0},
+        },
     } do
         local pos <const> = {menu_pos(n, idx, i)}
         t.type = Renderer.SCREEN_SPRITE

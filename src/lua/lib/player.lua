@@ -100,6 +100,11 @@ local function stop(p)
     if not p then
         return
     end
+    local sw <const> = p.data.sword
+    if sw then
+        sw.stop = true
+        return
+    end
     local e <const> = p.entity
     e:set_vel(0, 0, 0)
     p.running = false
@@ -133,6 +138,45 @@ local function face_vec(p, l)
     else
         return {0, l * (((p.face & 1) << 1) - 1)}
     end
+end
+
+local function sword(p)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local d <const> = p.data
+    if d.sword then
+        return
+    end
+    local e <const> = p.entity
+    local t <const> = dofile("src/lson/zelda/sword.lua")
+    t.parent = e
+    t.pos = face_vec(p, 8)
+    t.renderer.z_off = -16
+    local dy, ti = 0, 0, 1
+    if 0 < t.pos[2] then
+        dy = 1
+    elseif t.pos[1] < 0 then
+        dy = 2
+    elseif t.pos[2] < 0 then
+        dy = 3
+    end
+    for _, x in ipairs(t.anim.sprite[3][1]) do
+        x[2] = x[2] + dy
+    end
+    local anim <const> = e:animation():sprite()
+    anim:set_track(anim:cur_track() % 4 + 12)
+    local sw <const> = {p = p, e = entity.load(nil, nil, t)}
+    p.data.sword = sw
+    nngn:schedule():in_ms(0, 270, function()
+        anim:set_track(anim:cur_track() % 4)
+        nngn:remove_entity(sw.e)
+        if sw.stop then
+            stop(sw.p)
+        end
+        d.sword = nil
+    end)
 end
 
 local function light(p, show)
@@ -243,10 +287,7 @@ local function move(key, press, _, keys)
     local l = math.abs(dir[1]) + math.abs(dir[2])
     local v, face, anim
     if l == 0 then
-        v = 0
-        face = p.face % FACE.N
-        anim = face
-        p.running = false
+        stop(p)
     elseif l == 1 then
         v = MAX_VEL
         face = face_for_dir(table.unpack(dir))
@@ -272,7 +313,9 @@ local function move(key, press, _, keys)
     if p.running then
         v = v * 3
     end
-    e:set_vel(dir[1] * v, dir[2] * v, 0)
+    if v then
+        e:set_vel(dir[1] * v, dir[2] * v, 0)
+    end
 end
 
 local function move_all(x, y, abs)
@@ -438,6 +481,7 @@ return {
     move = move,
     move_all = move_all,
     face_vec = face_vec,
+    sword = sword,
     fairy = fairy,
     light = light,
     flashlight = flashlight,
