@@ -90,6 +90,9 @@ enum class empty {};
 
 template<typename T> struct always_false : std::false_type {};
 
+template<typename T, typename F>
+using same_constness = std::conditional_t<std::is_const_v<F>, const T, T>;
+
 /** Performs successive <tt>static_cast</tt>s, right to left. */
 template<typename ...Ts>
 constexpr decltype(auto) chain_cast(auto &&x) {
