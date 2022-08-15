@@ -79,6 +79,10 @@ bool Camera::update(const Timing &t) {
         const auto z = c.p.z + c.p.y, far_2 = Camera::FAR / 2;
         return Math::ortho(-s.x, s.x, -s.y, s.y, z - far_2, z + far_2);
     };
+    constexpr auto gen_screen_proj = [](const Camera &c) {
+        const auto s = static_cast<vec2>(c.screen);
+        return Math::ortho(0.0f, s.x, 0.0f, s.y);
+    };
     constexpr auto gen_view = [](const Camera &c) {
         const auto scale = [&c](mat4 m) {
             const bool persp = c.flags.is_set(Flag::PERSPECTIVE);
@@ -145,6 +149,7 @@ bool Camera::update(const Timing &t) {
         return false;
     this->view = gen_view(*this);
     this->proj = gen_proj(*this);
+    this->screen_proj = gen_screen_proj(*this);
     this->inv_view = Math::inverse(this->view);
     this->inv_proj = Math::inverse(this->proj);
     this->flags.clear(Flag::UPDATED | Flag::SCREEN_UPDATED);

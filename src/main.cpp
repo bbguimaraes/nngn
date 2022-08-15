@@ -169,7 +169,8 @@ bool NNGN::set_graphics(nngn::Graphics::Backend b, const void *params) {
         &this->camera, [](void *p, auto s)
             { static_cast<nngn::Camera*>(p)->set_screen(s); });
     g->set_camera({
-        &this->camera.screen, &this->camera.proj, &this->camera.view});
+        &this->camera.screen, &this->camera.proj, &this->camera.screen_proj,
+        &this->camera.view});
     this->camera.set_screen(g->window_size());
     this->graphics = std::move(g);
     return ret;

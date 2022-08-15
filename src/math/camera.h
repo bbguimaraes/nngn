@@ -220,6 +220,8 @@ struct Camera {
     uvec2 screen = {};
     /** Projection matrix (orthographic/perspective). */
     mat4 proj = mat4{1};
+    /** Projection matrix for screen coordinates. */
+    mat4 screen_proj = mat4{1};
     /** View matrix. */
     mat4 view = mat4{1};
     /** Inverse matrix of \ref proj. */

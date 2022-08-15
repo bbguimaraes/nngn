@@ -290,6 +290,17 @@ void CameraTest::proj_perspective(void) {
         QCOMPARE(c.proj, persp);
 }
 
+void CameraTest::proj_screen(void) {
+    Camera c;
+    c.set_screen({SCREEN_W, SCREEN_H});
+    c.update({});
+    const auto proj = Math::ortho(
+        0.0f, static_cast<float>(SCREEN_W),
+        0.0f, static_cast<float>(SCREEN_H));
+    if(!fuzzy_eq(c.screen_proj, proj))
+        QCOMPARE(c.screen_proj, proj);
+}
+
 void CameraTest::view_data(void) {
     QTest::addColumn<vec3>("pos");
     QTest::addColumn<float>("zoom");

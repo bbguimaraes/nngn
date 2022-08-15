@@ -146,6 +146,7 @@ void register_camera(nngn::lua::table_view t) {
     t["damp"] = [](const Camera &c) { return number(c.damp); };
     t["screen"] = screen;
     t["proj"] = [](const Camera &c) { return matrix(c.proj); };
+    t["screen_proj"] = [](const Camera &c) { return matrix(c.screen_proj); };
     t["view"] = [](const Camera &c) { return matrix(c.view); };
     t["dash"] = &Camera::dash;
     t["perspective"] = &Camera::perspective;

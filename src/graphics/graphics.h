@@ -186,12 +186,12 @@ struct Graphics {
             u32 pipeline = {};
             std::span<const std::pair<u32, u32>> buffers = {};
         };
-        std::span<const Stage> normal = {}, overlay = {};
+        std::span<const Stage> normal = {}, overlay = {}, screen = {};
     };
     enum class CursorMode { NORMAL, HIDDEN, DISABLED };
     struct Camera {
         const uvec2 *screen = nullptr;
-        const mat4 *proj = nullptr, *view = nullptr;
+        const mat4 *proj = nullptr, *screen_proj = nullptr, *view = nullptr;
     };
     static constexpr u32
         TEXTURE_EXTENT = NNGN_TEXTURE_EXTENT,

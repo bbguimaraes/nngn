@@ -21,6 +21,7 @@ private slots:
     void look_at_data(void);
     void look_at(void);
     void proj_perspective(void);
+    void proj_screen(void);
     void view_data(void);
     void view(void);
     void view_perspective_data(void);

@@ -157,6 +157,7 @@ public:
     bool init(VkDevice dev, VkDeviceSize min_ubo_align);
     VkDeviceSize size(std::size_t n_frames) const;
     u32 offset(std::size_t i) const;
+    u32 offset_screen(std::size_t i) const;
     void write(VkBuffer ubo, VkDeviceSize offset) const;
 private:
     static constexpr VkDeviceSize size();
@@ -193,7 +194,7 @@ struct RenderList {
         std::vector<std::pair<u32, u32>> buffers = {};
         u32 conf = {};
     };
-    std::vector<Stage> normal = {}, overlay = {};
+    std::vector<Stage> normal = {}, overlay = {}, screen = {};
 };
 
 class VulkanBackend final : public nngn::GLFWBackend {
@@ -437,8 +438,8 @@ bool UBODescriptorSets::init(
 }
 
 constexpr VkDeviceSize CameraDescriptorSets::size() {
-    constexpr std::size_t normal = 1;
-    return normal;
+    constexpr std::size_t normal = 1, screen = 1;
+    return normal + screen;
 }
 
 VkDeviceSize CameraDescriptorSets::size(std::size_t n_frames) const {
@@ -448,6 +449,10 @@ VkDeviceSize CameraDescriptorSets::size(std::size_t n_frames) const {
 u32 CameraDescriptorSets::offset(std::size_t i) const {
     return static_cast<u32>(
         CameraDescriptorSets::size() * this->alignment() * i);
+}
+
+u32 CameraDescriptorSets::offset_screen(std::size_t i) const {
+    return static_cast<u32>(this->offset(i) + this->alignment());
 }
 
 bool CameraDescriptorSets::init(VkDevice dev_, VkDeviceSize min_ubo_align) {
@@ -1153,6 +1158,11 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
         render(b, "normal", viewport, scissors, this->render_list.normal);
         push_alpha(b, this->pipeline_layout, .5);
         render(b, "overlay", viewport, scissors, this->render_list.overlay);
+        bind_descriptors(
+            b, this->pipeline_layout, "screen", 0,
+            std::array{camera_desc.ids()[0], tex_desc.ids()[0]},
+            std::array{camera_desc.offset_screen(i)});
+        render(b, "screen", viewport, scissors, this->render_list.screen);
         vkCmdEndRenderPass(b);
     };
     const auto extent = nngn::vk_vec_to_extent(this->m_surface_info.cur_extent);
@@ -1194,6 +1204,7 @@ bool VulkanBackend::set_render_list(const RenderList &l) {
     };
     f(&this->render_list.normal, l.normal);
     f(&this->render_list.overlay, l.overlay);
+    f(&this->render_list.screen, l.screen);
     return this->update_render_list();
 }
 
@@ -1425,6 +1436,11 @@ bool VulkanBackend::render() {
             this->camera_descriptor_sets.offset(this->cur_frame),
             nngn::as_byte_span(nngn::rptr(nngn::CameraUBO{
                 .proj = CLIP_PROJ * *this->camera.proj * *this->camera.view})));
+        this->ubo.memcpy(
+            this->dev.id(),
+            this->camera_descriptor_sets.offset_screen(this->cur_frame),
+            nngn::as_byte_span(nngn::rptr(nngn::CameraUBO{
+                .proj = CLIP_PROJ * *this->camera.screen_proj})));
     };
     const auto cmd = this->cur_cmd_buffer();
     const auto queue = this->dev.graphics_queue();
