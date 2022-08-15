@@ -15,6 +15,7 @@ namespace nngn {
 struct Renderer {
     enum Type : u8 {
         SPRITE = 1,
+        SCREEN_SPRITE,
         N_TYPES,
     };
     enum Flag : u8 { UPDATED = 1u << 0 };

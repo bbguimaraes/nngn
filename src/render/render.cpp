@@ -69,7 +69,8 @@ void Renderers::init(Textures *t) {
 }
 
 std::size_t Renderers::n() const {
-    return this->sprites.size();
+    return this->sprites.size()
+        + this->screen_sprites.size();
 }
 
 bool Renderers::set_max_sprites(std::size_t n) {
@@ -77,6 +78,14 @@ bool Renderers::set_max_sprites(std::size_t n) {
         n, &this->sprites, this->graphics,
         this->sprite_vbo, this->sprite_ebo,
         this->sprite_debug_vbo, this->sprite_debug_ebo);
+}
+
+
+bool Renderers::set_max_screen_sprites(std::size_t n) {
+    return ::set_max_sprites(
+        n, &this->screen_sprites, this->graphics,
+        this->screen_sprite_vbo, this->screen_sprite_ebo,
+        this->screen_sprite_debug_vbo, this->screen_sprite_debug_ebo);
 }
 
 void Renderers::set_debug(Debug d) {
@@ -106,7 +115,8 @@ bool Renderers::set_graphics(Graphics *g) {
     constexpr auto index = Graphics::BufferConfiguration::Type::INDEX;
     this->graphics = g;
     u32
-        triangle_pipeline = {}, sprite_pipeline = {}, box_pipeline = {},
+        triangle_pipeline = {}, sprite_pipeline = {},
+        screen_sprite_pipeline = {}, box_pipeline = {},
         triangle_vbo = {}, triangle_ebo = {};
     return (triangle_pipeline = g->create_pipeline({
             .name = "triangle_pipeline",
@@ -115,6 +125,11 @@ bool Renderers::set_graphics(Graphics *g) {
         }))
         && (sprite_pipeline = g->create_pipeline({
             .name = "sprite_pipeline",
+            .type = Pipeline::Type::SPRITE,
+            .flags = Pipeline::Flag::DEPTH_TEST,
+        }))
+        && (screen_sprite_pipeline = g->create_pipeline({
+            .name = "screen_sprite_pipeline",
             .type = Pipeline::Type::SPRITE,
             .flags = Pipeline::Flag::DEPTH_TEST,
         }))
@@ -146,6 +161,22 @@ bool Renderers::set_graphics(Graphics *g) {
         }))
         && (this->sprite_debug_ebo = g->create_buffer({
             .name = "sprite_debug_ebo",
+            .type = index,
+        }))
+        && (this->screen_sprite_vbo = g->create_buffer({
+            .name = "screen_sprite_vbo",
+            .type = vertex,
+        }))
+        && (this->screen_sprite_ebo = g->create_buffer({
+            .name = "screen_sprite_ebo",
+            .type = index,
+        }))
+        && (this->screen_sprite_debug_vbo = g->create_buffer({
+            .name = "screen_sprite_debug_vbo",
+            .type = vertex,
+        }))
+        && (this->screen_sprite_debug_ebo = g->create_buffer({
+            .name = "screen_sprite_debug_ebo",
             .type = index,
         }))
         && g->update_buffers(
@@ -180,6 +211,18 @@ bool Renderers::set_graphics(Graphics *g) {
                     {this->sprite_debug_vbo, this->sprite_debug_ebo},
                 }),
             }}),
+            .screen = std::to_array<Stage>({{
+                .pipeline = screen_sprite_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->screen_sprite_vbo, this->screen_sprite_ebo},
+                }),
+            }, {
+                .pipeline = box_pipeline,
+                .buffers = std::to_array<BufferPair>({
+                    {this->screen_sprite_debug_vbo,
+                        this->screen_sprite_debug_ebo},
+                }),
+            }}),
         });
 }
 
@@ -208,6 +251,8 @@ Renderer *Renderers::load(nngn::lua::table_view t) {
     switch(type) {
     case Renderer::Type::SPRITE:
         return load_tex(this->sprites, "sprite");
+    case Renderer::Type::SCREEN_SPRITE:
+        return load_tex(this->screen_sprites, "screen_sprite");
     case Renderer::Type::N_TYPES:
     default:
         Log::l() << "invalid type: " << static_cast<int>(type) << '\n';
@@ -230,6 +275,8 @@ void Renderers::remove(Renderer *p) {
     };
     if(contains(this->sprites, *p))
         remove(&this->sprites, Flag::SPRITES_UPDATED);
+    else if(contains(this->screen_sprites, *p))
+        remove(&this->screen_sprites, Flag::SCREEN_SPRITES_UPDATED);
     else
         assert(!"invalid renderer");
 }
@@ -243,11 +290,15 @@ bool Renderers::update(void) {
             : std::any_of(begin(v), end(v), std::mem_fn(&Renderer::updated));
     };
     const auto sprites_updated = updated(Flag::SPRITES_UPDATED, this->sprites);
-    return this->update_renderers(sprites_updated)
-        && this->update_debug(sprites_updated);
+    const auto screen_sprites_updated =
+        updated(Flag::SCREEN_SPRITES_UPDATED, this->screen_sprites);
+    return this->update_renderers(sprites_updated, screen_sprites_updated)
+        && this->update_debug(sprites_updated, screen_sprites_updated);
 }
 
-bool Renderers::update_renderers(bool sprites_updated) {
+bool Renderers::update_renderers(
+    bool sprites_updated, bool screen_sprites_updated)
+{
     NNGN_PROFILE_CONTEXT(renderers);
     const auto update_sprites = [this] {
         NNGN_LOG_CONTEXT("sprites");
@@ -259,16 +310,33 @@ bool Renderers::update_renderers(bool sprites_updated) {
             : update_span<Gen::sprite_ortho, update_quad_indices<6>>(
                 this->graphics, std::span{this->sprites}, vbo, ebo, 4, 6);
     };
-    return !sprites_updated || update_sprites();
+    const auto update_screen_sprites = [this] {
+        NNGN_LOG_CONTEXT("screen_sprites");
+        const auto vbo = this->screen_sprite_vbo;
+        const auto ebo = this->screen_sprite_ebo;
+        return update_span<Gen::screen_sprite, update_quad_indices<6>>(
+            this->graphics, std::span{this->screen_sprites}, vbo, ebo, 4, 6);
+    };
+    return (!sprites_updated || update_sprites())
+        && (!screen_sprites_updated || update_screen_sprites());
 }
 
-bool Renderers::update_debug(bool sprites_updated) {
+bool Renderers::update_debug(
+    bool sprites_updated, bool screen_sprites_updated)
+{
     NNGN_PROFILE_CONTEXT(renderers_debug);
     const auto update_sprite_debug = [this] {
         NNGN_LOG_CONTEXT("sprite_debug");
         return update_span<Gen::sprite_debug, update_quad_indices<3 * 6>>(
             this->graphics, std::span{this->sprites},
             this->sprite_debug_vbo, this->sprite_debug_ebo,
+            3_z * 4_z, 3_z * 6_z);
+    };
+    const auto update_screen_sprite_debug = [this] {
+        NNGN_LOG_CONTEXT("screen_sprite_debug");
+        return update_span<Gen::sprite_debug, update_quad_indices<3 * 6>>(
+            this->graphics, std::span{this->screen_sprites},
+            this->screen_sprite_debug_vbo, this->screen_sprite_debug_ebo,
             3_z * 4_z, 3_z * 6_z);
     };
     const auto update = [
@@ -279,7 +347,10 @@ bool Renderers::update_debug(bool sprites_updated) {
         return !(updated || flag)
             || (enabled ? f() : this->graphics->set_buffer_size(ebo, 0));
     };
-    return update(sprites_updated, update_sprite_debug, this->sprite_debug_ebo);
+    return update(sprites_updated, update_sprite_debug, this->sprite_debug_ebo)
+        && update(
+            screen_sprites_updated, update_screen_sprite_debug,
+            this->screen_sprite_debug_ebo);
 }
 
 }

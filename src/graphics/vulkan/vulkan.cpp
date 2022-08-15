@@ -1061,6 +1061,7 @@ bool VulkanBackend::update_render_list() {
     }
     for(auto *l : {
         &this->render_list.normal, &this->render_list.overlay,
+        &this->render_list.screen,
     })
         for(auto &x : *l)
             x.pipeline = pipelines[x.conf - 1];
@@ -1158,6 +1159,15 @@ bool VulkanBackend::create_cmd_buffer(std::size_t img_idx) {
         render(b, "normal", viewport, scissors, this->render_list.normal);
         push_alpha(b, this->pipeline_layout, .5);
         render(b, "overlay", viewport, scissors, this->render_list.overlay);
+        vkCmdClearAttachments(
+            b, 1, nngn::rptr(VkClearAttachment{
+                .aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT,
+                .clearValue = {.depthStencil = {1, 0}},
+            }),
+            1, nngn::rptr(VkClearRect{
+                .rect = {.extent = {width, height}},
+                .layerCount = 1,
+            }));
         bind_descriptors(
             b, this->pipeline_layout, "screen", 0,
             std::array{camera_desc.ids()[0], tex_desc.ids()[0]},

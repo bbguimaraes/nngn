@@ -41,13 +41,17 @@ public:
     auto debug(void) const { return *this->m_debug; }
     bool perspective(void) const;
     auto max_sprites(void) const { return this->sprites.capacity(); }
+    auto max_screen_sprites(void) const;
     /** Total number of active renderers. */
     std::size_t n(void) const;
     /** Number of active sprite renderers. */
     std::size_t n_sprites(void) const { return this->sprites.size(); }
+    /** Number of active screen sprite renderers. */
+    std::size_t n_screen_sprites(void) const { return this->sprites.size(); }
     void set_debug(Debug d);
     void set_perspective(bool p);
     bool set_max_sprites(std::size_t n);
+    bool set_max_screen_sprites(std::size_t n);
     /**
      * Associates this system with a graphics back end.
      * Must be called before \c update.  It is assumed that the current
@@ -63,25 +67,33 @@ public:
     /** Processes changed renderers/configuration and updates graphics. */
     bool update(void);
 private:
-    bool update_renderers(bool sprites_updated);
-    bool update_debug(bool sprites_updated);
+    bool update_renderers(bool sprites_updated, bool screen_sprites_updated);
+    bool update_debug(bool sprites_updated, bool screen_sprites_updated);
     enum Flag : u8 {
         SPRITES_UPDATED = 1u << 0,
-        DEBUG_UPDATED = 1u << 1,
-        PERSPECTIVE = 1u << 2,
+        SCREEN_SPRITES_UPDATED = 1u << 1,
+        DEBUG_UPDATED = 1u << 2,
+        PERSPECTIVE = 1u << 3,
     };
     Flags<Flag> flags = {};
     Flags<Debug> m_debug = {};
     Textures *textures = nullptr;
     Graphics *graphics = nullptr;
     std::vector<SpriteRenderer> sprites = {};
+    std::vector<SpriteRenderer> screen_sprites = {};
     u32
         sprite_vbo = {}, sprite_ebo = {},
-        sprite_debug_vbo = {}, sprite_debug_ebo = {};
+        sprite_debug_vbo = {}, sprite_debug_ebo = {},
+        screen_sprite_vbo = {}, screen_sprite_ebo = {},
+        screen_sprite_debug_vbo = {}, screen_sprite_debug_ebo = {};
 };
 
 inline bool Renderers::perspective(void) const {
     return this->flags.is_set(Flag::PERSPECTIVE);
+}
+
+inline auto Renderers::max_screen_sprites(void) const {
+    return this->screen_sprites.capacity();
 }
 
 }

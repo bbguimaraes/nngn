@@ -25,6 +25,7 @@ struct Gen {
     // Renderers
     static void sprite_ortho(Vertex **p, SpriteRenderer *x);
     static void sprite_persp(Vertex **p, SpriteRenderer *x);
+    static void screen_sprite(Vertex **p, SpriteRenderer *x);
     static void sprite_debug(Vertex **p, SpriteRenderer *x);
 };
 
@@ -90,6 +91,15 @@ inline void Gen::sprite_persp(Vertex **p, SpriteRenderer *x) {
     Gen::quad_vertices_persp(
         p, bl, {x->pos.x + s.x, bl.y + x->size.y},
         x->pos.y + x->z_off, x->tex, x->uv[0], x->uv[1]);
+}
+
+inline void Gen::screen_sprite(Vertex **p, SpriteRenderer *x) {
+    x->flags.clear(Renderer::Flag::UPDATED);
+    const auto pos = x->pos.xy();
+    const auto s = x->size / 2.0f;
+    Gen::quad_vertices(
+        p, pos - s, pos + s, x->pos.z,
+        x->tex, x->uv[0], x->uv[1]);
 }
 
 inline void Gen::sprite_debug(Vertex **p, SpriteRenderer *x) {
