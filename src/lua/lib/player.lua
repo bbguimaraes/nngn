@@ -1,8 +1,9 @@
-local camera = require "nngn.lib.camera"
-local entity = require "nngn.lib.entity"
+local camera <const> = require "nngn.lib.camera"
+local entity <const> = require "nngn.lib.entity"
 local menu <const> = require("nngn.lib.menu")
-local utils = require "nngn.lib.utils"
+local utils <const> = require "nngn.lib.utils"
 
+local MAX_MANA <const> = 16
 local FACE <const> = {
     LEFT = 00, RIGHT = 01, DOWN = 02, UP = 03, N = 4,
 }
@@ -64,6 +65,7 @@ local function add(e)
         entity = e,
         face = FACE.DOWN,
         data = {
+            mana = 0,
             menu = menu.new_player(),
         },
     }
@@ -140,106 +142,7 @@ local function face_vec(p, l)
     end
 end
 
-local function sword(p)
-    p = p or list[cur]
-    if not p then
-        return
-    end
-    local d <const> = p.data
-    if d.sword then
-        return
-    end
-    local e <const> = p.entity
-    local t <const> = dofile("src/lson/zelda/sword.lua")
-    t.parent = e
-    t.pos = face_vec(p, 8)
-    t.renderer.z_off = -16
-    local dy, ti = 0, 0, 1
-    if 0 < t.pos[2] then
-        dy = 1
-    elseif t.pos[1] < 0 then
-        dy = 2
-    elseif t.pos[2] < 0 then
-        dy = 3
-    end
-    for _, x in ipairs(t.anim.sprite[3][1]) do
-        x[2] = x[2] + dy
-    end
-    local anim <const> = e:animation():sprite()
-    anim:set_track(anim:cur_track() % 4 + 12)
-    local sw <const> = {p = p, e = entity.load(nil, nil, t)}
-    p.data.sword = sw
-    nngn:schedule():in_ms(0, 270, function()
-        anim:set_track(anim:cur_track() % 4)
-        nngn:remove_entity(sw.e)
-        if sw.stop then
-            stop(sw.p)
-        end
-        d.sword = nil
-    end)
-end
-
-local function light(p, show)
-    p = p or list[cur]
-    if not p then
-        return
-    end
-    local d <const> = p.data
-    if show == nil then
-        show = not d.light
-    end
-    if show then
-        local pos <const> = face_vec(p, 8)
-        pos[2] = pos[2] + p.entity:renderer():z_off()
-        if pos[1] ~= 0 then
-            pos[2] = pos[2] - 4
-        end
-        pos[3] = 24
-        if d.light then
-            d.light:set_pos(table.unpack(pos))
-        else
-            d.light = entity.load(nil, nil, {
-                pos = pos, parent = p.entity,
-                light = {
-                    type = Light.POINT,
-                    color = {1, .8, .5, 1}, att = 512},
-                })
-        end
-    elseif d.light then
-        nngn:remove_entity(d.light)
-        d.light = nil
-    end
-end
-
-local function flashlight(p, show)
-    p = p or list[cur]
-    if not p then
-        return
-    end
-    local d <const> = p.data
-    if show == nil then
-        show = not d.flashlight
-    end
-    if show then
-        local dir <const> = face_vec(p, 1)
-        dir[3] = 0
-        if d.flashlight then
-            d.flashlight:light():set_dir(table.unpack(dir))
-        else
-            d.flashlight = entity.load(nil, nil, {
-                pos = {0, p.entity:renderer():z_off(), 12},
-                parent = p.entity,
-                light = {
-                    type = Light.POINT, dir = dir, color = {1, 1, 1, 1},
-                    att = 512, cutoff = math.cos(math.rad(22.5))},
-                })
-        end
-    elseif d.flashlight then
-        nngn:remove_entity(d.flashlight)
-        d.flashlight = nil
-    end
-end
-
+local light, flashlight
 local function on_face_change(p)
     p = p or list[cur]
     if not p then
@@ -354,6 +257,19 @@ local function action(p, press)
     end
 end
 
+local function mana(p, x)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local m0 <const> = p.data.mana
+    local m1 <const> = m0 + x
+    if 0 <= m1 and m1 <= MAX_MANA then
+        p.data.mana = m1
+    end
+    return p.data.mana, p.data.mana ~= m0
+end
+
 local function fairy(p, show)
     p = p or list[cur]
     if not p then
@@ -396,6 +312,67 @@ local function fairy(p, show)
     end
 end
 
+function light(p, show)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local d <const> = p.data
+    if show == nil then
+        show = not d.light
+    end
+    if show then
+        local pos <const> = face_vec(p, 8)
+        pos[2] = pos[2] + p.entity:renderer():z_off()
+        if pos[1] ~= 0 then
+            pos[2] = pos[2] - 4
+        end
+        pos[3] = 24
+        if d.light then
+            d.light:set_pos(table.unpack(pos))
+        else
+            d.light = entity.load(nil, nil, {
+                pos = pos, parent = p.entity,
+                light = {
+                    type = Light.POINT,
+                    color = {1, .8, .5, 1}, att = 512},
+                })
+        end
+    elseif d.light then
+        nngn:remove_entity(d.light)
+        d.light = nil
+    end
+end
+
+function flashlight(p, show)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local d <const> = p.data
+    if show == nil then
+        show = not d.flashlight
+    end
+    if show then
+        local dir <const> = face_vec(p, 1)
+        dir[3] = 0
+        if d.flashlight then
+            d.flashlight:light():set_dir(table.unpack(dir))
+        else
+            d.flashlight = entity.load(nil, nil, {
+                pos = {0, p.entity:renderer():z_off(), 12},
+                parent = p.entity,
+                light = {
+                    type = Light.POINT, dir = dir, color = {1, 1, 1, 1},
+                    att = 512, cutoff = math.cos(math.rad(22.5))},
+                })
+        end
+    elseif d.flashlight then
+        nngn:remove_entity(d.flashlight)
+        d.flashlight = nil
+    end
+end
+
 local function fire(p, show)
     p = p or list[cur]
     if not p then
@@ -409,6 +386,10 @@ local function fire(p, show)
         p.data.fire = d
     end
     if show then
+        local _, has_mana <const> = mana(p, -2)
+        if not has_mana then
+            return
+        end
         if d.entity then
             d.remove()
         end
@@ -461,6 +442,107 @@ local function fire(p, show)
     end
 end
 
+local function sword(p)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local d <const> = p.data
+    if d.sword then
+        return
+    end
+    local e <const> = p.entity
+    local t <const> = dofile("src/lson/zelda/sword.lua")
+    t.parent = e
+    t.pos = face_vec(p, 8)
+    t.renderer.z_off = -16
+    local dy, ti = 0, 0, 1
+    if 0 < t.pos[2] then
+        dy = 1
+    elseif t.pos[1] < 0 then
+        dy = 2
+    elseif t.pos[2] < 0 then
+        dy = 3
+    end
+    for _, x in ipairs(t.anim.sprite[3][1]) do
+        x[2] = x[2] + dy
+    end
+    local anim <const> = e:animation():sprite()
+    anim:set_track(anim:cur_track() % 4 + 12)
+    local sw <const> = {p = p, e = entity.load(nil, nil, t)}
+    p.data.sword = sw
+    nngn:schedule():in_ms(0, 270, function()
+        anim:set_track(anim:cur_track() % 4)
+        nngn:remove_entity(sw.e)
+        if sw.stop then
+            stop(sw.p)
+        end
+        d.sword = nil
+    end)
+end
+
+local function light(p, show)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local d <const> = p.data
+    if show == nil then
+        show = not d.light
+    end
+    if show then
+        local pos <const> = face_vec(p, 8)
+        pos[2] = pos[2] + p.entity:renderer():z_off()
+        if pos[1] ~= 0 then
+            pos[2] = pos[2] - 4
+        end
+        pos[3] = 24
+        if d.light then
+            d.light:set_pos(table.unpack(pos))
+        else
+            d.light = entity.load(nil, nil, {
+                pos = pos, parent = p.entity,
+                light = {
+                    type = Light.POINT,
+                    color = {1, .8, .5, 1}, att = 512},
+                })
+        end
+    elseif d.light then
+        nngn:remove_entity(d.light)
+        d.light = nil
+    end
+end
+
+local function flashlight(p, show)
+    p = p or list[cur]
+    if not p then
+        return
+    end
+    local d <const> = p.data
+    if show == nil then
+        show = not d.flashlight
+    end
+    if show then
+        local dir <const> = face_vec(p, 1)
+        dir[3] = 0
+        if d.flashlight then
+            d.flashlight:light():set_dir(table.unpack(dir))
+        else
+            d.flashlight = entity.load(nil, nil, {
+                pos = {0, p.entity:renderer():z_off(), 12},
+                parent = p.entity,
+                light = {
+                    type = Light.POINT, dir = dir, color = {1, 1, 1, 1},
+                    att = 512, cutoff = math.cos(math.rad(22.5))},
+                })
+        end
+    elseif d.flashlight then
+        nngn:remove_entity(d.flashlight)
+        d.flashlight = nil
+    end
+end
+
+
 return {
     FACE = FACE,
     ANIMATION = ANIMATION,
@@ -481,9 +563,12 @@ return {
     move = move,
     move_all = move_all,
     face_vec = face_vec,
-    sword = sword,
+    menu = player_menu,
+    action = action,
+    mana = mana,
     fairy = fairy,
     light = light,
     flashlight = flashlight,
     fire = fire,
+    sword = sword,
 }
