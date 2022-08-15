@@ -14,6 +14,7 @@ LUA_FILES += \
 	%reldir%/lib/input.lua \
 	%reldir%/lib/inspect.lua \
 	%reldir%/lib/math.lua \
+	%reldir%/lib/menu.lua \
 	%reldir%/lib/plot.lua \
 	%reldir%/lib/profile.lua \
 	%reldir%/lib/serial.lua \

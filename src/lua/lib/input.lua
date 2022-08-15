@@ -1,4 +1,5 @@
 local camera = require "nngn.lib.camera"
+local menu = require "nngn.lib.menu"
 local utils = require "nngn.lib.utils"
 
 local input <const> = BindingGroup.new()
@@ -67,6 +68,8 @@ register({
         local c <const> = camera:get()
         c:set_ignore_limits(not c:ignore_limits())
     end},
+    {"E", Input.SEL_PRESS, function(_, _, mods) menu.menu(mods) end},
+    {"F", Input.SEL_PRESS, menu.action},
     {"P", Input.SEL_PRESS, pause},
     {Input.KEY_LEFT, 0, camera.move},
     {Input.KEY_RIGHT, 0, camera.move},
