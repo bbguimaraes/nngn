@@ -26,8 +26,9 @@ local BACK_ENDS <const> = {
         Graphics.TERMINAL_BACKEND,
         Graphics.terminal_params{
             flags =
-                Graphics.TERMINAL_FLAG_REPOSITION
-                | Graphics.TERMINAL_FLAG_DEDUPLICATE
+--                Graphics.TERMINAL_FLAG_REPOSITION
+--                | Graphics.TERMINAL_FLAG_DEDUPLICATE
+                0
                 | Graphics.TERMINAL_FLAG_HIDE_CURSOR
                 | Graphics.TERMINAL_FLAG_RESET_COLOR,
             mode = Graphics.TERMINAL_MODE_COLORED,

@@ -19,11 +19,14 @@ std::unique_ptr<Graphics> graphics_create_backend<backend>(const void*) {
 
 #else
 
+#include <ncurses.h>
+
 #include "font/font.h"
 #include "graphics/pseudo.h"
 #include "os/terminal.h"
 #include "timing/limit.h"
 #include "utils/flags.h"
+#include "utils/span.h"
 
 #include "frame_buffer.h"
 #include "rasterizer.h"
@@ -295,10 +298,66 @@ bool TerminalBackend::render(void) {
     rasterize(proj, this->render_list.overlay);
     rasterize(hud_proj, this->render_list.hud);
     this->frame_buffer.flip();
-    const auto nw = this->frame_buffer.dedup();
-    return this->term.drain()
-        && this->term.write(this->frame_buffer.span().subspan(0, nw))
-        && this->term.flush()
+//    const auto nw = this->frame_buffer.dedup();
+    return true // this->term.drain()
+//        && this->term.write(this->frame_buffer.span().subspan(0, nw))
+        && [this] {
+            static bool initialized = false;
+            if(!initialized) {
+                initialized = true;
+                initscr();
+                raw();
+                noecho();
+                start_color();
+            }
+            const auto size = this->term.size();
+            const auto s = nngn::byte_cast<unsigned>(
+//            const auto s = nngn::byte_cast<std::array<char, 20>>(
+                this->frame_buffer.span());
+//            this->term.write(s0);
+            constexpr auto color = [](auto *p) -> unsigned {
+//                constexpr auto parse = [](auto *pp) {
+//                    return (pp[0] - '0') * 100
+//                        + (pp[1] - '0') * 10
+//                        + (pp[2] - '0');
+//                };
+//                const auto r = parse(p + 7);
+//                const auto g = parse(p + 11);
+//                const auto b = parse(p + 15);
+                {
+//                    const auto c = (r << 16) | (g << 8) | b;
+                    static int pairs[1 << 24] = {};
+                    const auto c = static_cast<int>(*p);
+                    if(!pairs[c])
+                        pairs[c] = alloc_pair(c, c);
+                    return COLOR_PAIR(pairs[c]);
+                }
+//                const auto npc = (COLOR_PAIRS - 16) / 3;
+//                const auto i = 16
+//                    + (r * npc / 256 + 2 * npc)
+//                        + (g * npc / 256 + npc)
+//                        + (b * npc / 256);
+//                static bool pair_initialized[1 << 24] = {};
+//                if(!pair_initialized[i]) {
+//                    const auto c = (r << 16) | (r << 8) | r;
+//                    if(init_extended_pair(i, c, c) == ERR)
+//                        return COLOR_PAIR(1);
+//                    pair_initialized[i] = true;
+//                }
+//                return COLOR_PAIR(i);
+            };
+            for(std::size_t y = 0; y != size.y; ++y) {
+                move(static_cast<int>(y), 0);
+                for(std::size_t x = 0; x != size.x; ++x) {
+//                    attr_on(color(s[size.x * y + x].data()), NULL);
+                    attr_on(color(&s[size.x * y + x]), NULL);
+                    addch(' ');
+                }
+            }
+            refresh();
+            return true;
+        }()
+//        && this->term.flush()
         && (this->frame_limiter.limit(), true);
 }
 

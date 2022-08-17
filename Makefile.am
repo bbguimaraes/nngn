@@ -23,7 +23,7 @@ noinst_HEADERS =
 bin_PROGRAMS = @NNGN_BIN@
 EXTRA_PROGRAMS = nngn$(EXEEXT) nngn.js
 
-nngn_LDADD = $(DEPS_LIBS)
+nngn_LDADD = $(DEPS_LIBS) -lncurses
 nngn_SOURCES =
 
 nngn_js_SOURCES = $(nngn_SOURCES)

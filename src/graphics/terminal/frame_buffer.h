@@ -110,7 +110,7 @@ inline constexpr std::size_t FrameBuffer::prefix_size_from_flags(Flag f) {
 inline std::size_t FrameBuffer::pixel_size(void) const {
     switch(this->mode) {
     case Mode::COLORED:
-        return sizeof(ColoredPixel);
+        return sizeof(unsigned); // sizeof(ColoredPixel);
     case Mode::ASCII:
     default:
         return 1;
@@ -158,11 +158,12 @@ inline void FrameBuffer::write_colored(
     const auto fc = static_cast<vec4>(color);
     const auto rgb = static_cast<Texture::texel3>(fc.xyz() * (fc[3] / 255.0f));
     const auto w = static_cast<std::size_t>(this->m_size.x);
-    const auto i = w * y + x;
-    assert(i < this->pixels().size());
-    const auto px = ColoredPixel{rgb};
-    const auto ps = nngn::byte_cast<ColoredPixel>(this->pixels());
-    std::memcpy(&ps[i], &px, sizeof(px));
+    const auto i = sizeof(unsigned) * (w * y + x);
+    const auto c =
+        (static_cast<unsigned>(rgb[0]) << 16)
+        | (static_cast<unsigned>(rgb[1]) << 8)
+        | static_cast<unsigned>(rgb[2]);
+    std::memcpy(&this->pixels()[i], &c, sizeof(c));
 }
 
 }

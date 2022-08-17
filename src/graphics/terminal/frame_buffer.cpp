@@ -62,7 +62,7 @@ void FrameBuffer::resize_and_clear(uvec2 s) {
         resize_and_fill(this, &this->v, n, ' ');
         break;
     case Mode::COLORED:
-        resize_and_fill(this, &this->v, n, ColoredPixel{});
+        resize_and_fill(this, &this->v, n, unsigned{}/*ColoredPixel{}*/);
         break;
     }
     if(!empty)
