@@ -9,13 +9,15 @@ namespace impero {
 
 class Widget : public QWidget {
     Q_OBJECT
-    void keyPressEvent(QKeyEvent *e) override;
 public:
     Widget(QWidget *p = nullptr);
     void add_edit(QLineEdit *e);
     void add_panel(QWidget *w);
 signals:
     void selection_moved(bool forward);
+private:
+    void keyPressEvent(QKeyEvent *e) override;
+    QFont font = {};
 };
 
 }

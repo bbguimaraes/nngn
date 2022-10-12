@@ -6,7 +6,12 @@
 
 namespace impero {
 
-Widget::Widget(QWidget *p) : QWidget(p) { new QVBoxLayout(this); }
+Widget::Widget(QWidget *p) : QWidget(p) {
+    new QVBoxLayout(this);
+    this->font.setFamily("monospace");
+    this->font.setStyleHint(QFont::Monospace);
+    this->font.setFixedPitch(true);
+}
 
 void Widget::keyPressEvent(QKeyEvent *e) {
     switch(e->key()) {
@@ -17,6 +22,10 @@ void Widget::keyPressEvent(QKeyEvent *e) {
 }
 
 void Widget::add_edit(QLineEdit *e) { this->layout()->addWidget(e); }
-void Widget::add_panel(QWidget *w) { this->layout()->addWidget(w); }
+
+void Widget::add_panel(QWidget *w) {
+    this->layout()->addWidget(w);
+    w->setFont(this->font);
+}
 
 }
