@@ -18,6 +18,23 @@ auto widget(QLayout *l, auto i) {
     return w;
 }
 
+bool includes_unsorted(
+    std::ranges::range auto &&r, std::ranges::range auto &&sub)
+{
+    return std::ranges::all_of(sub, [
+        i = std::ranges::begin(r),
+        e = std::ranges::end(r)
+    ](auto x) mutable {
+        return (i = std::find(i, e, x)) != e
+            && (std::advance(i, 1), true);
+    });
+}
+
+bool matches(const QString &filter, const QString &text) {
+    return text.contains(filter)
+        || includes_unsorted(text, filter);
+}
+
 std::size_t update_enabled(QLayout *l, const QString &filter) {
     auto v = impero::layout_widget_view(l) | impero::as<QLabel*>;
     if(filter.isEmpty()) {
@@ -27,7 +44,7 @@ std::size_t update_enabled(QLayout *l, const QString &filter) {
     }
     return impero::accumulate(
         v | std::views::transform([&filter](auto *l) {
-            const bool b = l->text().contains(filter);
+            const bool b = matches(filter, l->text());
             l->setEnabled(b);
             return static_cast<std::size_t>(b);
         }));
